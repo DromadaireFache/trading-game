@@ -5,12 +5,15 @@
  * - First frame on every socket is `join`; with a stored token it resumes the session.
  * - Reconnects forever with exponential backoff (config.net.reconnectMinMs .. reconnectMaxMs).
  * - State is exposed for React through subscribe/getState (useSyncExternalStore).
- * - Raw messages are available through onMessage for high-frequency consumers (charts, sounds).
+ * - Raw messages are available through onMessage for high-frequency consumers (sounds, effects).
+ * - Market data (universe, prices, candles) is NOT in GameState: it lives in `market` (MarketStore),
+ *   which has per-symbol subscriptions so 10 Hz ticks do not re-render the app.
  *
  * Everything environment-specific (socket, storage, clock) is injectable so this runs in vitest.
  */
 import { defaultConfig, WS_CLOSE_REPLACED } from '@tg/shared';
 import type { ClientMsg, JoinMsg, Role, ServerMsg } from '@tg/shared';
+import { MarketStore } from './marketStore.ts';
 import { browserSessionStorage, clearSession, loadSession, saveSession } from './session.ts';
 import type { SessionStorageLike } from './session.ts';
 import { applyServerMsg, initialGameState, parseServerMsg } from './state.ts';
@@ -54,6 +57,8 @@ export class GameClient {
   private readonly createSocket: (url: string) => SocketLike;
   private readonly storage: SessionStorageLike | null;
   private readonly now: () => number;
+  /** Universe, prices and candles; fed by `market`, `tick` and `candle` messages. */
+  readonly market: MarketStore;
 
   private state: GameState = initialGameState;
   private readonly stateListeners = new Set<() => void>();
@@ -75,6 +80,7 @@ export class GameClient {
     this.createSocket = options.createSocket ?? ((url) => new WebSocket(url) as unknown as SocketLike);
     this.storage = options.storage === undefined ? browserSessionStorage() : options.storage;
     this.now = options.now ?? (() => Date.now());
+    this.market = new MarketStore(this.storage, this.role);
   }
 
   // --- store ---------------------------------------------------------------
@@ -264,6 +270,9 @@ export class GameClient {
     if (msg.t === 'welcome') {
       this.pendingName = null;
       saveSession(this.storage, this.role, { token: msg.token, name: msg.name });
+      this.market.setConfig(msg.config);
+    } else if (msg.t === 'market' || msg.t === 'tick' || msg.t === 'candle') {
+      this.market.apply(msg);
     }
 
     let next = applyServerMsg(this.state, msg, this.now());

@@ -16,6 +16,7 @@ import type {
   CardOffer,
   GameConfig,
   LeaderboardEntry,
+  MarketSnapshot,
   MomentKind,
   OHLC,
   Phase,
@@ -26,6 +27,7 @@ import type {
   Statement,
   SymbolId,
 } from '@tg/shared';
+import type { Universe } from './universe.ts';
 
 // ---------------------------------------------------------------------------
 // Intents: plain objects, queued by submit(), processed in arrival order at the next tick()
@@ -62,9 +64,15 @@ export type SimEvent =
   | { e: 'phase'; phase: Phase; quarter: number; durationTicks: number | null }
   /** An intent was refused. The shell forwards it to that player as an `error` message. */
   | { e: 'reject'; playerId: PlayerId; intent: SimIntentKind; code: SimRejectCode; message: string }
-  // --- later milestones: shapes mirror the wire messages in @tg/shared ---
-  | { e: 'tick'; day: number; prices: Record<SymbolId, number> }
+  /**
+   * Market (milestone 2). Only while prices move, i.e. once per tick() during TRADING: all symbols,
+   * UNROUNDED (the shell rounds with roundPrice). `day` = 0-based trading day since game start,
+   * continuing across quarters; `tickOfDay` = 1..ticksPerCandle.
+   */
+  | { e: 'tick'; day: number; tickOfDay: number; prices: Record<SymbolId, number> }
+  /** The closed candle of `day`, in the same tick() result right after that day's last `tick` event. */
   | { e: 'candle'; day: number; ohlc: Record<SymbolId, OHLC> }
+  // --- later milestones: shapes mirror the wire messages in @tg/shared ---
   /** `to` set = private (insider preview with early: true); unset = broadcast. */
   | { e: 'headline'; to?: PlayerId; id: string; text: string; symbol?: SymbolId; sector?: Sector; ts: number; early?: boolean }
   | { e: 'fill'; playerId: PlayerId; symbol: SymbolId; qty: number; price: number }
@@ -138,6 +146,18 @@ export interface Sim {
    */
   tick(): SimEvent[];
   getState(): SimState;
+  /**
+   * The full universe INCLUDING hidden parameters (betas, sigma, fundamentals). For the sim's own
+   * subsystems, tests and the balance harness. The shell must never send it: clients get
+   * getMarketSnapshot().universe.
+   */
+  getUniverse(): Universe;
+  /**
+   * Public universe + closed candles since day 0 + current prices (+ the partial candle of the day in
+   * progress), unrounded. Valid in every phase (in LOBBY: start prices, no candles). The shell sends
+   * it, rounded, as the `market` message after each `welcome`. Returns fresh objects.
+   */
+  getMarketSnapshot(): MarketSnapshot;
 }
 
 export type CreateSim = (seed: number, config: GameConfig) => Sim;

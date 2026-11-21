@@ -6,10 +6,16 @@ import { useCountdown } from '../../hooks/useCountdown.ts';
 import { PHASE_HINT, PHASE_LABEL } from '../../lib/phases.ts';
 import { formatQuarter } from '../../lib/time.ts';
 import { useGame } from '../../net/GameProvider.tsx';
+import { useSymbols } from '../../net/marketHooks.ts';
+import { CandleChart } from '../market/CandleChart.tsx';
+import { SymbolHeader } from '../market/SymbolHeader.tsx';
+import '../market/market.css';
 
 /**
- * Projector view: big phase, countdown and roster, readable from the back of the room.
- * Later: index chart, ticker tape, leaderboard and full-screen BREAKING moments slot into floor__main.
+ * Projector view: phase, countdown and roster, readable from the back of the room. In the lobby the
+ * phase and the join address fill the screen; once the game runs they shrink to a status line and
+ * the index fund chart takes the space.
+ * Later: ticker tape, leaderboard and full-screen BREAKING moments slot into floor__main.
  */
 export function FloorView() {
   const { phase, lobby, config, joinUrls, replaced } = useGame();
@@ -21,6 +27,9 @@ export function FloorView() {
   const isLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
   const playUrl = (isLoopback ? joinUrls[0] : undefined) ?? `${location.origin}/play`;
   const players = lobby?.players.length ?? 0;
+  // The index fund is the market on the projector.
+  const index = useSymbols().find((s) => s.kind === 'index')?.symbol ?? null;
+  const showMarket = current !== 'LOBBY' && index !== null;
 
   if (replaced) return <SeatTaken />;
 
@@ -34,15 +43,17 @@ export function FloorView() {
         <ConnectionBadge />
       </header>
 
-      <main className="floor__main">
-        <div className="floor__phase" data-testid="phase" data-phase={current}>
-          {PHASE_LABEL[current]}
-        </div>
-        <div
-          className={`floor__countdown${urgent ? ' floor__countdown--urgent' : ''}${countdown.ms === null ? ' floor__countdown--idle' : ''}`}
-          data-testid="countdown"
-        >
-          {countdown.text}
+      <main className={`floor__main${showMarket ? ' floor__main--market' : ''}`}>
+        <div className="floor__status">
+          <div className="floor__phase" data-testid="phase" data-phase={current}>
+            {PHASE_LABEL[current]}
+          </div>
+          <div
+            className={`floor__countdown${urgent ? ' floor__countdown--urgent' : ''}${countdown.ms === null ? ' floor__countdown--idle' : ''}`}
+            data-testid="countdown"
+          >
+            {countdown.text}
+          </div>
         </div>
         <div className="floor__hint">
           {current === 'LOBBY' ? (
@@ -54,8 +65,14 @@ export function FloorView() {
           )}
         </div>
         <div className="floor__progress" aria-hidden="true">
-          <div className="floor__progress-bar" style={{ width: `${(countdown.progress ?? 0) * 100}%` }} />
+          <div className="floor__progress-bar" style={{ transform: `scaleX(${countdown.progress ?? 0})` }} />
         </div>
+        {showMarket && (
+          <section className="floor__market" data-testid="floor-market">
+            <SymbolHeader symbol={index} size="large" />
+            <CandleChart symbol={index} size="large" />
+          </section>
+        )}
         <ErrorBanner />
       </main>
 

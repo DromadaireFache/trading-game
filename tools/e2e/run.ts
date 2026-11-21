@@ -13,6 +13,11 @@
  * live countdown through every quarter to FINAL, reload = same player, late join refused, /floor as a
  * spectator that is not counted as a player, raw websocket join through the Vite proxy, no page overflow
  * at 1366x768, countdown cadence, a duplicated tab (old tab is blocked) and a lost tab (back in by name).
+ * Milestone 2 (market): the `market` snapshot through the proxy, 61 symbols in 11 groups on both players,
+ * on-screen prices equal one server tick and agree between the two windows, a candle chart that grows one
+ * candle per second and really has candles painted (stock, index fund, /floor), prices frozen outside
+ * TRADING and continuing next quarter with continuing day numbers, a mid-quarter refresh that restores
+ * list + chart history, and main-thread health at 10 Hz.
  * Later milestones: add a `step(...)` block in main() after the ones that are there.
  */
 import { execFileSync, spawn } from 'node:child_process';
@@ -23,20 +28,27 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import type { Browser, Page } from 'playwright-core';
-import { QUARTER_PHASES, defaultConfig } from '@tg/shared';
-import type { DeepPartial, GameConfig, LobbyState, Phase } from '@tg/shared';
+import { QUARTER_PHASES, SECTORS, defaultConfig } from '@tg/shared';
+import type { DeepPartial, GameConfig, LobbyState, MarketMsg, Phase, ServerMsg, TickMsg } from '@tg/shared';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const outDir = resolve(repo, '.e2e');
 
-/** Short phases: one quarter = 1.5 + 6 + 0.8 + 1.5 + 1.5 = 11.3 s, two quarters to FINAL. */
+/** Short phases: one quarter = 1.5 + 26 + 0.8 + 1.5 + 1.5 = 31.3 s, two quarters to FINAL. */
 const QUARTERS = 2;
+/** Trading days per quarter: long enough to click around, reload and watch candles appear. */
+const DAYS = 26;
+const TICKS_PER_DAY = defaultConfig.time.ticksPerCandle;
+const DAY_MS = TICKS_PER_DAY * defaultConfig.time.tickMs;
+const TRADING_MS = DAYS * DAY_MS;
 const overrides: DeepPartial<GameConfig> = {
-  time: { quarters: QUARTERS, daysPerQuarter: 6 },
+  time: { quarters: QUARTERS, daysPerQuarter: DAYS },
   phaseMs: { BRIEFING: 1500, EARNINGS: 800, RESULTS: 1500, SHOP: 1500 },
   lobby: { minPlayers: 2 },
 };
-const GAME_MS = QUARTERS * (1500 + 6000 + 800 + 1500 + 1500);
+const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800 + 1500 + 1500);
+const COMPANIES_PER_SECTOR = defaultConfig.market.companiesPerSector;
+const SYMBOL_COUNT = 1 + SECTORS.length + SECTORS.length * COMPANIES_PER_SECTOR;
 const WAIT_MS = 15_000;
 /** The countdown display is re-rendered every countdownRefreshMs, so a second can show that much late. */
 const CADENCE_TOLERANCE_MS = defaultConfig.presentation.countdownRefreshMs + 100;
@@ -232,6 +244,190 @@ function wsJoin(url: string, join: object): Promise<{ t: string; [k: string]: un
   });
 }
 
+/** Collects the first `count` server messages of a bare websocket session. */
+function wsCollect(url: string, join: object, count: number): Promise<ServerMsg[]> {
+  return new Promise((res, rej) => {
+    const ws = new WebSocket(url);
+    const got: ServerMsg[] = [];
+    const timer = setTimeout(() => {
+      ws.close();
+      rej(new Error(`only ${got.length} of ${count} messages from ${url}`));
+    }, WAIT_MS);
+    ws.onopen = () => ws.send(JSON.stringify(join));
+    ws.onerror = () => {
+      clearTimeout(timer);
+      rej(new Error(`websocket error on ${url}`));
+    };
+    ws.onmessage = (ev) => {
+      got.push(JSON.parse(String(ev.data)) as ServerMsg);
+      if (got.length !== count) return;
+      clearTimeout(timer);
+      ws.close();
+      res(got);
+    };
+  });
+}
+
+// --- market helpers (milestone 2) ------------------------------------------------
+
+/** Every server frame a page received, in order (all its websockets, so it survives reloads). */
+const wire = new Map<string, ServerMsg[]>();
+const framesOf = (label: string): ServerMsg[] => wire.get(label) ?? [];
+const ticksOf = (label: string): TickMsg[] => framesOf(label).filter((m): m is TickMsg => m.t === 'tick');
+const snapshotsOf = (label: string): MarketMsg[] => framesOf(label).filter((m): m is MarketMsg => m.t === 'market');
+const tickId = (tick: { day: number; tickOfDay: number }) => tick.day * TICKS_PER_DAY + tick.tickOfDay;
+
+interface BoardRow {
+  symbol: string;
+  kind: string;
+  group: string;
+  price: string;
+  change: string;
+}
+
+/** The symbol list as it is on screen at ONE instant (a single synchronous read of the DOM). */
+const BOARD = `Array.from(document.querySelectorAll('[data-testid=symbol-row]')).map((row) => ({
+  symbol: row.dataset.symbol ?? '',
+  kind: row.dataset.kind ?? '',
+  group: row.closest('[data-testid=symbol-group]')?.dataset.group ?? '',
+  price: row.querySelector('[data-testid=symbol-price]')?.textContent ?? '',
+  change: row.querySelector('[data-testid=symbol-change]')?.textContent ?? '',
+}))`;
+const boardOf = (page: Page) => page.evaluate(BOARD) as Promise<BoardRow[]>;
+const shownPrice = (text: string) => Number(text.replace(/,/g, ''));
+const boardKey = (board: BoardRow[]) => board.map((r) => `${r.symbol}=${r.price}`).join(' ');
+
+/** The most recent tick of `label`'s own stream whose prices are exactly what the board shows. */
+function tickShownBy(label: string, board: BoardRow[]): TickMsg | undefined {
+  const ticks = ticksOf(label);
+  for (let i = ticks.length - 1; i >= 0 && i >= ticks.length - 40; i--) {
+    const tick = ticks[i]!;
+    if (board.every((row) => tick.prices[row.symbol] === shownPrice(row.price))) return tick;
+  }
+  return undefined;
+}
+
+interface ChartSeen {
+  symbol: string;
+  /** Days the chart says it has drawn, including the live one. */
+  candles: number;
+  /** Pixels in the main pane that have the theme's up / down candle color. */
+  upPixels: number;
+  downPixels: number;
+  /** Pixel columns of the main pane that contain candle color; every candle needs at least one. */
+  candleColumns: number;
+  width: number;
+  height: number;
+}
+
+/** Reads the chart's canvas: are candles really painted, not just an empty frame? */
+const CHART = `(() => {
+  const el = document.querySelector('[data-testid=chart]');
+  if (!el) return null;
+  const probe = document.createElement('span');
+  document.body.appendChild(probe);
+  const rgb = (name) => {
+    probe.style.color = 'var(--tg-color-' + name + ')';
+    return (getComputedStyle(probe).color.match(/[0-9]+/g) ?? []).slice(0, 3).map(Number);
+  };
+  const [up, down] = [rgb('up'), rgb('down')];
+  probe.remove();
+  const near = (d, i, c) => Math.abs(d[i] - c[0]) <= 8 && Math.abs(d[i + 1] - c[1]) <= 8 && Math.abs(d[i + 2] - c[2]) <= 8 && d[i + 3] > 200;
+  let main = null;
+  for (const canvas of el.querySelectorAll('canvas')) if (!main || canvas.width * canvas.height > main.width * main.height) main = canvas;
+  const out = { symbol: el.dataset.symbol ?? '', candles: Number(el.dataset.candles ?? 0), upPixels: 0, downPixels: 0, candleColumns: 0, width: 0, height: 0 };
+  if (!main || main.width === 0 || main.height === 0) return out;
+  out.width = main.width;
+  out.height = main.height;
+  const columns = new Uint8Array(main.width);
+  for (const canvas of el.querySelectorAll('canvas')) {
+    if (canvas.width !== main.width || canvas.height !== main.height) continue;
+    const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+      const isUp = near(data, i, up);
+      const isDown = !isUp && near(data, i, down);
+      if (isUp) out.upPixels++;
+      if (isDown) out.downPixels++;
+      if (isUp || isDown) columns[p % canvas.width] = 1;
+    }
+  }
+  out.candleColumns = columns.reduce((n, v) => n + v, 0);
+  return out;
+})()`;
+const chartOf = (page: Page) => page.evaluate(CHART) as Promise<ChartSeen | null>;
+
+/** The chart must show `symbol` with at least `minCandles` days, and the canvas must really contain them. */
+async function checkChartDrawn(page: Page, label: string, symbol: string, minCandles: number): Promise<ChartSeen> {
+  let seen: ChartSeen | null = null;
+  const painted = (c: ChartSeen | null): c is ChartSeen =>
+    c !== null && c.symbol === symbol && c.candles >= minCandles && c.candleColumns >= c.candles && c.upPixels + c.downPixels >= 4 * c.candles;
+  // The canvas is painted on the next animation frame after the data changes.
+  await waitFor(`${label} chart of ${symbol} painted`, async () => painted((seen = await chartOf(page))), 3000).catch(() => {});
+  const c = seen as ChartSeen | null;
+  check(c !== null && c.symbol === symbol, `${label} chart shows ${symbol} (got ${c?.symbol})`);
+  check(c.candles >= minCandles, `${label} chart of ${symbol} has ${c.candles} candles (at least ${minCandles})`);
+  check(painted(c), `${label} chart of ${symbol} has candles painted: ${c.upPixels} up + ${c.downPixels} down pixels in ${c.candleColumns} columns of a ${c.width}x${c.height} canvas`);
+  return c;
+}
+
+interface CandleSeen {
+  symbol: string;
+  candles: number;
+  at: number;
+}
+
+/** Logs every change of the chart's symbol / candle count with a timestamp. */
+const CANDLE_RECORDER = `(() => {
+  const log = (window.__tgCandles = []);
+  let last = '';
+  setInterval(() => {
+    const el = document.querySelector('[data-testid=chart]');
+    if (!el || el.dataset.candles === undefined) return;
+    const key = el.dataset.symbol + ' ' + el.dataset.candles;
+    if (key !== last) { last = key; log.push({ symbol: el.dataset.symbol, candles: Number(el.dataset.candles), at: performance.now() }); }
+  }, 20);
+})()`;
+
+interface PerfSeen {
+  longMs: number;
+  longCount: number;
+  maxGapMs: number;
+  elapsedMs: number;
+}
+
+/** Main-thread health, installed in every page before its scripts: long tasks and timer starvation. */
+const PERF_MONITOR = `(() => {
+  const perf = (window.__tgPerf = { longMs: 0, longCount: 0, maxGapMs: 0, since: performance.now() });
+  try {
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) { perf.longMs += entry.duration; perf.longCount += 1; }
+    }).observe({ entryTypes: ['longtask'] });
+  } catch {}
+  let last = performance.now();
+  setInterval(() => {
+    const now = performance.now();
+    perf.maxGapMs = Math.max(perf.maxGapMs, now - last - 50);
+    last = now;
+  }, 50);
+})()`;
+const perfReset = (page: Page) =>
+  page.evaluate('void Object.assign(window.__tgPerf, { longMs: 0, longCount: 0, maxGapMs: 0, since: performance.now() })');
+const perfOf = (page: Page) =>
+  page.evaluate(
+    '({ longMs: __tgPerf.longMs, longCount: __tgPerf.longCount, maxGapMs: __tgPerf.maxGapMs, elapsedMs: performance.now() - __tgPerf.since })',
+  ) as Promise<PerfSeen>;
+
+const rowOf = (symbol: string) => `${tid('symbol-row')}[data-symbol="${symbol}"]`;
+
+/** Clicks a row and waits until header and chart follow; returns how long that took. */
+async function selectSymbol(page: Page, symbol: string): Promise<number> {
+  const started = Date.now();
+  await page.click(rowOf(symbol));
+  await page.waitForSelector(`${tid('selected-symbol')}[data-symbol="${symbol}"]`);
+  await page.waitForSelector(`${tid('chart')}[data-symbol="${symbol}"]`);
+  return Date.now() - started;
+}
+
 // --- the run -------------------------------------------------------------------
 
 async function main(): Promise<void> {
@@ -277,7 +473,21 @@ async function main(): Promise<void> {
 
     const newPage = async (label: string, width: number, height: number): Promise<Page> => {
       const context = await browser!.newContext({ viewport: { width, height } });
+      await context.addInitScript(PERF_MONITOR);
       const page = await context.newPage();
+      const frames: ServerMsg[] = [];
+      wire.set(label, frames);
+      page.on('websocket', (ws) => {
+        ws.on('framereceived', (frame) => {
+          if (typeof frame.payload !== 'string') return;
+          try {
+            const message = JSON.parse(frame.payload) as ServerMsg;
+            if (typeof message.t === 'string') frames.push(message);
+          } catch {
+            // Vite's own HMR socket also passes by; anything that is not JSON is not ours.
+          }
+        });
+      });
       page.on('console', (m) => {
         // The browser logs refused/failed connections itself; those are expected only after we kill the server.
         if (m.type() === 'error') problems.push(`[${label}] console.error: ${m.text()}`);
@@ -362,6 +572,22 @@ async function main(): Promise<void> {
       check(lobby.players.length === 2 && lobby.spectators === 2, `lobby: 2 players, 2 spectators (got ${lobby.players.length}, ${lobby.spectators})`);
       const garbage = await wsJoin(wsUrl, { nonsense: true });
       check(garbage.t === 'error' && garbage.code === 'bad_message', 'a garbage frame gets error bad_message');
+
+      const [first, second] = await wsCollect(wsUrl, { t: 'join', role: 'spectator' }, 2);
+      check(first?.t === 'welcome' && second?.t === 'market', `welcome is followed by market through the proxy (got ${first?.t}, ${second?.t})`);
+      const market = second as MarketMsg;
+      const kinds = market.universe.symbols.map((s) => s.kind);
+      check(market.universe.symbols.length === SYMBOL_COUNT, `the lobby snapshot lists ${SYMBOL_COUNT} symbols (got ${market.universe.symbols.length})`);
+      check(
+        kinds.filter((k) => k === 'index').length === 1 &&
+          kinds.filter((k) => k === 'sector').length === SECTORS.length &&
+          kinds.filter((k) => k === 'stock').length === SECTORS.length * COMPANIES_PER_SECTOR,
+        `1 index fund, ${SECTORS.length} sector funds, ${SECTORS.length * COMPANIES_PER_SECTOR} stocks`,
+      );
+      check(market.day === 0 && market.tickOfDay === 0 && market.current === null && Object.keys(market.prices).length === SYMBOL_COUNT,
+        'the lobby snapshot is at day 0 with a start price for every symbol and no candle in progress');
+      const hidden = ['betaM', 'betaS', 'sigmaI', 'rateSensitivity', 'adv', 'fundamentals', 'weights', 'units'];
+      check(market.universe.symbols.every((s) => hidden.every((k) => !(k in s))), 'no hidden company parameters on the wire');
     });
 
     await step('reload in the lobby keeps the same player', async () => {
@@ -383,7 +609,10 @@ async function main(): Promise<void> {
       check(true, 'A, B and floor all entered BRIEFING');
       check((await textOf(a, 'quarter')) === `Q1/${QUARTERS}`, `quarter reads Q1/${QUARTERS}`);
       await shot(a, '10-play-BRIEFING');
+      check(!framesOf('A').some((m) => m.t === 'tick' || m.t === 'candle'), 'no tick or candle in LOBBY or the first BRIEFING');
       await Promise.all([waitForPhase(a, 'TRADING'), waitForPhase(b, 'TRADING'), waitForPhase(floor, 'TRADING')]);
+      await Promise.all([perfReset(a), perfReset(b), perfReset(floor)]);
+      await a.evaluate(CANDLE_RECORDER);
       await shot(a, '11-play-TRADING');
       await shot(floor, '12-floor-TRADING');
       await checkNoOverflow(a, 'desk in TRADING at 1366x768');
@@ -394,7 +623,8 @@ async function main(): Promise<void> {
       const first = countdownSeconds(await textOf(a, 'countdown'));
       const floorFirst = countdownSeconds(await textOf(floor, 'countdown'));
       const bFirst = countdownSeconds(await textOf(b, 'countdown'));
-      check(first !== null && first >= 4 && first <= 6, `A countdown starts near 6 s in TRADING (got ${first})`);
+      const tradingS = TRADING_MS / 1000;
+      check(first !== null && first >= tradingS - 2 && first <= tradingS, `A countdown starts near ${tradingS} s in TRADING (got ${first})`);
       check(floorFirst !== null && Math.abs(floorFirst - first) <= 1, `floor countdown agrees with A (${floorFirst} vs ${first})`);
       check(bFirst !== null && Math.abs(bFirst - first) <= 1, `B countdown agrees with A (${bFirst} vs ${first})`);
       await sleep(2000);
@@ -402,10 +632,157 @@ async function main(): Promise<void> {
       check(second !== null && first - second >= 1 && first - second <= 3, `A countdown went down by about 2 s (${first} -> ${second})`);
     });
 
+    // Public universe as player A received it; the tickers depend on the seed, so nothing is hard-coded.
+    const universe = snapshotsOf('A')[0]!.universe.symbols;
+    const indexSymbol = universe.find((s) => s.kind === 'index')!.symbol;
+    const sectorFund = universe.find((s) => s.kind === 'sector')!.symbol;
+    const stocks = universe.filter((s) => s.kind === 'stock');
+    const stockA = stocks[0]!.symbol;
+    const stockB = stocks[COMPANIES_PER_SECTOR + 2]!.symbol;
+
+    await step('market: 61 symbols in 11 groups with live prices on both players', async () => {
+      for (const [label, page] of [['A', a], ['B', b]] as const) {
+        const board = await boardOf(page);
+        check(board.length === SYMBOL_COUNT, `${label} lists ${SYMBOL_COUNT} symbols (got ${board.length})`);
+        check(board.map((r) => r.symbol).join(',') === universe.map((s) => s.symbol).join(','), `${label} lists them in the server's canonical order`);
+        const groups = [...new Set(board.map((r) => r.group))];
+        check(groups.join(',') === ['funds', ...SECTORS].join(','), `${label} groups: funds, then the ${SECTORS.length} sectors (got ${groups.join(',')})`);
+        const funds = board.filter((r) => r.group === 'funds');
+        check(funds.length === 1 + SECTORS.length && funds.every((r) => r.kind !== 'stock'), `${label} funds group holds the index and ${SECTORS.length} sector funds`);
+        check(stocks.every((s) => board.find((r) => r.symbol === s.symbol)?.group === s.sector), `${label} shows every stock under its own sector`);
+        check(SECTORS.every((sector) => board.filter((r) => r.group === sector).length === COMPANIES_PER_SECTOR),
+          `${label} has ${COMPANIES_PER_SECTOR} companies in every sector`);
+        check(board.every((r) => /^[\d,]+\.\d\d$/.test(r.price) && shownPrice(r.price) > 0), `${label} shows a price with 2 decimals on every row`);
+        check(board.every((r) => /^[+-]?\d+\.\d+%$/.test(r.change)), `${label} shows a change % on every row`);
+        check((await page.locator(tid('symbol-list')).isVisible()) && (await page.locator(rowOf(universe.at(-1)!.symbol)).isVisible()),
+          `${label} has the list on screen down to the last row`);
+      }
+      const before = await boardOf(a);
+      await sleep(DAY_MS);
+      const after = await boardOf(a);
+      const moved = after.filter((r, i) => r.price !== before[i]!.price).length;
+      check(moved >= SYMBOL_COUNT * 0.8, `prices move: ${moved} of ${SYMBOL_COUNT} changed within one second`);
+    });
+
+    await step('market: both windows show the same server tick', async () => {
+      const SAMPLES = 6;
+      let identical = 0;
+      let worstLag = 0;
+      for (let i = 0; i < SAMPLES; i++) {
+        const [boardA, boardB] = await Promise.all([boardOf(a), boardOf(b)]);
+        // The frame log on our side can lag the page by a moment.
+        await sleep(130);
+        const [tickA, tickB] = [tickShownBy('A', boardA), tickShownBy('B', boardB)];
+        if (!tickA || !tickB) throw new Error(`CHECK FAILED: sample ${i}: the list of ${tickA ? 'B' : 'A'} is not the price set of any single tick it received`);
+        worstLag = Math.max(worstLag, Math.abs(tickId(tickA) - tickId(tickB)));
+        if (boardKey(boardA) === boardKey(boardB)) identical += 1;
+      }
+      check(true, `in ${SAMPLES} samples each window showed exactly the ${SYMBOL_COUNT} prices of one tick it had received`);
+      check(worstLag <= 2, `the two windows were never more than ${worstLag} tick(s) apart (limit 2)`);
+      check(identical >= 1, `${identical} of ${SAMPLES} simultaneous reads were identical on all ${SYMBOL_COUNT} prices`);
+      const fromB = new Map(ticksOf('B').map((t) => [tickId(t), JSON.stringify(t.prices)]));
+      const common = ticksOf('A').filter((t) => fromB.has(tickId(t)));
+      check(common.length >= 10 && common.every((t) => fromB.get(tickId(t)) === JSON.stringify(t.prices)),
+        `A and B received identical prices for all ${common.length} ticks both saw`);
+    });
+
+    await step('market: a clicked stock gets a candle chart that grows one candle per second', async () => {
+      check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === indexSymbol, `the index fund ${indexSymbol} is selected by default`);
+      const indexChart = await checkChartDrawn(a, 'A', indexSymbol, 2);
+      await selectSymbol(a, sectorFund);
+      // Responsiveness under 10 Hz ticks, measured inside the page: click -> header and chart have switched and a frame was painted.
+      const took = (await a.evaluate(`(async () => {
+        const started = performance.now();
+        document.querySelector('${rowOf(stockA)}').click();
+        const done = () => ['selected-symbol', 'chart'].every((id) => document.querySelector('[data-testid=' + id + ']')?.dataset.symbol === '${stockA}');
+        do await new Promise((r) => requestAnimationFrame(r)); while (!done());
+        return performance.now() - started;
+      })()`)) as number;
+      check(took < 250, `clicking ${stockA} switched header and chart within ${Math.round(took)} ms (limit 250)`);
+      check((await textOf(a, 'selected-ticker')) === stockA, `the header shows ${stockA}`);
+      check((await textOf(a, 'selected-name')) === stocks[0]!.name, `the header shows its company name (${stocks[0]!.name})`);
+      check((await a.getAttribute(rowOf(stockA), 'aria-pressed')) === 'true' && (await a.getAttribute(rowOf(indexSymbol), 'aria-pressed')) === 'false',
+        'the clicked row is the selected one');
+      // B picks another stock: selections are per player, and B's must survive its reload below.
+      await selectSymbol(b, stockB);
+      check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === stockA, "B's selection does not change A's");
+      await sleep(3 * DAY_MS + 300);
+      const stockChart = await checkChartDrawn(a, 'A', stockA, indexChart.candles + 2);
+      const headPrice = shownPrice(await textOf(a, 'selected-price'));
+      await sleep(130);
+      check(ticksOf('A').slice(-8).some((t) => t.prices[stockA] === headPrice), `the header price ${headPrice} is a recent tick price of ${stockA}`);
+      await shot(a, '15-play-chart-stock');
+
+      const grown = ((await a.evaluate('window.__tgCandles')) as CandleSeen[]).filter((e) => e.candles > 0);
+      const gaps: number[] = [];
+      let stepsOfOne = true;
+      for (let i = 2; i < grown.length; i++) {
+        const [prev, cur] = [grown[i - 1]!, grown[i]!];
+        if (cur.candles === prev.candles) continue; // only the symbol changed
+        if (cur.candles !== prev.candles + 1) stepsOfOne = false;
+        // A gap that starts at a symbol switch is shorter than a day.
+        if (cur.symbol === prev.symbol && grown[i - 2]!.symbol === prev.symbol) gaps.push(cur.at - prev.at);
+      }
+      const worst = Math.max(...gaps.map((g) => Math.abs(g - DAY_MS)));
+      log(`  candle count on A: ${grown.map((e) => `${e.symbol}:${e.candles}`).join(' ')}`);
+      check(stepsOfOne && gaps.length >= 3, `the chart grew by exactly one candle at a time (${gaps.length} timed steps)`);
+      check(worst <= 300, `one new candle per second: each step took ${DAY_MS} ms, worst off by ${Math.round(worst)} ms (limit 300)`);
+      const lastTick = ticksOf('A').at(-1)!;
+      check(Math.abs(stockChart.candles - (lastTick.day + 1)) <= 1, `the chart has one candle per game day (${stockChart.candles} candles, day ${lastTick.day})`);
+
+      await selectSymbol(a, indexSymbol);
+      await checkChartDrawn(a, 'A', indexSymbol, stockChart.candles);
+      await shot(a, '16-play-chart-index');
+      await selectSymbol(a, sectorFund);
+      await checkChartDrawn(a, 'A', sectorFund, stockChart.candles);
+      await selectSymbol(a, stockA);
+    });
+
+    await step('market: /floor shows the index fund chart', async () => {
+      check(await floor.locator(tid('floor-market')).isVisible(), 'the floor shows the market section');
+      check((await textOf(floor, 'selected-ticker')) === indexSymbol, `the floor header shows the index fund ${indexSymbol}`);
+      const floorChart = await checkChartDrawn(floor, 'floor', indexSymbol, 5);
+      check(floorChart.width >= 900 && floorChart.height >= 400, `the floor chart is large (${floorChart.width}x${floorChart.height})`);
+      const price = shownPrice(await textOf(floor, 'selected-price'));
+      await sleep(130);
+      check(ticksOf('floor').slice(-8).some((t) => t.prices[indexSymbol] === price), `the floor price ${price} is a recent tick price of ${indexSymbol}`);
+      await shot(floor, '17-floor-chart');
+      await checkNoOverflow(floor, 'floor with the chart');
+      await checkNoOverflow(a, 'desk with list and chart at 1366x768');
+    });
+
+    await step('browser health with ticks at 10 Hz', async () => {
+      for (const [label, page] of [['A', a], ['B', b], ['floor', floor]] as const) {
+        const perf = await perfOf(page);
+        const share = perf.longMs / perf.elapsedMs;
+        log(`  ${label}: ${Math.round(perf.elapsedMs)} ms of TRADING, ${perf.longCount} long tasks = ${Math.round(perf.longMs)} ms (${(share * 100).toFixed(1)}%), worst timer delay ${Math.round(perf.maxGapMs)} ms`);
+        check(share < 0.15, `${label} main thread spent ${(share * 100).toFixed(1)}% of TRADING in long tasks (limit 15%)`);
+        check(perf.maxGapMs < 400, `${label} worst timer delay ${Math.round(perf.maxGapMs)} ms (limit 400)`);
+        const perSecond = ticksOf(label).length / (perf.elapsedMs / 1000);
+        check(perSecond > 8 && perSecond < 12, `${label} received about 10 ticks per second (${perSecond.toFixed(1)})`);
+      }
+    });
+
     await step('reload mid-game resumes the same player; a late joiner is refused', async () => {
       await b.reload();
       await b.waitForSelector(`${tid('phase')}[data-phase=TRADING]`);
       check((await textOf(b, 'me-name')) === 'Bud', 'B is still Bud after a mid-game reload');
+      await b.waitForSelector(rowOf(stockB));
+      const board = await boardOf(b);
+      check(board.length === SYMBOL_COUNT && board.every((r) => shownPrice(r.price) > 0), `the reloaded tab lists ${SYMBOL_COUNT} symbols with prices`);
+      check((await b.getAttribute(tid('selected-symbol'), 'data-symbol')) === stockB, `the reloaded tab still has ${stockB} selected`);
+      const snapshot = snapshotsOf('B').at(-1)!;
+      check(snapshot.day >= 5 && (snapshot.candles[stockB]?.length ?? 0) === snapshot.day * 4,
+        `the reload got a snapshot with ${snapshot.day} closed candles of history`);
+      const restored = await checkChartDrawn(b, 'B after reload', stockB, snapshot.day);
+      const onA = await chartOf(a);
+      check(onA !== null && Math.abs(onA.candles - restored.candles) <= 1, `B's restored chart has as many candles as A's (${restored.candles} vs ${onA?.candles})`);
+      await sleep(250);
+      const live = await boardOf(b);
+      await sleep(130);
+      const liveTick = tickShownBy('B', live);
+      check(liveTick !== undefined && tickId(liveTick) > tickId(snapshot), 'the reloaded list is live again: it shows a tick newer than the snapshot');
+      await shot(b, '18-play-after-reload');
       const [cdA, cdB] = [countdownSeconds(await textOf(a, 'countdown')), countdownSeconds(await textOf(b, 'countdown'))];
       check(cdA !== null && cdB !== null && Math.abs(cdA - cdB) <= 1, `B countdown after reload agrees with A (${cdB} vs ${cdA})`);
       check((await b.locator(tid('roster-player')).count()) === 2, 'B still sees 2 players');
@@ -426,6 +803,60 @@ async function main(): Promise<void> {
         await shot(a, `14-play-${phase}`);
         await checkNoOverflow(a, `desk in ${phase} at 1366x768`);
       }
+
+      // Frozen between quarters: the last tick of Q1 stays on screen until Q2 trades.
+      const q1Ticks = ticksOf('A');
+      const q1Last = q1Ticks.at(-1)!;
+      check(q1Last.day === DAYS - 1 && q1Last.tickOfDay === TICKS_PER_DAY, `Q1 ended on day ${q1Last.day}, tick ${q1Last.tickOfDay}`);
+      check(q1Ticks.length === DAYS * TICKS_PER_DAY, `A received all ${DAYS * TICKS_PER_DAY} ticks of Q1 (got ${q1Ticks.length})`);
+      const floorFrozen = shownPrice(await textOf(floor, 'selected-price'));
+      check(floorFrozen === q1Last.prices[indexSymbol], `in SHOP the floor still shows the Q1 close of ${indexSymbol} (${floorFrozen})`);
+      await shot(floor, '14-floor-SHOP');
+      await waitForPhase(a, 'BRIEFING');
+      await a.waitForSelector(rowOf(stockA));
+      const frozen1 = await boardOf(a);
+      await sleep(700);
+      const frozen2 = await boardOf(a);
+      check(frozen1.length === SYMBOL_COUNT && boardKey(frozen1) === boardKey(frozen2), 'prices on screen do not move during BRIEFING');
+      check(frozen1.every((r) => shownPrice(r.price) === q1Last.prices[r.symbol]), 'they are the closing prices of Q1');
+      check(ticksOf('A').length === q1Ticks.length, 'no tick arrived between the quarters');
+      const frozenChart = await checkChartDrawn(a, 'A in BRIEFING of Q2', stockA, DAYS);
+      check(frozenChart.candles === DAYS, `the chart holds the ${DAYS} candles of Q1 while the market is closed`);
+      await shot(a, '19-play-BRIEFING-q2');
+
+      // Q2: same price level, day numbers keep counting.
+      await waitForPhase(a, 'TRADING');
+      await waitFor('first ticks of Q2', async () => ticksOf('A').length >= q1Ticks.length + 3);
+      const q2First = ticksOf('A')[q1Ticks.length]!;
+      check(q2First.day === DAYS && q2First.tickOfDay === 1, `the first tick of Q2 is day ${q2First.day}, tick ${q2First.tickOfDay} (days continue)`);
+      const jump = Math.max(...Object.keys(q1Last.prices).map((s) => Math.abs(q2First.prices[s]! / q1Last.prices[s]! - 1)));
+      check(jump < 0.05, `Q2 opens at the Q1 level: largest one-tick move ${(jump * 100).toFixed(2)}% (limit 5%)`);
+      await sleep(4 * DAY_MS);
+      const q2Chart = await checkChartDrawn(a, 'A in Q2', stockA, DAYS + 4);
+      const q2Open = framesOf('A').flatMap((m) => (m.t === 'candle' && m.day === DAYS ? [m.ohlc[stockA]!.o] : []))[0];
+      // Price and change must be read in the same instant: a tick later both have moved.
+      const [change, priceText] = (await a.evaluate(
+        `['selected-change', 'selected-price'].map((id) => document.querySelector('[data-testid=' + id + ']')?.textContent ?? '')`,
+      )) as [string, string];
+      const nowPrice = shownPrice(priceText);
+      check(q2Open !== undefined && Math.abs(Number.parseFloat(change) - (nowPrice / q2Open - 1) * 100) < 0.011,
+        `the change % restarted from the Q2 open ("${change}" shown, price ${nowPrice}, Q2 open ${q2Open})`);
+      await shot(a, '19-play-TRADING-q2');
+      await checkChartDrawn(floor, 'floor in Q2', indexSymbol, DAYS + 4);
+      await shot(floor, '19-floor-TRADING-q2');
+
+      // Refresh mid-quarter in Q2: the list and the chart history of BOTH quarters come back.
+      await b.reload();
+      await b.waitForSelector(rowOf(stockB));
+      const q2Snapshot = snapshotsOf('B').at(-1)!;
+      check(q2Snapshot.day > DAYS, `the Q2 reload got a snapshot at day ${q2Snapshot.day}`);
+      const q2Restored = await checkChartDrawn(b, 'B after a Q2 reload', stockB, q2Snapshot.day);
+      const aNow = await chartOf(a);
+      check(aNow !== null && Math.abs(aNow.candles - q2Restored.candles) <= 1 && q2Restored.candles >= q2Chart.candles,
+        `B's chart has both quarters again (${q2Restored.candles} candles, A has ${aNow?.candles})`);
+      check((await boardOf(b)).length === SYMBOL_COUNT, `B lists ${SYMBOL_COUNT} symbols again`);
+      await shot(b, '19-play-after-reload-q2');
+
       await Promise.all([waitForPhase(a, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(floor, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(b, 'FINAL', GAME_MS + WAIT_MS)]);
       await sleep(200);
       await shot(a, '20-play-FINAL');
@@ -446,6 +877,23 @@ async function main(): Promise<void> {
         checkCadence(label, await ticksOn(page));
       }
       check(countdownSeconds(await textOf(a, 'countdown')) === null, 'no countdown in FINAL');
+
+      // The whole game as A and the floor received it.
+      for (const label of ['A', 'floor']) {
+        let trading = false;
+        let outside = 0;
+        for (const m of framesOf(label)) {
+          if (m.t === 'phase') trading = m.phase === 'TRADING';
+          else if ((m.t === 'tick' || m.t === 'candle') && !trading) outside += 1;
+        }
+        check(outside === 0, `${label}: no tick or candle outside TRADING in the whole game`);
+        const days = framesOf(label).flatMap((m) => (m.t === 'candle' ? [m.day] : []));
+        check(days.length === QUARTERS * DAYS && days.every((d, i) => d === i), `${label}: candle days run 0..${QUARTERS * DAYS - 1} across the quarters`);
+        const total = QUARTERS * DAYS * TICKS_PER_DAY;
+        check(ticksOf(label).length === total, `${label}: ${total} ticks in the whole game (got ${ticksOf(label).length})`);
+      }
+      const floorEnd = await checkChartDrawn(floor, 'floor in FINAL', indexSymbol, QUARTERS * DAYS);
+      check(floorEnd.candles === QUARTERS * DAYS, `the floor chart ends with all ${QUARTERS * DAYS} candles`);
       const health = (await (await fetch(`http://127.0.0.1:${serverPort}/health`)).json()) as { players: number; phase: string };
       check(health.phase === 'FINAL' && health.players === 2, 'server is in FINAL with 2 players');
     });

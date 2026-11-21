@@ -87,9 +87,12 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
     }
     case 'error':
       return { ...state, error: { code: msg.code, message: msg.message, at: now } };
-    // Later milestones: fold these into their own slices.
+    // Market data lives in MarketStore (net/marketStore.ts), fed by GameClient: it must not touch this state.
+    case 'market':
     case 'tick':
     case 'candle':
+      return state;
+    // Later milestones: fold these into their own slices.
     case 'headline':
     case 'fill':
     case 'portfolio':

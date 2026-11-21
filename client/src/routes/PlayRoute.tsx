@@ -43,14 +43,18 @@ function PlayScreen() {
   );
 }
 
+/** Phases in which the stage slot shows a full panel instead of the market (list + chart). */
+const STAGE_PHASES: readonly Phase[] = ['RESULTS', 'SHOP', 'FINAL'];
+
 /**
- * The trading desk grid. The big "stage" slot follows the phase: market during the quarter,
- * results / shop / final between and after quarters. The side panels stay put.
+ * The trading desk grid. The big left area follows the phase: market (symbol list + chart) during
+ * the quarter, one "stage" panel (results / shop / final) between and after quarters.
+ * The side panels stay put.
  */
 function Desk({ phase }: { phase: Phase }) {
   const { lobby, me } = useGame();
   return (
-    <main className="desk">
+    <main className={`desk${STAGE_PHASES.includes(phase) ? ' desk--stage' : ''}`}>
       <div className="desk__errors">
         <ErrorBanner />
       </div>
@@ -75,6 +79,6 @@ function Stage({ phase }: { phase: Phase }) {
     case 'FINAL':
       return <FinalPanel className="desk__stage" />;
     default:
-      return <MarketPanel className="desk__stage" />;
+      return <MarketPanel listClassName="desk__list" chartClassName="desk__chart" />;
   }
 }

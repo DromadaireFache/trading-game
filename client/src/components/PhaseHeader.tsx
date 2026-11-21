@@ -49,7 +49,7 @@ export function PhaseHeader() {
       </div>
 
       <div className="phase-header__progress" aria-hidden="true">
-        <div className="phase-header__progress-bar" style={{ width: `${(countdown.progress ?? 0) * 100}%` }} />
+        <div className="phase-header__progress-bar" style={{ transform: `scaleX(${countdown.progress ?? 0})` }} />
       </div>
     </header>
   );

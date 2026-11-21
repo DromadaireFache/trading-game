@@ -4,9 +4,12 @@ Multiplayer LAN trading game for 2-4 players, each on their own laptop, plus one
 Fake companies, a fast simulated market, shared news and cards. Spec: [docs/DESIGN.md](docs/DESIGN.md).
 Choices made along the way: [docs/DECISIONS.md](docs/DECISIONS.md).
 
-**Status: milestone 1 (skeleton).** Join by name, lobby, Start, and the phase loop
+**Status: milestone 2 (market).** Join by name, lobby, Start, and the phase loop
 LOBBY -> [BRIEFING -> TRADING -> EARNINGS -> RESULTS -> SHOP] x N -> FINAL with a live countdown on
-`/play` and `/floor`. No market, orders or cards yet; the panels are placeholders.
+`/play` and `/floor`. A seeded market of 50 fake companies in 10 sectors, 10 sector funds and one index fund
+moves at 10 ticks per second during TRADING (1 second = 1 trading day = 1 candle, 90 days per quarter).
+`/play` shows the sector-grouped symbol list with live prices and a candle chart of the clicked symbol;
+`/floor` shows the index fund chart. No orders, news or cards yet; those panels are placeholders.
 
 ## Run it
 
@@ -40,8 +43,8 @@ where to connect:
 |---|---|
 | `npm run dev` | Game server (tsx watch) + Vite dev server, one command |
 | `npm run typecheck` | `tsc --noEmit` in every workspace |
-| `npm test` | vitest unit tests (sim, server shell, client store, config) |
-| `npm run e2e` | Starts server + Vite on free random ports with short phases, drives two players and the projector in a headless browser, writes screenshots to `.e2e/` |
+| `npm test` | vitest unit tests (sim incl. market statistics, server shell, client stores, config) |
+| `npm run e2e` | Starts server + Vite on free random ports with short phases, drives two players and the projector in a headless browser through a 2-quarter game (about 90 s), writes screenshots to `.e2e/` |
 | `npm run build` | Typecheck + production build of the client |
 
 `npm run e2e` uses the installed Microsoft Edge (or Chrome) through `playwright-core`; nothing is downloaded.
@@ -65,6 +68,10 @@ message). It cannot move `net.serverPort`, `net.clientPort` or `net.wsPath`; use
 
 PowerShell: `$env:TG_PHASE_SCALE='0.1'; npm run dev`
 
+Market tuning (volatility, correlation, sector character, price ranges) is the `market` block of
+`shared/config.ts`; company, CEO and fund names are in `server/src/sim/data/names.ts`.
+With the defaults a stock moves about 2.4% a day and the index about 1.2%.
+
 ## Layout
 
 ```
@@ -77,3 +84,5 @@ docs/     DESIGN.md (spec), DECISIONS.md (one line per choice)
 
 Rules of the road: all game rules go in `server/src/sim` (it must stay free of I/O, clocks and
 `Math.random`); the server shell only moves messages; clients send intents and render what they receive.
+Anything that follows the 10 Hz price ticks in the client subscribes to `client.market`
+(`client/src/net/marketStore.ts`) and avoids React state and CSS animations per tick.

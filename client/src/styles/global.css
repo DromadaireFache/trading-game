@@ -457,7 +457,10 @@ ol {
 .phase-header__progress-bar {
   height: 100%;
   background: var(--phase-color);
-  transition: width 0.2s linear;
+  /* Scaled, not resized: a width transition re-lays-out and repaints the page on every frame of the game. */
+  transform-origin: left center;
+  transition: transform 0.2s linear;
+  will-change: transform;
 }
 
 @media (max-width: 1100px) {
@@ -513,15 +516,24 @@ ol {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  /* list: two columns of compact symbol rows; chart: whatever is left; side: orders, positions, hand, players. */
+  grid-template-columns: 480px minmax(0, 1fr) 320px;
   grid-template-rows: minmax(0, 3fr) minmax(0, 2fr) minmax(0, 2fr) auto;
   grid-template-areas:
-    'stage     order'
-    'stage     positions'
-    'headlines hand'
-    'headlines players';
+    'list chart     order'
+    'list chart     positions'
+    'list headlines hand'
+    'list headlines players';
   gap: 8px;
   padding: 8px;
+}
+/* RESULTS / SHOP / FINAL: one stage panel takes the place of list + chart. */
+.desk--stage {
+  grid-template-areas:
+    'stage     stage     order'
+    'stage     stage     positions'
+    'headlines headlines hand'
+    'headlines headlines players';
 }
 /* Server errors (rejected order, ...) float as a toast so the grid never jumps. */
 .desk__errors {
@@ -537,6 +549,12 @@ ol {
 }
 .desk__stage {
   grid-area: stage;
+}
+.desk__list {
+  grid-area: list;
+}
+.desk__chart {
+  grid-area: chart;
 }
 .desk__headlines {
   grid-area: headlines;
@@ -596,6 +614,10 @@ ol {
   padding: 3vh 3vw;
   min-width: 0;
 }
+/* Lobby: phase and countdown are stacked children of floor__main. Game: one status line (see --market). */
+.floor__status {
+  display: contents;
+}
 .floor__phase {
   font-size: 7.5vw;
   font-weight: 700;
@@ -636,7 +658,47 @@ ol {
 .floor__progress-bar {
   height: 100%;
   background: var(--phase-color);
-  transition: width 0.2s linear;
+  /* Scaled, not resized: a width transition re-lays-out and repaints the page on every frame of the game. */
+  transform-origin: left center;
+  transition: transform 0.2s linear;
+  will-change: transform;
+}
+/* Game running: status line on top, the index fund chart fills the rest. */
+.floor__main--market {
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 1.5vh;
+  padding: 2vh 2vw;
+}
+.floor__main--market .floor__status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2vw;
+}
+.floor__main--market .floor__phase {
+  font-size: 4vw;
+}
+.floor__main--market .floor__countdown {
+  font-size: 6vw;
+}
+.floor__main--market .floor__countdown--idle {
+  font-size: 2.5vw;
+}
+.floor__main--market .floor__hint {
+  font-size: 1.4vw;
+  text-align: left;
+}
+.floor__main--market .floor__progress {
+  width: 100%;
+  flex: none;
+}
+.floor__market {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5vh;
 }
 .floor__side {
   grid-area: side;

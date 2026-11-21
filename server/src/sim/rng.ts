@@ -8,6 +8,12 @@ export interface Rng {
   int(n: number): number;
   /** Standard normal (Box-Muller). */
   normal(): number;
+  /**
+   * Fills `out` with independent standard normals. Uses both outputs of each Box-Muller pair, so it
+   * costs half of calling normal() out.length times (the market's hot loop); an odd length drops
+   * the last pair's second value. Deterministic like everything else here.
+   */
+  fillNormal(out: Float64Array): void;
   /** Independent child stream, e.g. one per subsystem so adding draws in one does not shift another. */
   fork(): Rng;
 }
@@ -28,6 +34,15 @@ export function createRng(seed: number): Rng {
       const u = 1 - next(); // (0, 1]
       const v = next();
       return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    },
+    fillNormal: (out) => {
+      const n = out.length;
+      for (let i = 0; i < n; i += 2) {
+        const radius = Math.sqrt(-2 * Math.log(1 - next())); // 1 - next() is in (0, 1]
+        const angle = 2 * Math.PI * next();
+        out[i] = radius * Math.cos(angle);
+        if (i + 1 < n) out[i + 1] = radius * Math.sin(angle);
+      }
     },
     fork: () => createRng(Math.floor(next() * 4294967296)),
   };

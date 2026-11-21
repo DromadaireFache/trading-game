@@ -4,7 +4,8 @@
  *
  * Time conventions:
  * - `endsAt`, `serverTime`: server wall-clock ms since epoch (Date.now() on the server).
- * - `day`, `ts`, `jailedUntil`: game time in trading days since the start of the game (may be fractional).
+ * - `ts`, `jailedUntil`: game time in trading days since the start of the game (may be fractional).
+ * - `day` (tick, candle, market): 0-based INTEGER trading day since the start of the game.
  */
 import type { GameConfig } from './config.ts';
 import type {
@@ -15,6 +16,7 @@ import type {
   CardOffer,
   LeaderboardEntry,
   LobbyPlayer,
+  MarketSnapshot,
   MomentKind,
   OHLC,
   Phase,
@@ -125,16 +127,37 @@ export interface PhaseMsg extends PhaseInfo {
   t: 'phase';
 }
 
-/** One shared price tick for everybody. */
+/**
+ * Universe + price history. Sent to ONE connection right after every `welcome` (first join,
+ * reconnect, spectator, in any phase including LOBBY), so a refresh restores the chart.
+ * Never broadcast and never repeated: after it the client keeps itself current with tick/candle.
+ * Up to 61 symbols x 720 candles (about 1 MB of JSON late in a game), prices rounded with roundPrice().
+ */
+export interface MarketMsg extends MarketSnapshot {
+  t: 'market';
+}
+
+/**
+ * One shared price tick for everybody: 10 Hz, only while prices move (the TRADING phase).
+ * Prices of ALL symbols (stocks and funds), rounded with roundPrice().
+ */
 export interface TickMsg {
   t: 'tick';
+  /** 0-based trading day this tick belongs to (integer; keeps counting across quarters). */
   day: number;
+  /** 1..ticksPerCandle within the day. Game time after this tick = day + tickOfDay / ticksPerCandle. */
+  tickOfDay: number;
   prices: Record<SymbolId, number>;
 }
 
-/** Closed daily candles. */
+/**
+ * The closed daily candle of every symbol. Sent once per trading day, right after that day's last
+ * tick. Days are consecutive (0, 1, 2, ...) across quarters; the server's candle replaces whatever
+ * the client built from ticks for that day.
+ */
 export interface CandleMsg {
   t: 'candle';
+  /** 0-based trading day that just closed. */
   day: number;
   ohlc: Record<SymbolId, OHLC>;
 }
@@ -228,6 +251,7 @@ export type ServerMsg =
   | WelcomeMsg
   | LobbyMsg
   | PhaseMsg
+  | MarketMsg
   | TickMsg
   | CandleMsg
   | HeadlineMsg

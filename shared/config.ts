@@ -11,7 +11,23 @@
  *     TG_CLIENT_PORT=5173         Vite port (also read by the server to print LAN URLs)
  * - First values come from docs/DESIGN.md; later milestones tune them with the balance harness.
  */
-import type { HeadlineMagnitude, QuarterPhase } from './types.ts';
+import { SECTORS } from './types.ts';
+import type { HeadlineMagnitude, QuarterPhase, Sector } from './types.ts';
+
+/**
+ * Where a sector's companies sit inside the generation ranges of config.market: each value is a
+ * POSITION 0..1 between the matching Min and Max (0 = at Min, 1 = at Max).
+ */
+export interface SectorProfile {
+  /** Position in [betaMarketMin, betaMarketMax]. */
+  betaMarket: number;
+  /** Position in [betaSectorMin, betaSectorMax]. */
+  betaSector: number;
+  /** Position in [idioVolPerDayMin, idioVolPerDayMax]. */
+  idioVol: number;
+  /** Position in [rateSensitivityMin, rateSensitivityMax] (magnitude). */
+  rateSensitivity: number;
+}
 
 export interface GameConfig {
   time: {
@@ -54,26 +70,71 @@ export interface GameConfig {
     quickSizeUsd: number[];
   };
   market: {
+    /** Must equal SECTORS.length (10): sector ids are fixed in shared/types.ts. */
     sectors: number;
     companiesPerSector: number;
+
+    // --- company generation (drawn once per game from the seed) ---
+    /** Market caps are drawn log-uniformly in [marketCapMin, marketCapMax] $. */
     marketCapMin: number;
     marketCapMax: number;
-    /** adv = marketCap * advFractionOfCap. */
-    advFractionOfCap: number;
+    /** adv (daily dollar volume) = marketCap * a fraction drawn in [advFractionOfCapMin, advFractionOfCapMax]. */
+    advFractionOfCapMin: number;
+    advFractionOfCapMax: number;
+    /** A fund's own adv = sum of its members' adv * this. */
+    fundAdvShareOfMembers: number;
+    /** Range of the loading on the market factor. */
+    betaMarketMin: number;
+    betaMarketMax: number;
+    /** Range of the loading on the company's sector factor. */
+    betaSectorMin: number;
+    betaSectorMax: number;
+    /** Range of per-day idiosyncratic volatility sigma_i. */
+    idioVolPerDayMin: number;
+    idioVolPerDayMax: number;
+    /**
+     * Range of the MAGNITUDE of rate_sensitivity (log-return per unit of rate: 8 means a +0.25 pt
+     * hike moves the stock 2%). The sim applies the sign: negative, except rate-loving sectors (finance).
+     */
+    rateSensitivityMin: number;
+    rateSensitivityMax: number;
+    /** Starting share prices are drawn log-uniformly in this range, $. shares = marketCap / price. */
+    startPriceMin: number;
+    startPriceMax: number;
+    /** Fundamentals: revenue = marketCap / priceToSales; debt = marketCap * debtToCap. */
+    priceToSalesMin: number;
+    priceToSalesMax: number;
+    marginMin: number;
+    marginMax: number;
+    debtToCapMin: number;
+    debtToCapMax: number;
+    /** Sector character: the centre of each sector's companies inside the ranges above. */
+    sectorProfiles: Record<Sector, SectorProfile>;
+    /** A company is drawn within +- this (as a fraction of the range) around its sector's centre. */
+    sectorProfileSpread: number;
+    /** Big caps are calmer: idio-vol position shifts by capVolTilt * (0.5 - log-position of the cap in its range). */
+    capVolTilt: number;
+    /** Sectors whose rate sensitivity is POSITIVE (they gain from hikes); all others lose. */
+    rateLovingSectors: Sector[];
+
+    // --- funds ---
+    /** 'cap' = members weighted by market cap; 'equal' = equal weights. */
+    fundWeighting: 'cap' | 'equal';
+    /** Every fund starts at this price, $. */
+    fundStartPrice: number;
+
+    // --- price process (volatilities are per TRADING DAY; the sim scales by sqrt(1 / ticksPerCandle) per tick) ---
     /** Per-day volatility of the market factor M. */
     marketVolPerDay: number;
     /** Per-day volatility of each sector factor S. */
     sectorVolPerDay: number;
-    /** Range of per-day idiosyncratic volatility sigma_i. */
-    idioVolPerDayMin: number;
-    idioVolPerDayMax: number;
-    betaMarketMin: number;
-    betaMarketMax: number;
-    betaSectorMin: number;
-    betaSectorMax: number;
-    startPriceMin: number;
-    startPriceMax: number;
-    /** Starting policy rate and the size of one rate move. */
+    /** No price ever goes below this, $. */
+    priceFloor: number;
+    /** Decimals of prices on the wire (the sim keeps full precision). */
+    priceDecimals: number;
+
+    // --- rates ---
+    /** Starting policy rate (0.03 = 3%) and the size of one rate move. */
     startRate: number;
     rateStep: number;
   };
@@ -210,17 +271,46 @@ export const defaultConfig: GameConfig = {
     companiesPerSector: 5,
     marketCapMin: 5e9,
     marketCapMax: 500e9,
-    advFractionOfCap: 0.01,
-    marketVolPerDay: 0.01,
-    sectorVolPerDay: 0.008,
-    idioVolPerDayMin: 0.01,
-    idioVolPerDayMax: 0.03,
+    advFractionOfCapMin: 0.005,
+    advFractionOfCapMax: 0.02,
+    fundAdvShareOfMembers: 0.25,
     betaMarketMin: 0.5,
     betaMarketMax: 1.6,
     betaSectorMin: 0.5,
     betaSectorMax: 1.5,
+    idioVolPerDayMin: 0.01,
+    idioVolPerDayMax: 0.03,
+    rateSensitivityMin: 2,
+    rateSensitivityMax: 12,
     startPriceMin: 20,
     startPriceMax: 400,
+    priceToSalesMin: 0.5,
+    priceToSalesMax: 8,
+    marginMin: 0.03,
+    marginMax: 0.35,
+    debtToCapMin: 0,
+    debtToCapMax: 0.6,
+    sectorProfiles: {
+      tech: { betaMarket: 0.8, betaSector: 0.6, idioVol: 0.7, rateSensitivity: 0.8 },
+      energy: { betaMarket: 0.5, betaSector: 0.8, idioVol: 0.6, rateSensitivity: 0.3 },
+      defense: { betaMarket: 0.2, betaSector: 0.7, idioVol: 0.3, rateSensitivity: 0.2 },
+      airlines: { betaMarket: 0.8, betaSector: 0.8, idioVol: 0.8, rateSensitivity: 0.4 },
+      tourism: { betaMarket: 0.7, betaSector: 0.6, idioVol: 0.6, rateSensitivity: 0.4 },
+      finance: { betaMarket: 0.6, betaSector: 0.6, idioVol: 0.4, rateSensitivity: 0.7 },
+      health: { betaMarket: 0.2, betaSector: 0.4, idioVol: 0.5, rateSensitivity: 0.3 },
+      consumer: { betaMarket: 0.1, betaSector: 0.3, idioVol: 0.1, rateSensitivity: 0.3 },
+      industrials: { betaMarket: 0.5, betaSector: 0.5, idioVol: 0.4, rateSensitivity: 0.5 },
+      materials: { betaMarket: 0.6, betaSector: 0.7, idioVol: 0.6, rateSensitivity: 0.4 },
+    },
+    sectorProfileSpread: 0.25,
+    capVolTilt: 0.4,
+    rateLovingSectors: ['finance'],
+    fundWeighting: 'cap',
+    fundStartPrice: 100,
+    marketVolPerDay: 0.01,
+    sectorVolPerDay: 0.008,
+    priceFloor: 1,
+    priceDecimals: 2,
     startRate: 0.03,
     rateStep: 0.0025,
   },
@@ -382,6 +472,45 @@ export function validateConfig(config: GameConfig): GameConfig {
     if (config.lobby.nameMinLength > config.lobby.nameMaxLength) problems.push('config.lobby.nameMinLength must be <= lobby.nameMaxLength');
     if (config.net.reconnectMinMs > config.net.reconnectMaxMs) problems.push('config.net.reconnectMinMs must be <= net.reconnectMaxMs');
     if (!config.net.wsPath.startsWith('/')) problems.push('config.net.wsPath must start with "/"');
+
+    const m = config.market;
+    if (m.sectors !== SECTORS.length) problems.push(`config.market.sectors must be ${SECTORS.length} (the sector ids are fixed), got ${m.sectors}`);
+    positiveInt('market.companiesPerSector', m.companiesPerSector);
+    if (!Number.isInteger(m.priceDecimals) || m.priceDecimals > 6) problems.push(`config.market.priceDecimals must be an integer 0..6, got ${m.priceDecimals}`);
+    if (m.fundWeighting !== 'cap' && m.fundWeighting !== 'equal') problems.push(`config.market.fundWeighting must be "cap" or "equal", got "${String(m.fundWeighting)}"`);
+    const positive = (path: string, n: number) => {
+      if (n <= 0) problems.push(`config.${path} must be > 0, got ${n}`);
+    };
+    positive('market.marketCapMin', m.marketCapMin);
+    positive('market.advFractionOfCapMin', m.advFractionOfCapMin);
+    positive('market.fundAdvShareOfMembers', m.fundAdvShareOfMembers);
+    positive('market.startPriceMin', m.startPriceMin);
+    positive('market.priceToSalesMin', m.priceToSalesMin);
+    positive('market.fundStartPrice', m.fundStartPrice);
+    positive('market.priceFloor', m.priceFloor);
+    const ranges: Array<[string, number, number]> = [
+      ['marketCap', m.marketCapMin, m.marketCapMax],
+      ['advFractionOfCap', m.advFractionOfCapMin, m.advFractionOfCapMax],
+      ['betaMarket', m.betaMarketMin, m.betaMarketMax],
+      ['betaSector', m.betaSectorMin, m.betaSectorMax],
+      ['idioVolPerDay', m.idioVolPerDayMin, m.idioVolPerDayMax],
+      ['rateSensitivity', m.rateSensitivityMin, m.rateSensitivityMax],
+      ['startPrice', m.startPriceMin, m.startPriceMax],
+      ['priceToSales', m.priceToSalesMin, m.priceToSalesMax],
+      ['margin', m.marginMin, m.marginMax],
+      ['debtToCap', m.debtToCapMin, m.debtToCapMax],
+    ];
+    for (const [name, min, max] of ranges) {
+      if (min > max) problems.push(`config.market.${name}Min must be <= market.${name}Max`);
+    }
+    for (const [sector, profile] of Object.entries(m.sectorProfiles)) {
+      for (const [key, position] of Object.entries(profile)) {
+        if (position > 1) problems.push(`config.market.sectorProfiles.${sector}.${key} must be a position 0..1, got ${position}`);
+      }
+    }
+    for (const sector of m.rateLovingSectors) {
+      if (!SECTORS.includes(sector)) problems.push(`config.market.rateLovingSectors: unknown sector "${String(sector)}"`);
+    }
   }
   if (problems.length > 0) throw new Error(`invalid config: ${problems.join('; ')}`);
   return config;

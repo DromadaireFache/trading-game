@@ -1,0 +1,237 @@
+/*
+ * Market feature: symbol list, symbol header, candle chart.
+ * Colors and fonts only through var(--tg-...) from theme.ts.
+ */
+
+/* ---------------------------------------------------------------- change colors */
+
+.change--up {
+  color: var(--tg-color-up);
+}
+.change--down {
+  color: var(--tg-color-down);
+}
+.change--flat {
+  color: var(--tg-color-text-dim);
+}
+
+/* ---------------------------------------------------------------- symbol list */
+
+/* 61 symbols must be reachable on a 1366x768 laptop: 18px rows in two columns, scrolling inside the panel if short. */
+.market-list .panel__body {
+  padding: 4px;
+  gap: 0;
+}
+.sym-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 6px;
+  align-items: start;
+  font-size: 12px;
+  line-height: 18px;
+}
+.sym-list__column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sym-group__title {
+  height: 18px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  color: var(--tg-color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--tg-color-border);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sym-row {
+  display: grid;
+  grid-template-columns: 5ch minmax(0, 1fr) auto 7ch;
+  column-gap: 6px;
+  align-items: center;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  padding: 0 4px 0 2px;
+  font: inherit;
+  line-height: 18px;
+  text-align: left;
+  color: var(--tg-color-text);
+  background: transparent;
+  border: 0;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sym-row:hover {
+  background: var(--tg-color-panel-raised);
+}
+.sym-row:focus-visible {
+  outline: 1px solid var(--tg-color-accent);
+  outline-offset: -1px;
+}
+.sym-row--selected {
+  background: color-mix(in srgb, var(--tg-color-accent) 14%, transparent);
+  border-left-color: var(--tg-color-accent);
+}
+.sym-row__ticker {
+  font-weight: 700;
+  color: var(--tg-color-text-bright);
+  overflow: hidden;
+}
+.sym-row__name {
+  font-family: var(--tg-font-sans);
+  font-size: 11px;
+  color: var(--tg-color-text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sym-row__price {
+  min-width: 7ch;
+  padding: 0 2px;
+  text-align: right;
+  border-radius: 2px;
+}
+.sym-row__change {
+  text-align: right;
+}
+
+/* Direction of the last price move as a static tint of the price cell. Deliberately NOT a CSS animation:
+   during TRADING nearly every price moves every tick, so 61 fading flashes never finish and cost a style
+   recalculation and repaint of the list on every frame (measured: about half of the main thread). */
+.sym-row__price--up {
+  background: color-mix(in srgb, var(--tg-color-up) 24%, transparent);
+}
+.sym-row__price--down {
+  background: color-mix(in srgb, var(--tg-color-down) 24%, transparent);
+}
+
+/* ---------------------------------------------------------------- selected symbol header */
+
+.sym-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  flex: none;
+}
+.sym-head__id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sym-head__ticker {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--tg-color-text-bright);
+}
+.sym-head__name {
+  font-family: var(--tg-font-sans);
+  font-size: 12px;
+  color: var(--tg-color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sym-head__facts {
+  display: flex;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+}
+.sym-head__fact {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  white-space: nowrap;
+}
+.sym-head__fact dt {
+  font-size: 10px;
+  color: var(--tg-color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.sym-head__fact dd {
+  margin: 0;
+  font-size: 12px;
+  color: var(--tg-color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sym-head__quote {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+.sym-head__price {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--tg-color-text-bright);
+}
+.sym-head__change {
+  font-size: 12px;
+}
+.sym-head__change-label {
+  color: var(--tg-color-text-dim);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+/* Projector variant: sized in viewport units like the rest of /floor. */
+.sym-head--large {
+  gap: 2vw;
+}
+.sym-head--large .sym-head__ticker {
+  font-size: 2.6vw;
+}
+.sym-head--large .sym-head__name {
+  font-size: 1.2vw;
+}
+.sym-head--large .sym-head__fact dt {
+  font-size: 0.9vw;
+}
+.sym-head--large .sym-head__fact dd {
+  font-size: 1.3vw;
+}
+.sym-head--large .sym-head__price {
+  font-size: 3.4vw;
+}
+.sym-head--large .sym-head__change {
+  font-size: 1.6vw;
+}
+.sym-head--large .sym-head__change-label {
+  font-size: 1vw;
+}
+
+/* ---------------------------------------------------------------- chart */
+
+.market-chart .panel__body {
+  overflow: hidden;
+  gap: 8px;
+}
+/* The chart fills what is left; lightweight-charts follows the box (autoSize). */
+.chart {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: var(--tg-color-bg-inset);
+  border: 1px solid var(--tg-color-border);
+  border-radius: 3px;
+}
+
+@media (max-width: 1500px) {
+  .sym-head__fact--optional {
+    display: none;
+  }
+}

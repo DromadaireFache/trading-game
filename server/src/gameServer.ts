@@ -4,6 +4,13 @@
  *
  *   client frame -> parseClientMsg -> session checks -> sim.submit(intent)
  *   clock tick   -> sim.tick()     -> SimEvents      -> ServerMsg broadcast / per player
+ *
+ * Market on the wire (prices are rounded here, the sim never rounds):
+ *   - `market` (universe + all closed candles + latest prices + the partial candle) goes to ONE socket,
+ *     right after its `welcome`, on every join and reconnect in any phase. It is never broadcast.
+ *   - `tick` (all prices) and `candle` (one closed day) are serialized once and broadcast to everybody.
+ *   A join is handled between two sim ticks, so snapshot + the live stream that follows have no gap
+ *   and no overlap: the first `tick` after a `market` is the one right after its (day, tickOfDay).
  */
 import { createServer } from 'node:http';
 import type { Server as HttpServer } from 'node:http';
@@ -11,8 +18,8 @@ import type { AddressInfo } from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
-import { WS_CLOSE_REPLACED } from '@tg/shared';
-import type { ClientMsg, ErrorCode, JoinMsg, LobbyState, PhaseInfo, PlayerId, Role, ServerMsg } from '@tg/shared';
+import { WS_CLOSE_REPLACED, roundOhlc, roundPrices, roundSnapshot } from '@tg/shared';
+import type { ClientMsg, ErrorCode, JoinMsg, LobbyState, MarketMsg, PhaseInfo, PlayerId, Role, ServerMsg } from '@tg/shared';
 import type { ServerEnv } from './env.ts';
 import { lanUrls } from './lan.ts';
 import { runTickClock } from './loop.ts';
@@ -139,6 +146,11 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     };
   }
 
+  /** Everything a client needs to draw the market from nothing. Built fresh: joins are rare, ticks are not. */
+  function marketMsg(): MarketMsg {
+    return { t: 'market', ...roundSnapshot(config, sim.getMarketSnapshot()) };
+  }
+
   function broadcastLobby(): void {
     broadcast({ t: 'lobby', ...lobbyState() });
   }
@@ -163,6 +175,8 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
   }
 
   function attach(session: Session, socket: WebSocket): void {
+    // Built before the socket joins the broadcast set: if the snapshot fails, the join fails as a whole.
+    const market = marketMsg();
     session.socket = socket;
     session.disconnectedAt = null;
     bySocket.set(socket, session);
@@ -177,6 +191,8 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       config,
       joinUrls: lanUrls(env.clientPort).map((u) => u.play),
     });
+    // Same synchronous turn as the welcome, so no tick can slip in between.
+    send(socket, market);
     broadcastLobby();
   }
 
@@ -352,9 +368,9 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
         return;
       }
       case 'tick':
-        return broadcast({ t: 'tick', day: event.day, prices: event.prices });
+        return broadcast({ t: 'tick', day: event.day, tickOfDay: event.tickOfDay, prices: roundPrices(config, event.prices) });
       case 'candle':
-        return broadcast({ t: 'candle', day: event.day, ohlc: event.ohlc });
+        return broadcast({ t: 'candle', day: event.day, ohlc: roundOhlc(config, event.ohlc) });
       case 'headline': {
         const { e: _e, to, ...rest } = event;
         const msg: ServerMsg = { t: 'headline', ...rest };

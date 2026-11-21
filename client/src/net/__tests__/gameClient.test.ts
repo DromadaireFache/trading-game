@@ -264,7 +264,7 @@ describe('GameClient', () => {
     last().receive('42');
     last().receive('{"no":"tag"}');
     expect(client.getState()).toBe(before);
-    last().receive({ t: 'tick', day: 1, prices: {} });
+    last().receive({ t: 'tick', day: 1, tickOfDay: 1, prices: {} });
     expect(seen).toEqual(['tick']);
   });
 

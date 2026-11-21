@@ -44,27 +44,64 @@ export const SECTORS = [
 ] as const;
 export type Sector = (typeof SECTORS)[number];
 
+/** Display names of the sectors (design track: change freely, the ids above are the contract). */
+export const SECTOR_LABELS: Record<Sector, string> = {
+  tech: 'Technology',
+  energy: 'Energy',
+  defense: 'Defense',
+  airlines: 'Airlines',
+  tourism: 'Tourism',
+  finance: 'Finance',
+  health: 'Healthcare',
+  consumer: 'Consumer',
+  industrials: 'Industrials',
+  materials: 'Materials',
+};
+
 export interface Fundamentals {
+  /** Annual revenue, $. */
   revenue: number;
+  /** Net margin as a fraction, e.g. 0.12. */
   margin: number;
+  /** Total debt, $. */
   debt: number;
+  /** Shares outstanding. marketCap = shares * start price. */
   shares: number;
 }
 
+/**
+ * A fake company with ALL its sim parameters. SERVER-SIDE ONLY: betaM, betaS, sigmaI,
+ * rateSensitivity and fundamentals are hidden game information and never go on the wire
+ * (clients get SymbolInfo). The ticker is called `symbol` everywhere.
+ */
 export interface Company {
   symbol: SymbolId;
   name: string;
   sector: Sector;
+  /** Fake CEO name (headline templates use it). */
+  ceo: string;
+  /** Loading on the market factor M. */
   betaM: number;
+  /** Loading on the factor of its own sector S[sector]. */
   betaS: number;
+  /** Idiosyncratic volatility per trading day (log-return std-dev). */
   sigmaI: number;
+  /** Log-return per unit of rate change: r += rateSensitivity * dRate. Usually negative. */
   rateSensitivity: number;
+  /** Market cap in $ at game start (static; used for scale, fund weights and adv). */
   marketCap: number;
   /** Average daily dollar volume. */
   adv: number;
+  /** Price at game start. */
+  startPrice: number;
   fundamentals: Fundamentals;
 }
 
+/**
+ * Index fund (all companies) or sector fund (the companies of one sector).
+ * Price = sum over i of units[i] * mid(members[i]): a fixed basket, no rebalancing.
+ * units are chosen so the fund starts at config.market.fundStartPrice with the given start weights.
+ */
 export interface Fund {
   symbol: SymbolId;
   name: string;
@@ -72,14 +109,41 @@ export interface Fund {
   /** Set for sector funds. */
   sector?: Sector;
   members: SymbolId[];
+  /** Start weights, parallel to members, summing to 1. */
+  weights: number[];
+  /** Shares of each member per fund unit, parallel to members: startPrice * weights[i] / startPrice(members[i]). */
+  units: number[];
+  /** Sum of the members' market caps (shown as the fund's size). */
+  marketCap: number;
+  /** Average daily dollar volume of the fund itself (trading a fund has its own impact). */
+  adv: number;
+  startPrice: number;
 }
 
-/** What a client needs to list a tradable symbol. */
+export type SymbolKind = 'stock' | 'index' | 'sector';
+
+/** PUBLIC description of a tradable symbol: everything a client may know. */
 export interface SymbolInfo {
   symbol: SymbolId;
   name: string;
-  kind: 'stock' | 'fund';
+  /** stock = company; index = the index fund; sector = a sector fund. */
+  kind: SymbolKind;
+  /** Stocks and sector funds; undefined for the index fund. */
   sector?: Sector;
+  marketCap: number;
+  /** Stocks only. */
+  ceo?: string;
+  /** Funds only: member tickers. */
+  members?: SymbolId[];
+}
+
+/**
+ * PUBLIC universe sent to clients. `symbols` is in CANONICAL ORDER, the same in the sim and on
+ * every client: the index fund, the sector funds in SECTORS order, then the companies sector by
+ * sector in SECTORS order. 61 entries with the default config.
+ */
+export interface UniverseInfo {
+  symbols: SymbolInfo[];
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +155,31 @@ export interface OHLC {
   h: number;
   l: number;
   c: number;
+}
+
+/**
+ * Everything a client needs to draw the market from nothing (join, reconnect, refresh).
+ * The sim returns it unrounded from Sim.getMarketSnapshot(); the server rounds it for the wire
+ * (roundSnapshot in shared/market.ts).
+ *
+ * Days are 0-based trading days since game start and keep counting across quarters:
+ * day d belongs to quarter floor(d / daysPerQuarter) + 1 (helpers in shared/market.ts).
+ */
+export interface MarketSnapshot {
+  universe: UniverseInfo;
+  /** The trading day in progress, or the next one to start when no day is open (= number of closed days). */
+  day: number;
+  /** Ticks already played of `day`: 0 when no day is in progress, else 1..ticksPerCandle-1. */
+  tickOfDay: number;
+  /** Latest price of every symbol (the start prices before the first tick). */
+  prices: Record<SymbolId, number>;
+  /**
+   * Closed daily candles of days 0..day-1 per symbol, flat: [o0, h0, l0, c0, o1, h1, l1, c1, ...].
+   * Every symbol has exactly `day` candles (4 * day numbers). Use unpackCandles() from shared.
+   */
+  candles: Record<SymbolId, number[]>;
+  /** The partial candle of `day` when tickOfDay > 0, else null. */
+  current: Record<SymbolId, OHLC> | null;
 }
 
 // ---------------------------------------------------------------------------

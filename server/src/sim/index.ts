@@ -4,28 +4,43 @@
  *
  * Milestone 1: the phase state machine and the lobby roster.
  *   LOBBY -> [BRIEFING -> TRADING -> EARNINGS -> RESULTS -> SHOP] x config.time.quarters -> FINAL
- * Later milestones hang the market, portfolios, headlines, cards and SEC off the same tick().
+ * Milestone 2: the market (./universe.ts, ./market.ts). The universe is generated from the seed
+ *   when the sim is created; prices step once per tick() while the phase is TRADING and are frozen
+ *   otherwise, so every quarter has exactly daysPerQuarter candles and days count on across quarters.
+ * Later milestones hang portfolios, headlines, cards and SEC off the same tick().
  * See ./types.ts for the contract and the purity rules.
  *
  * Tick accounting: a phase of N ticks whose `phase` event is returned by tick() call T ends on
  * call T + N, which returns the next `phase` event. The tick that processes `start` only enters
- * BRIEFING; it does not consume a BRIEFING tick.
+ * BRIEFING; it does not consume a BRIEFING tick. The N tick() calls after the one that announced
+ * TRADING each step the market once; the last of them returns `tick`, `candle`, then the EARNINGS
+ * `phase` event, in that order.
+ *
+ * RNG streams: forked from the root in a FIXED order (universe, market, then later subsystems at
+ * the end), so adding a subsystem never changes the universe or the price path of a seed.
  */
 import type { GameConfig, Phase } from '@tg/shared';
+import { createMarket } from './market.ts';
 import { nextPhase, phaseLength } from './phases.ts';
 import { createRng } from './rng.ts';
 import type { Sim, SimEvent, SimIntent, SimPlayer, SimRejectCode, SimState } from './types.ts';
+import { generateUniverse } from './universe.ts';
 
 export * from './types.ts';
 export { createRng } from './rng.ts';
 export type { Rng } from './rng.ts';
 export { isQuarterPhase, nextPhase, phaseLength } from './phases.ts';
 export type { PhasePosition } from './phases.ts';
+export { generateUniverse, toUniverseInfo } from './universe.ts';
+export type { GenerateUniverse, Universe } from './universe.ts';
+export { createMarket } from './market.ts';
+export type { CreateMarket, Market, MarketEvent, MarketStepInput } from './market.ts';
 
 export function createSim(seed: number, config: GameConfig): Sim {
-  // Not drawn from yet; later subsystems fork their own streams from it.
+  // One child stream per subsystem, forked in a fixed order. Append new forks at the END.
   const rng = createRng(seed);
-  void rng;
+  const universe = generateUniverse(rng.fork(), config);
+  const market = createMarket(universe, rng.fork(), config);
 
   const queue: SimIntent[] = [];
   const players: SimPlayer[] = [];
@@ -110,6 +125,11 @@ export function createSim(seed: number, config: GameConfig): Sim {
       // 2. clock (does not run in LOBBY and FINAL)
       const length = phaseLength(config, phase);
       if (length !== null && !enteredByIntent) {
+        // Prices move only in TRADING: one market step per tick of the phase.
+        // Later milestones pass regimes / news / impact as the step input.
+        if (phase === 'TRADING') {
+          for (const event of market.step()) events.push(event);
+        }
         phaseTick += 1;
         if (phaseTick >= length) enter(nextPhase(config, { phase, quarter }));
       }
@@ -129,5 +149,7 @@ export function createSim(seed: number, config: GameConfig): Sim {
         players: players.map((p) => ({ ...p })),
       };
     },
+    getUniverse: () => universe,
+    getMarketSnapshot: () => market.getSnapshot(),
   };
 }

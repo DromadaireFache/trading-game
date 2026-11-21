@@ -3,8 +3,8 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
-import { QUARTER_PHASES, defaultConfig, mergeConfig, phaseTicks, quarterTicks } from '@tg/shared';
-import type { DeepPartial, GameConfig, MsgOf, ServerMsg, ServerMsgType } from '@tg/shared';
+import { QUARTER_PHASES, SECTORS, defaultConfig, mergeConfig, packCandle, phaseTicks, quarterTicks, roundPrice, totalTradingDays } from '@tg/shared';
+import type { DeepPartial, GameConfig, MsgOf, OHLC, Phase, ServerMsg, ServerMsgType, SymbolId } from '@tg/shared';
 import { CLOSE_REPLACED, HEALTH_PATH, startGameServer } from '../gameServer.ts';
 import type { GameServer } from '../gameServer.ts';
 
@@ -404,6 +404,250 @@ describe('start and phases', () => {
     floor.send({ t: 'order', symbol: 'ACME', qty: 10 });
     expect((await floor.next('error')).code).toBe('not_allowed');
     expect(bob.received.some((m) => m.t === 'error')).toBe(false);
+  });
+});
+
+// --- market ------------------------------------------------------------------
+
+type TickMsg = MsgOf<ServerMsg, 'tick'>;
+type MarketMsg = MsgOf<ServerMsg, 'market'>;
+type MarketState = Pick<MarketMsg, 'day' | 'tickOfDay' | 'prices' | 'candles' | 'current'>;
+
+/** Keys a client may see of a symbol; everything else of Company / Fund is hidden sim state. */
+const PUBLIC_SYMBOL_KEYS = ['symbol', 'name', 'kind', 'sector', 'marketCap', 'ceo', 'members'];
+
+function isWirePrice(config: GameConfig, price: unknown): boolean {
+  return typeof price === 'number' && Number.isFinite(price) && price > 0 && roundPrice(config, price) === price;
+}
+
+/** The candle history a client holds: its `market` snapshot plus every `candle` message after it. */
+function historyOf(client: Client): Record<SymbolId, number[]> {
+  const from = client.received.findIndex((m) => m.t === 'market');
+  if (from < 0) throw new Error('client never got a market snapshot');
+  const snapshot = client.received[from] as MarketMsg;
+  const flat: Record<SymbolId, number[]> = {};
+  for (const symbol in snapshot.candles) flat[symbol] = [...snapshot.candles[symbol]!];
+  let day = snapshot.day;
+  for (const msg of client.received.slice(from + 1)) {
+    if (msg.t !== 'candle') continue;
+    if (msg.day !== day) throw new Error(`candle of day ${msg.day} arrived where day ${day} was due`);
+    day += 1;
+    for (const symbol in msg.ohlc) packCandle(flat[symbol]!, msg.ohlc[symbol]!);
+  }
+  return flat;
+}
+
+/**
+ * What a client that was there all along knew at the moment a `market` snapshot was taken, i.e. just
+ * before it received `firstTickAfter` (the first tick the snapshot's owner got after the snapshot).
+ */
+function knownBefore(witness: Client, firstTickAfter: TickMsg): MarketState {
+  const at = witness.received.findIndex((m) => m.t === 'tick' && m.day === firstTickAfter.day && m.tickOfDay === firstTickAfter.tickOfDay);
+  if (at < 0) throw new Error('the witness has not received that tick');
+  const before = witness.received.slice(0, at);
+  const own = before.find((m) => m.t === 'market') as MarketMsg;
+  const ticks = before.filter((m): m is TickMsg => m.t === 'tick');
+  const candles: Record<SymbolId, number[]> = {};
+  for (const symbol in own.candles) candles[symbol] = [...own.candles[symbol]!];
+  let closedDays = own.day;
+  for (const msg of before) {
+    if (msg.t !== 'candle') continue;
+    closedDays += 1;
+    for (const symbol in msg.ohlc) packCandle(candles[symbol]!, msg.ohlc[symbol]!);
+  }
+  const open = ticks.filter((m) => m.day === closedDays);
+  let current: Record<SymbolId, OHLC> | null = null;
+  if (open.length > 0) {
+    current = {};
+    for (const symbol in open[0]!.prices) {
+      const path = open.map((m) => m.prices[symbol]!);
+      current[symbol] = { o: path[0]!, h: Math.max(...path), l: Math.min(...path), c: path.at(-1)! };
+    }
+  }
+  return { day: closedDays, tickOfDay: open.length, prices: ticks.at(-1)?.prices ?? own.prices, candles, current };
+}
+
+describe('market', () => {
+  it('sends the public universe and an empty history right after welcome, to players and spectators, in the lobby', async () => {
+    const s = await start();
+    const ann = await open(s);
+    await ann.join('player', 'Ann');
+    const floor = await open(s);
+    await floor.join('spectator');
+
+    const market = await ann.next('market');
+    expect(ann.received.slice(0, 2).map((m) => m.t)).toEqual(['welcome', 'market']);
+    const symbols = market.universe.symbols;
+    const perSector = s.sim.config.market.companiesPerSector;
+    expect(symbols.map((x) => x.kind)).toEqual([
+      'index',
+      ...SECTORS.map(() => 'sector'),
+      ...SECTORS.flatMap(() => Array.from({ length: perSector }, () => 'stock')),
+    ]);
+    expect(symbols.slice(1 + SECTORS.length).map((x) => x.sector)).toEqual(SECTORS.flatMap((sector) => Array.from({ length: perSector }, () => sector)));
+    const ids = symbols.map((x) => x.symbol);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const info of symbols) {
+      expect(PUBLIC_SYMBOL_KEYS).toEqual(expect.arrayContaining(Object.keys(info)));
+      expect(info.name.length).toBeGreaterThan(0);
+    }
+
+    expect(market).toMatchObject({ day: 0, tickOfDay: 0, current: null });
+    expect(Object.keys(market.prices).sort()).toEqual([...ids].sort());
+    expect(Object.keys(market.candles).sort()).toEqual([...ids].sort());
+    for (const id of ids) {
+      expect(isWirePrice(s.sim.config, market.prices[id])).toBe(true);
+      expect(market.candles[id]).toEqual([]);
+    }
+
+    // The projector gets the very same picture, and nobody gets it twice or by broadcast.
+    const floorMarket = await floor.next('market');
+    expect(floorMarket).toEqual(market);
+    expect(floor.received.slice(0, 2).map((m) => m.t)).toEqual(['welcome', 'market']);
+    await ann.next('lobby', (m) => m.spectators === 1);
+    expect(ann.received.filter((m) => m.t === 'market')).toHaveLength(1);
+    expect(ann.received.some((m) => m.t === 'tick' || m.t === 'candle')).toBe(false);
+  });
+
+  it('broadcasts rounded ticks only during TRADING and numbers candles consecutively across quarters', async () => {
+    const s = await start();
+    const config = s.sim.config;
+    const ann = await open(s);
+    await ann.join('player', 'Ann');
+    const floor = await open(s);
+    await floor.join('spectator');
+    const { universe } = await ann.next('market');
+    const ids = universe.symbols.map((x) => x.symbol).sort();
+
+    ann.send({ t: 'start' });
+    await ann.next('phase', (m) => m.phase === 'FINAL');
+    await floor.next('phase', (m) => m.phase === 'FINAL');
+
+    const { ticksPerCandle, daysPerQuarter } = config.time;
+    const days = totalTradingDays(config);
+    let phase: Phase = 'LOBBY';
+    let quarter = 0;
+    let expectedDay = 0;
+    let expectedTickOfDay = 1;
+    let ticks = 0;
+    const candleDays: number[] = [];
+    for (const msg of ann.received) {
+      if (msg.t === 'phase') {
+        // A phase never ends in the middle of a day.
+        expect(expectedTickOfDay).toBe(1);
+        phase = msg.phase;
+        quarter = msg.quarter;
+      } else if (msg.t === 'tick') {
+        ticks += 1;
+        expect(phase).toBe('TRADING');
+        expect({ day: msg.day, tickOfDay: msg.tickOfDay }).toEqual({ day: expectedDay, tickOfDay: expectedTickOfDay });
+        expect(Math.floor(msg.day / daysPerQuarter) + 1).toBe(quarter);
+        expect(Object.keys(msg).sort()).toEqual(['day', 'prices', 't', 'tickOfDay']);
+        expect(Object.keys(msg.prices).sort()).toEqual(ids);
+        for (const id of ids) expect(isWirePrice(config, msg.prices[id])).toBe(true);
+        expectedTickOfDay += 1;
+      } else if (msg.t === 'candle') {
+        // Right after the last tick of its day.
+        expect(phase).toBe('TRADING');
+        expect(expectedTickOfDay).toBe(ticksPerCandle + 1);
+        expect(msg.day).toBe(expectedDay);
+        expect(Object.keys(msg.ohlc).sort()).toEqual(ids);
+        for (const id of ids) {
+          const { o, h, l, c } = msg.ohlc[id]!;
+          for (const price of [o, h, l, c]) expect(isWirePrice(config, price)).toBe(true);
+          expect(h).toBeGreaterThanOrEqual(Math.max(o, c));
+          expect(l).toBeLessThanOrEqual(Math.min(o, c));
+        }
+        candleDays.push(msg.day);
+        expectedDay += 1;
+        expectedTickOfDay = 1;
+      }
+    }
+    expect(ticks).toBe(days * ticksPerCandle);
+    expect(candleDays).toEqual(Array.from({ length: days }, (_, i) => i));
+
+    // One shared stream: the projector got exactly the same market messages.
+    const marketStream = (c: Client) => c.received.filter((m) => m.t === 'tick' || m.t === 'candle');
+    expect(marketStream(floor)).toEqual(marketStream(ann));
+  });
+
+  it('gives a late spectator and a reconnecting player the same history as a client that never left', async () => {
+    // Long days, so "join right after the first tick of a day" lands inside that day.
+    const s = await start({ time: { ticksPerCandle: 10, daysPerQuarter: 4, quarters: 2 }, lobby: { maxSpectators: 3 } });
+    const config = s.sim.config;
+    const { daysPerQuarter } = config.time;
+    const days = totalTradingDays(config);
+
+    const ann = await open(s);
+    await ann.join('player', 'Ann');
+    const bob = await open(s);
+    const bobWelcome = await bob.join('player', 'Bob');
+    const lateFloor = await open(s);
+    const bobAgain = await open(s);
+    ann.send({ t: 'start' });
+
+    /** Joins in the middle of a day and checks the snapshot against what Ann knew at that moment. */
+    async function joinMidDay(client: Client, day: number, role: 'player' | 'spectator', token?: string): Promise<MarketMsg> {
+      await ann.next('tick', (m) => m.day === day && m.tickOfDay === 1);
+      await client.join(role, undefined, token);
+      const snapshot = await client.next('market');
+      const firstTick = await client.next('tick');
+      // No gap and no overlap between the snapshot and the live stream.
+      expect(snapshot.current).not.toBeNull();
+      expect(snapshot.day).toBe(day);
+      expect({ day: firstTick.day, tickOfDay: firstTick.tickOfDay }).toEqual({ day: snapshot.day, tickOfDay: snapshot.tickOfDay + 1 });
+      await ann.next('tick', (m) => m.day === firstTick.day && m.tickOfDay === firstTick.tickOfDay);
+      const { t: _t, universe, ...state } = snapshot;
+      expect(state).toEqual(knownBefore(ann, firstTick));
+      expect(universe).toEqual((ann.received[1] as MarketMsg).universe);
+      for (const id in snapshot.candles) expect(snapshot.candles[id]).toHaveLength(4 * day);
+      return snapshot;
+    }
+
+    // Quarter 1, day 1: the projector is switched on late. Bob's laptop goes away.
+    await joinMidDay(lateFloor, 1, 'spectator');
+    bob.close();
+
+    // Quarter 2, second day: Bob comes back with his token and gets both quarters of history.
+    await joinMidDay(bobAgain, daysPerQuarter + 1, 'player', bobWelcome.token);
+
+    for (const client of [ann, lateFloor, bobAgain]) await client.next('phase', (m) => m.phase === 'FINAL');
+
+    // After the game: a brand-new spectator gets the whole game in one snapshot.
+    const afterwards = await open(s);
+    await afterwards.join('spectator');
+    const final = await afterwards.next('market');
+    expect(final).toMatchObject({ day: days, tickOfDay: 0, current: null });
+    expect(final.prices).toEqual(ann.received.filter((m): m is TickMsg => m.t === 'tick').at(-1)!.prices);
+
+    const full = historyOf(ann);
+    for (const id in full) expect(full[id]).toHaveLength(4 * days);
+    expect(historyOf(lateFloor)).toEqual(full);
+    expect(historyOf(bobAgain)).toEqual(full);
+    expect(final.candles).toEqual(full);
+  });
+
+  it('sends a consistent snapshot between quarters, when no day is in progress', async () => {
+    const s = await start({ phaseMs: { EARNINGS: 40 * TICK_MS } });
+    const { daysPerQuarter } = s.sim.config.time;
+    const ann = await open(s);
+    await ann.join('player', 'Ann');
+    const floor = await open(s);
+    ann.send({ t: 'start' });
+    await ann.next('phase', (m) => m.phase === 'EARNINGS' && m.quarter === 1);
+
+    const welcome = await floor.join('spectator');
+    expect(welcome.phase.phase).toBe('EARNINGS');
+    const snapshot = await floor.next('market');
+    expect(snapshot).toMatchObject({ day: daysPerQuarter, tickOfDay: 0, current: null });
+    for (const id in snapshot.candles) expect(snapshot.candles[id]).toHaveLength(4 * daysPerQuarter);
+    // Prices are frozen at the last close.
+    const lastClose = Object.fromEntries(Object.entries(snapshot.candles).map(([id, flat]) => [id, flat.at(-1)]));
+    expect(snapshot.prices).toEqual(lastClose);
+
+    // The next quarter continues the day count right where the snapshot ends.
+    const next = await floor.next('tick');
+    expect({ day: next.day, tickOfDay: next.tickOfDay }).toEqual({ day: daysPerQuarter, tickOfDay: 1 });
   });
 });
 
