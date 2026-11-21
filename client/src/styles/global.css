@@ -393,6 +393,8 @@ ol {
 /* ---------------------------------------------------------------- /play shell + header */
 
 .play {
+  /* A tilted paper on the pile (or the pile sliding down) may poke past the window: clip it instead of growing the page. */
+  overflow: clip;
   height: 100%;
   min-height: 560px;
   display: flex;
@@ -640,10 +642,9 @@ ol {
 .desk__chart {
   grid-area: chart;
 }
-/* The headline slot: the latest headline, at the bottom of the side column (bottom right). */
-.desk__side > .desk__news {
-  flex: none;
-  height: 148px;
+/* The headline papers pile up over the cards at the bottom of this column (news/news.css). */
+.desk__side {
+  position: relative;
 }
 /* The earnings report (BRIEFING, EARNINGS, FINAL): over the chart, or under the final standings. */
 .desk__earnings {

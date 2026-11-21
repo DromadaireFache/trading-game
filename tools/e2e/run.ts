@@ -1013,57 +1013,73 @@ async function main(): Promise<void> {
       check(onA.filter((h) => !h.early).slice(-3).every((h) => idsB.has(h.id)), 'B received the same latest headlines as A');
       check(!headlineFrames('floor').some((h) => h.early), 'no early (insider) headline reached the floor');
 
-      // The slot sits above the list and the chart, and shows the latest headline.
+      // Headlines land as papers on a messy pile over the cards; the newest is on top.
+      const top = `${tid('headline')}[data-depth="0"]`;
       const seenBefore = headlineFrames('A').length;
       await waitFor('a new headline', async () => headlineFrames('A').length > seenBefore);
       const latest = headlineFrames('A').at(-1)!;
-      await waitFor('the slot to show the latest headline', async () => (await a.getAttribute(tid('headline'), 'data-id')) === latest.id);
-      check((await textOf(a, 'headline-text')) === latest.text, `the slot shows the latest headline: "${latest.text}"`);
-      const ticker = (await textOf(a, 'headline-ticker')).trim();
-      check(ticker.length > 0 && (latest.symbol === undefined || ticker === latest.symbol), `the slot names its stock (${ticker})`);
-      check((await textOf(a, 'headline-sector')).trim().length > 0, `the slot names its sector: ${await textOf(a, 'headline-sector')}`);
-      const [slotBox, sideBox, handBox] = [await a.locator(tid('headline-slot')).boundingBox(), await a.locator('.desk__side').boundingBox(), await a.locator('.desk__hand').boundingBox()];
-      check(slotBox !== null && sideBox !== null && handBox !== null && slotBox.x >= sideBox.x - 1 && slotBox.y >= handBox.y + handBox.height - 1 &&
-        Math.abs(slotBox.y + slotBox.height - (sideBox.y + sideBox.height)) <= 2,
-        `the headline slot sits at the bottom right, under the cards (slot ${JSON.stringify(slotBox)})`);
+      await waitFor('the newest paper on top of the pile', async () => (await a.getAttribute(top, 'data-id')) === latest.id);
+      check((await a.locator(top).locator(tid('headline-text')).textContent())?.trim() === latest.text, `the top paper shows the latest headline: "${latest.text}"`);
+      const ticker = ((await a.locator(top).locator(tid('headline-ticker')).textContent()) ?? '').trim();
+      check(ticker.length > 0 && (latest.symbol === undefined || ticker === latest.symbol), `the paper names its stock (${ticker})`);
+      const style = async (selector: string, prop: string) => (await a.evaluate(`getComputedStyle(document.querySelector('${selector}')).${prop}`)) as string;
+      const tickerBg = await style(`${top} ${tid('headline-ticker')}`, 'backgroundColor');
+      const paperBg = await style(top, 'backgroundColor');
+      check(tickerBg !== paperBg && !/rgba\(0, 0, 0, 0\)/.test(tickerBg), `the ticker wears a color of its own (${tickerBg})`);
+      // Over the cards, angled.
+      const [paperBox, handBox] = [await a.locator(top).boundingBox(), await a.locator('.desk__hand').boundingBox()];
+      check(paperBox !== null && handBox !== null && paperBox.x < handBox.x + handBox.width && paperBox.x + paperBox.width > handBox.x &&
+        paperBox.y < handBox.y + handBox.height && paperBox.y + paperBox.height > handBox.y,
+        `the paper lies over the cards (paper ${JSON.stringify(paperBox)}, cards ${JSON.stringify(handBox)})`);
+      check((await style(top, 'transform')) !== 'none', 'the paper is angled');
       // Nothing on it to press, and it does not move when dragged.
-      check((await a.locator(`${tid('headline')} button, ${tid('headline')} [role=button]`).count()) === 0, 'the headline has no buttons of its own');
-      // A headline arriving mid-check slides in for a moment: read the box once it holds still.
-      const stillBox = async () => {
-        let box = await a.locator(tid('headline')).boundingBox();
+      check((await a.locator(`${tid('headline')} button`).count()) === 0, 'the papers have no buttons');
+      // A headline arriving mid-check drops in for a moment: read the box once it holds still.
+      const stillBox = async (selector: string) => {
+        let box = await a.locator(selector).boundingBox();
         for (let i = 0; i < 20; i++) {
           await sleep(120);
-          const again = await a.locator(tid('headline')).boundingBox();
+          const again = await a.locator(selector).boundingBox();
           if (box !== null && again !== null && again.x === box.x && again.y === box.y) return again;
           box = again;
         }
         return box;
       };
-      const before = await stillBox();
-      await a.mouse.move(before!.x + 40, before!.y + 20);
+      const pinned = `${tid('headline')}[data-id="${await a.getAttribute(top, 'data-id')}"]`;
+      const before = await stillBox(pinned);
+      await a.mouse.move(before!.x + before!.width / 2, before!.y + 20);
       await a.mouse.down();
-      await a.mouse.move(before!.x + 140, before!.y + 120, { steps: 5 });
+      await a.mouse.move(before!.x - 100, before!.y - 120, { steps: 5 });
       await a.mouse.up();
-      const after = await stillBox();
-      check(after !== null && Math.abs(after.x - before!.x) < 1 && Math.abs(after.y - before!.y) < 1, `the headline cannot be dragged (${JSON.stringify(before)} -> ${JSON.stringify(after)})`);
+      await a.mouse.move(before!.x + before!.width / 2, before!.y + 20);
+      const after = await stillBox(pinned);
+      const sameDepth = (await a.getAttribute(pinned, 'data-depth')) === '0';
+      check(!sameDepth || (after !== null && Math.abs(after.x - before!.x) < 1 && Math.abs(after.y - before!.y) < 1),
+        `the paper cannot be dragged (${JSON.stringify(before)} -> ${JSON.stringify(after)})`);
       await shot(a, '20-play-headline');
-      // Clicking it opens its stock.
-      const openTicker = (await a.getAttribute(tid('headline'), 'data-ticker'))!;
-      await a.click(tid('headline'));
+      // Clicking a paper opens its stock; the paper stays.
+      const openId = await a.getAttribute(top, 'data-id');
+      const openTicker = (await a.getAttribute(top, 'data-ticker'))!;
+      await a.click(top);
       await a.waitForSelector(`${tid('selected-symbol')}[data-symbol="${openTicker}"]`);
-      check(true, `clicking the headline opened ${openTicker}`);
-      check((await a.locator(tid('headline')).count()) === 1, 'the headline stays after the click');
-      // It stays until the next headline replaces it: always exactly one strip.
-      const shownId = await a.getAttribute(tid('headline'), 'data-id');
+      check(true, `clicking the paper opened ${openTicker}`);
+      check((await a.locator(`${tid('headline')}[data-id="${openId}"]`).count()) === 1, 'the paper stays after the click');
+      // It stays until later headlines bury it: the next one lands on top, the old one under it.
       const seenNow = headlineFrames('A').length;
-      let gone = false;
-      await waitFor('the next headline', async () => {
-        if ((await a.locator(tid('headline')).count()) !== 1) gone = true;
-        return headlineFrames('A').length > seenNow;
-      });
+      await waitFor('the next headline', async () => headlineFrames('A').length > seenNow);
       const next = headlineFrames('A').at(-1)!;
-      await waitFor('the slot to show the next headline', async () => (await a.getAttribute(tid('headline'), 'data-id')) === next.id);
-      check(!gone && next.id !== shownId, `the headline stayed until the next one replaced it (${shownId} -> ${next.id})`);
+      await waitFor('the next paper on top', async () => (await a.getAttribute(top, 'data-id')) === next.id);
+      const buried = await a.getAttribute(`${tid('headline')}[data-id="${openId}"]`, 'data-depth').catch(() => null);
+      check(buried !== null && Number(buried) >= 1, `the old paper is buried under the new one (depth ${buried})`);
+      const tilts = (await a.evaluate(`[...document.querySelectorAll('${tid('headline')}')].map((el) => getComputedStyle(el).transform)`)) as string[];
+      check(new Set(tilts).size === tilts.length && tilts.length >= 2, `the pile is messy: ${tilts.length} papers, each at its own angle`);
+      // While the pointer is over the cards the pile slides out of the way.
+      const pileY = (await a.locator(tid('news-pile')).boundingBox())!.y;
+      const hand = (await a.locator('.desk__hand').boundingBox())!;
+      await a.mouse.move(hand.x + 20, hand.y + 12);
+      await waitFor('the pile to slide down', async () => (await a.locator(tid('news-pile')).boundingBox())!.y > pileY + 60);
+      check(true, 'hovering the cards slides the pile down');
+      await a.mouse.move(5, 5);
       // Pace: 2 to 10 s of game time between two public headlines.
       const pub = headlineFrames('A').filter((h) => !h.early);
       const gaps = pub.slice(1).map((h, i) => (h.ts - pub[i]!.ts) * DAY_MS);
@@ -1190,6 +1206,9 @@ async function main(): Promise<void> {
       check(handBefore > 0, `A still holds ${handBefore} cards in Q2`);
       for (let i = 0; i < handBefore; i++) {
         const cardEl = a.locator(tid('hand-card')).first();
+        // The headline papers lie over the cards: point at the cards so the pile slides away first.
+        await cardEl.hover({ position: { x: 20, y: 10 } });
+        await sleep(300);
         const button = cardEl.locator(`${tid('play')}, ${tid('play-up')}`).first();
         if (await button.isDisabled()) break; // e.g. a sector card with the index fund selected
         await button.click();
