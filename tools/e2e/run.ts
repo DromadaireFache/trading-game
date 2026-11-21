@@ -39,17 +39,17 @@ const earningsOnly = process.env.TG_E2E_EARNINGS === '1';
 const QUARTERS = 2;
 /**
  * Trading days per quarter: long enough to click around, reload and watch candles appear. Every step up
- * to the headline checks must fit in Q1's trading phase: they take about 25 s, with a reload step that
- * varies by several seconds; 26 and 32 days were too tight (the phase loop then caught Q2's EARNINGS).
+ * to the headline checks must fit in Q1's trading phase, including reloads and browser scheduling delays.
  */
-const DAYS = earningsOnly ? 8 : 40;
+const DAYS = earningsOnly ? 8 : 55;
 const TICKS_PER_DAY = defaultConfig.time.ticksPerCandle;
 const DAY_MS = TICKS_PER_DAY * defaultConfig.time.tickMs;
 const TRADING_MS = DAYS * DAY_MS;
+// Leave time for the browser to check and capture each screen before the next phase starts.
+const PHASE_MS = { BRIEFING: 1500, EARNINGS: 2000, RESULTS: 3500, SHOP: 5000 };
 const overrides: DeepPartial<GameConfig> = {
   time: { quarters: QUARTERS, daysPerQuarter: DAYS },
-  // SHOP is long enough to buy cards in (milestone 5).
-  phaseMs: { BRIEFING: 1500, EARNINGS: 800, RESULTS: 1500, SHOP: 3000 },
+  phaseMs: PHASE_MS,
   lobby: { minPlayers: 2 },
   ...(earningsOnly ? {
     news: { randomHeadlinesPerQuarter: 3, scheduledBeatsPerQuarter: 0, noiseShare: 1, quietDays: 0 },
@@ -60,7 +60,8 @@ const overrides: DeepPartial<GameConfig> = {
     news: { randomHeadlinesPerQuarter: 4, minGapMs: 2_000 },
   }),
 };
-const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800) + (QUARTERS - 1) * (1500 + 3000);
+const GAME_MS = QUARTERS * (PHASE_MS.BRIEFING + TRADING_MS + PHASE_MS.EARNINGS)
+  + (QUARTERS - 1) * (PHASE_MS.RESULTS + PHASE_MS.SHOP);
 const COMPANIES_PER_SECTOR = defaultConfig.market.companiesPerSector;
 const SYMBOL_COUNT = 1 + SECTORS.length + SECTORS.length * COMPANIES_PER_SECTOR;
 const WAIT_MS = 15_000;
