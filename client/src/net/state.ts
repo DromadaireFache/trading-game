@@ -9,6 +9,7 @@
 import { defaultConfig } from '@tg/shared';
 import type {
   Briefing,
+  CardOffer,
   EarningsMsg,
   ErrorCode,
   FillMsg,
@@ -74,6 +75,8 @@ export interface GameState {
   briefing: Briefing | null;
   /** Latest earnings reports, until the next briefing. */
   earnings: Omit<EarningsMsg, 't'> | null;
+  /** This SHOP's offers for this player (prices are personal). */
+  shop: CardOffer[];
   /** Latest quarter (or final) results; shown in RESULTS and FINAL, kept until the next ones. */
   results: Omit<ResultsMsg, 't'> | null;
   /** Latest projector moment and when it arrived (client ms); the floor shows it for a few seconds. */
@@ -108,6 +111,7 @@ export const initialGameState: GameState = {
   headlines: [],
   briefing: null,
   earnings: null,
+  shop: [],
   results: null,
   moment: null,
 };
@@ -119,7 +123,7 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       const game = msg.game ?? 1;
       // "Play again" started another game: nothing of the old one stays on screen.
       if (state.game !== 0 && game !== state.game) {
-        state = { ...state, portfolio: null, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null };
+        state = { ...state, portfolio: null, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null, shop: [] };
       }
       // Same seat after a reconnect: keep the trading history. Another seat: start clean.
       const sameSeat = state.me?.playerId === msg.playerId;
@@ -188,7 +192,7 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       return { ...state, moment: { ...moment, at: now } };
     }
     case 'shop':
-      return state;
+      return { ...state, shop: msg.offers };
     default: {
       // Unknown `t` from a newer server: ignore rather than crash.
       const _exhaustive: never = msg;

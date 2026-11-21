@@ -1,6 +1,6 @@
 # Status (2026-11-21)
 
-Milestones 1–4 of 7 are done; `impl/mvp` and `main` are kept in sync. A full game is playable on the LAN with live news.
+Milestones 1–6 are done and M7 has its first tuning pass (M6 and M7 by julien); `impl/mvp` and `main` are kept in sync. A full game is playable on the LAN with live news, cards, results and a final screen.
 
 ## How to run it
 
@@ -9,7 +9,7 @@ npm install
 npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) and /floor (projector)
 ```
 
-`npm run typecheck`, `npm test` (218 unit tests) and `npm run e2e` (two headless players plus the projector, 204 checks) all pass on this commit. Settings and env overrides are described in README.md; every choice the spec left open is in docs/DECISIONS.md.
+`npm run typecheck`, `npm test` (240 unit tests) and `npm run e2e` (two headless players plus the projector, 212 checks) all pass on this commit. Settings and env overrides are described in README.md; every choice the spec left open is in docs/DECISIONS.md.
 
 ## Done
 
@@ -17,7 +17,7 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 - **M2 Market.** 10 sectors × 5 fake companies, plus an index fund and 10 sector funds, all generated from a seed. A correlated price step runs at 10 Hz with 1 candle per second over 90-day quarters. `/play` has a sector-grouped symbol list with live prices and a candle chart; `/floor` shows the index chart.
 - **M3 Trading.** `server/src/sim/trading.ts`: market orders in shares, long and short, clipped to the 4× leverage cap; price impact (slippage, permanent, temporary decaying with a 5 s half-life, each capped); arrival order within a tick; daily borrow fee on shorts; margin call liquidates the largest position; elimination below $100k. `/play` has order entry (Buy/Sell, % of buying power, fixed $, Half, Close) and a positions panel with live P&L. A reconnect restores the portfolio.
 - **M4 Headlines.** `server/src/sim/headlines.ts` (template lookup with no repeats, slot filling) and `news.ts` (quarter plan: random headlines, scheduled beats with the rate decision, earnings leaks; one global queue with a minimum gap) drive julien's `shocks.ts` and `earnings.ts`. The client shows the beats, a live headline feed (tags select the stock or sector fund) and the earnings reports; the gaps land at the next quarter's open.
-- **Card catalog (teammate).** `shared/data/cards.json` + `shared/cards.ts`, and `server/src/sim/shop.ts`. Not yet wired into the sim; M5 does that.
+- **M5 Cards and shop.** `server/src/sim/cardEngine.ts` wires julien's catalog (`shared/data/cards.json`), `shop.ts`, `sec.ts` and `regimes.ts` into the game: shop per quarter priced per player, hand of 3, insider previews, fakes with debunk, events, regimes and lobbying, heat, SEC roll with fines and jail, card authors at RESULTS. `/play` has the shop (SHOP phase) and the hand with play buttons, heat and jail. A basic `results` event is emitted at RESULTS; the screens are M6.
 - **Headline content (WIP, teammate).** `shared/data/headlines.seed.json` has 158 templates in the §7 schema, and `shared/data/placeholders.json` has the fictional fill lists. `tools/generate-headlines/` holds the generator for a local OpenAI-compatible endpoint (Ollama or LM Studio) and its validator.
 
 ## Not verified / known gaps
@@ -31,15 +31,13 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 - **No second machine tested.** A connection from another physical machine on the LAN is untested. Only this host was used, with the server bound to all interfaces.
 - **Play again (2026-11-21).** No server restart needed any more: in FINAL any player can press PLAY AGAIN. The server builds a fresh game on the next seed (`TG_SEED` + game number − 1), keeps connected players' seats, names and tokens, drops players who are gone (they can join again by name), and sends every client a new `welcome` (with `game`) and `market`, back in the lobby. Covered by a server test and an e2e step.
 
-## Next (M5–M7, in order)
+## M6–M7 (julien)
 
-1. **M5 Cards and shop.** Wire the catalog into the sim: shop offers, hand, card effects, heat, the SEC catch roll and jail.
-2. **M6 Results, final and floor.** Done except what needs M5. `server/src/sim/results.ts` builds the leaderboard, per-player statements (best and worst trade), the market recap (top 3 moves in different sectors, each with the headline, earnings gap, card or regime that caused it), the final awards (best trade, best short, bag holder, comeback, most chaos, busiest trader, margin call magnet, longest sentence) and crash moments (at most one per quarter, `presentation.maxMomentsPerGame` per game). /play shows real RESULTS and FINAL screens; /floor shows the standings in RESULTS and FINAL and a full-screen BREAKING banner for `presentation.momentVisibleMs`. A reconnect during RESULTS, SHOP or FINAL gets the latest results. **For M5:** pass arrests, fines, card spend, jail and card names to `closeQuarter` / `final` as their `extra` (see the comment in `createSim`), and call `results.addMoment` for regime starts and the leader's arrest. Not done: sound sting and screen shake (design track).
-3. **M7 Balance.** First tuning pass done (see docs/BALANCE.md). A news-trader bot (a fast, news-reading human) was added, and huge shocks, magnitude/scope weights and daily volume were retuned. Over 50 games the median winner is $631M (p10 $199M, p90 $2.84B), short of $1B on purpose because cards are not in yet. Next: card-using bots and another pass once M5 lands.
+1. **M6 Results, final and floor.** Done (julien), and wired to M5: `server/src/sim/results.ts` builds the leaderboard, per-player statements (best and worst trade), the market recap (top 3 moves in different sectors, each with the headline, earnings gap, card or regime that caused it), the final awards (best trade, best short, bag holder, comeback, most chaos, busiest trader, margin call magnet, longest sentence) and crash moments (at most one per quarter, `presentation.maxMomentsPerGame` per game). /play shows real RESULTS and FINAL screens; /floor shows the standings in RESULTS and FINAL and a full-screen BREAKING banner for `presentation.momentVisibleMs`. A reconnect during RESULTS, SHOP or FINAL gets the latest results. **For M5:** pass arrests, fines, card spend, jail and card names to `closeQuarter` / `final` as their `extra` (see the comment in `createSim`), and call `results.addMoment` for regime starts and the leader's arrest. Not done: sound sting and screen shake (design track).
+2. **M7 Balance.** First tuning pass done (see docs/BALANCE.md). A news-trader bot (a fast, news-reading human) was added, and huge shocks, magnitude/scope weights and daily volume were retuned. Over 50 games the median winner is $631M (p10 $199M, p90 $2.84B), short of $1B on purpose because cards are not in yet. Next: card-using bots and another pass once M5 lands.
 
 ## Suggested split
 
-- **Sim:** wire regimes into the market step input and `news.enqueue` (M5), then the M7 harness.
-- **Server:** M5 shop, hand and card effects, heat and jail.
-- **Client:** the headline feed, shop, hand, results and final screens.
-- **Design:** headline content and generator runs, `/floor` layout, sounds and effects, and company/fund names (`server/src/sim/data/names.ts`). Colors and fonts are in `client/src/theme.ts`.
+- **Sim / balance (julien):** M7 tuning with the harness, now with headlines, earnings, cards and regimes in the sim. Bots could start buying and playing cards (`buy_card` / `play_card` intents).
+- **Client / design:** polish of the shop, hand, results and floor screens; sounds and effects.
+- **Design:** headline content and generator runs, card catalog balance, `/floor` layout, sounds and effects, and company/fund names (`server/src/sim/data/names.ts`). Colors and fonts are in `client/src/theme.ts`.

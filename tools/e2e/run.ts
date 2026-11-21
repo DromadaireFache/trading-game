@@ -43,10 +43,11 @@ const DAY_MS = TICKS_PER_DAY * defaultConfig.time.tickMs;
 const TRADING_MS = DAYS * DAY_MS;
 const overrides: DeepPartial<GameConfig> = {
   time: { quarters: QUARTERS, daysPerQuarter: DAYS },
-  phaseMs: { BRIEFING: 1500, EARNINGS: 800, RESULTS: 1500, SHOP: 1500 },
+  // SHOP is long enough to buy cards in (milestone 5).
+  phaseMs: { BRIEFING: 1500, EARNINGS: 800, RESULTS: 1500, SHOP: 3000 },
   lobby: { minPlayers: 2 },
 };
-const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800 + 1500 + 1500);
+const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800 + 1500 + 3000);
 const COMPANIES_PER_SECTOR = defaultConfig.market.companiesPerSector;
 const SYMBOL_COUNT = 1 + SECTORS.length + SECTORS.length * COMPANIES_PER_SECTOR;
 const WAIT_MS = 15_000;
@@ -903,6 +904,22 @@ async function main(): Promise<void> {
         // The earlier steps can finish with most of Q1's trading still to go, so EARNINGS may be up to a
         // whole TRADING phase away. A plain WAIT_MS made this step pass or fail with the speed of the run.
         await waitForPhase(a, phase, phase === 'EARNINGS' ? TRADING_MS + WAIT_MS : WAIT_MS);
+        if (phase === 'SHOP') {
+          // Milestone 5: A buys every card it can (hand limit) in the Q1 shop.
+          await a.waitForSelector(tid('offer'));
+          const offers = await a.locator(tid('offer')).count();
+          check(offers === defaultConfig.cards.offersPerShop, `the shop offers ${offers} cards`);
+          const want = Math.min(offers, defaultConfig.cards.handLimit);
+          for (let i = 0; i < want; i++) await a.locator(tid('buy')).nth(i).click();
+          await waitFor('cards in A hand', async () => (await a.locator(tid('hand-card')).count()) === want);
+          check(true, `A bought ${want} cards and holds them`);
+          check(await a.locator(tid('buy')).nth(want).isDisabled(), 'with a full hand the last offer cannot be bought');
+          const shopB = framesOf('B').filter((m) => m.t === 'shop').at(-1) as { offers: Array<{ offerId: string }> } | undefined;
+          const shopA = framesOf('A').filter((m) => m.t === 'shop').at(-1) as { offers: Array<{ offerId: string }> } | undefined;
+          check(shopA !== undefined && shopB !== undefined && shopA.offers.map((o) => o.offerId).join() === shopB.offers.map((o) => o.offerId).join(),
+            'A and B were offered the same cards');
+          check(!framesOf('floor').some((m) => m.t === 'shop'), 'the floor gets no shop');
+        }
         await shot(a, `14-play-${phase}`);
         await checkNoOverflow(a, `desk in ${phase} at 1366x768`);
         check(await a.locator(tid('size-usd-1000000')).isDisabled(), `order buttons are disabled in ${phase}`);
@@ -972,6 +989,25 @@ async function main(): Promise<void> {
       check(q2Open !== undefined && Math.abs(Number.parseFloat(change) - (nowPrice / q2Open - 1) * 100) < 0.011,
         `the change % restarted from the Q2 open ("${change}" shown, price ${nowPrice}, Q2 open ${q2Open})`);
       await shot(a, '19-play-TRADING-q2');
+
+      // Milestone 5: A plays its cards on the selected stock (cards with a direction go "up").
+      const handBefore = await a.locator(tid('hand-card')).count();
+      check(handBefore > 0, `A still holds ${handBefore} cards in Q2`);
+      for (let i = 0; i < handBefore; i++) {
+        const cardEl = a.locator(tid('hand-card')).first();
+        const button = cardEl.locator(`${tid('play')}, ${tid('play-up')}`).first();
+        if (await button.isDisabled()) break; // e.g. a sector card with the index fund selected
+        await button.click();
+        await sleep(300);
+      }
+      await sleep(500);
+      const handAfter = await a.locator(tid('hand-card')).count();
+      const cardErrors = framesOf('A').filter((m) => m.t === 'error' && m.code === 'rejected').map((m) => (m as { message: string }).message);
+      log(`  A played cards: hand ${handBefore} -> ${handAfter}${cardErrors.length ? `; refused: ${cardErrors.join(' | ')}` : ''}`);
+      check(handAfter < handBefore, 'playing a card takes it out of the hand');
+      const heatText = await textOf(a, 'heat');
+      check(/^heat \d+$/.test(heatText), `A sees its heat: "${heatText}"`);
+      await shot(a, '19-play-cards-q2');
       await checkChartDrawn(floor, 'floor in Q2', indexSymbol, DAYS + 4);
       await shot(floor, '19-floor-TRADING-q2');
 

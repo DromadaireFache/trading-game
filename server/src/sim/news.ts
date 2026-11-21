@@ -15,7 +15,8 @@
  *   - random headlines: randomHeadlinesPerQuarter, of which noiseShare are neutral (no move); the rest
  *     draw scope, magnitude and direction from config.news, at a random tick after quietDays.
  * Every TRADING tick (beforeStep): publish at most ONE due item, and only when news.minGapMs has
- * passed since the last headline (the global queue; later items wait), then turn all live shocks into
+ * passed since the last headline (the global queue; later items wait; a due card or regime item goes
+ * before any backlog of engine headlines), then turn all live shocks into
  * this tick's symbolReturn. Items still waiting at the close are dropped.
  * At EARNINGS (closeQuarter): reports with gap = gapFactor * (surprise - what PUBLISHED leaks priced
  * in). The gap goes into the first step of the next quarter (prices are frozen outside TRADING).
@@ -31,7 +32,7 @@ import type { EarningsPlan } from './earnings.ts';
 import { fillHeadline } from './headlines.ts';
 import type { HeadlineBook, HeadlineQuery, PlaceholderLists } from './headlines.ts';
 import type { Rng } from './rng.ts';
-import { addReturns, createShock, nearestMagnitude, shockSize, stepShocks } from './shocks.ts';
+import { addReturns, createShock, drawDebunkTick, nearestMagnitude, revertShock, shockSize, stepShocks } from './shocks.ts';
 import type { Shock, ShockTarget } from './shocks.ts';
 import type { SimEventOf } from './types.ts';
 import type { Universe } from './universe.ts';
@@ -53,8 +54,21 @@ export interface NewsItem {
   dRate?: number;
   /** Who played it (cards); revealed at RESULTS. */
   ownerId?: string;
+  /** Name of the card that made it (results.ts reveals it next to the author). */
+  cardName?: string;
   /** Earnings leak: surprise units it prices in. */
   leakAmount?: number;
+  /**
+   * Fake headline (M5): its move is reverted later by a `debunk` headline published
+   * cards.fakeDebunk{Min,Max}Ms after it (see drawDebunkTick), which the engine queues itself.
+   */
+  fake?: boolean;
+  /** Debunk: reverts the shock of the published headline with this id. */
+  reverts?: string;
+  /** Kept across the close and published at the start of the next quarter's trading (debunks, regime ends). */
+  carry?: boolean;
+  /** Template and text, fixed in advance (render) so an insider preview shows the exact same words. */
+  rendered?: { template: HeadlineTemplate; text: string };
 }
 
 /** A published headline with everything the recap (M6) needs to explain a move. */
@@ -72,6 +86,12 @@ export interface PublishedHeadline {
   ownerId?: string;
   /** Policy rate after it (rate decisions only). */
   rate?: number;
+  /** A fake headline (its move is reverted by a later debunk). */
+  fake?: boolean;
+  /** A debunk: the id of the fake it reverted. */
+  reverts?: string;
+  /** Card that made it. */
+  cardName?: string;
 }
 
 export type HeadlineEvent = SimEventOf<'headline'>;
@@ -98,6 +118,11 @@ export interface News {
   enqueue(item: NewsItem): void;
   /** Items not published yet, earliest first (insider tips peek here). */
   upcoming(): readonly NewsItem[];
+  /**
+   * Fixes an item's template and text now (idempotent) and returns the headline it WILL publish, minus
+   * the id. Null when no template matches (it would never be published).
+   */
+  render(item: NewsItem): Omit<HeadlineEvent, 'id'> | null;
   briefing(): Briefing | null;
   /** Latest earnings reports and their quarter, until the next BRIEFING. */
   earnings(): { quarter: number; reports: EarningsReport[] } | null;
@@ -131,6 +156,8 @@ export function createNews(deps: NewsDeps): News {
   const companyBySymbol = new Map(universe.companies.map((c) => [c.symbol, c]));
 
   let queue: NewsItem[] = [];
+  /** Items with `carry` still waiting at the close. */
+  let carried: NewsItem[] = [];
   let shocks: Shock[] = [];
   let lastPublished: number | null = null;
   let seq = 0;
@@ -153,22 +180,58 @@ export function createNews(deps: NewsDeps): News {
     return { scope, symbol: universe.companies[rng.int(universe.companies.length)]!.symbol };
   }
 
-  function publish(item: NewsItem, tick: number, newRate?: number): HeadlineEvent | null {
-    let template: HeadlineTemplate | undefined;
-    if (item.templateId !== undefined) {
-      template = book.byId(item.templateId);
-      if (template) book.use(template);
+  /** Fixes the template and text of an item (once) and returns the public fields of its headline. */
+  function render(item: NewsItem): Omit<HeadlineEvent, 'id'> | null {
+    if (item.rendered === undefined) {
+      let template: HeadlineTemplate | undefined;
+      if (item.templateId !== undefined) {
+        template = book.byId(item.templateId);
+        if (template) book.use(template);
+      }
+      template ??= book.pick(item.query);
+      if (template === undefined) return null; // nothing in the database fits: no headline, no move
+      const target = item.target;
+      const company = target.scope === 'stock' ? companyBySymbol.get(target.symbol) : undefined;
+      const sector: Sector | undefined = target.scope === 'sector' ? target.sector : company?.sector;
+      const text = fillHeadline(template.text, rng, { universe, lists, ...(company ? { company } : {}), ...(sector ? { sector } : {}) });
+      item.rendered = { template, text };
     }
-    template ??= book.pick(item.query);
-    if (template === undefined) return null; // nothing in the database fits: no headline, no move
-
     const target = item.target;
-    const company = target.scope === 'stock' ? companyBySymbol.get(target.symbol) : undefined;
-    const sector: Sector | undefined = target.scope === 'sector' ? target.sector : company?.sector;
-    const text = fillHeadline(template.text, rng, { universe, lists, ...(company ? { company } : {}), ...(sector ? { sector } : {}) });
+    const event: Omit<HeadlineEvent, 'id'> = { e: 'headline', text: item.rendered.text, ts: item.tick / tpc };
+    if (target.scope === 'stock') {
+      event.symbol = target.symbol;
+      const sector = companyBySymbol.get(target.symbol)?.sector;
+      if (sector) event.sector = sector;
+    } else if (target.scope === 'sector') event.sector = target.sector;
+    return event;
+  }
+
+  function publish(item: NewsItem, tick: number, newRate?: number): HeadlineEvent | null {
+    const shown = render(item);
+    if (shown === null || item.rendered === undefined) return null;
+    const { template, text } = item.rendered;
+    const target = item.target;
     const id = `n${++seq}`;
-    if (item.logReturn !== 0) shocks.push(createShock(config, universe, { id, target, logReturn: item.logReturn, startTick: tick }));
+    if (item.logReturn !== 0) {
+      const shock = createShock(config, universe, { id, target, logReturn: item.logReturn, startTick: tick });
+      // A fake stays revertible until its debunk lands (an unset revertTick would drop it once settled).
+      shocks.push(item.fake ? { ...shock, revertTick: Number.POSITIVE_INFINITY } : shock);
+    }
+    if (item.reverts !== undefined) shocks = shocks.map((s) => (s.id === item.reverts ? revertShock(s, tick) : s));
     if (item.leakAmount !== undefined && target.scope === 'stock') priced[target.symbol] = (priced[target.symbol] ?? 0) + item.leakAmount;
+    if (item.fake) {
+      const direction = item.query.direction === 'up' ? 'down' : 'up';
+      queue.push({
+        tick: drawDebunkTick(rng, config, tick),
+        source: item.source,
+        query: { kind: 'debunk', scope: item.query.scope, direction },
+        target,
+        logReturn: 0,
+        reverts: id,
+        carry: true,
+      });
+      sortQueue();
+    }
 
     const ts = tick / tpc;
     published.push({
@@ -182,12 +245,13 @@ export function createNews(deps: NewsDeps): News {
       target,
       logReturn: item.logReturn,
       ...(item.ownerId === undefined ? {} : { ownerId: item.ownerId }),
+      ...(item.cardName === undefined ? {} : { cardName: item.cardName }),
       ...(newRate === undefined ? {} : { rate: newRate }),
+      ...(item.fake ? { fake: true } : {}),
+      ...(item.reverts === undefined ? {} : { reverts: item.reverts }),
     });
-    const event: HeadlineEvent = { e: 'headline', id, text, ts };
+    const event: HeadlineEvent = { ...shown, id, ts };
     if (newRate !== undefined) event.rate = newRate;
-    if (target.scope === 'stock') event.symbol = target.symbol;
-    if (sector !== undefined && target.scope !== 'market') event.sector = sector;
     events.push(event);
     return event;
   }
@@ -195,7 +259,10 @@ export function createNews(deps: NewsDeps): News {
   return {
     startQuarter(q, tradingStartTick, rate) {
       quarter = q;
-      queue = [];
+      // Debunks and regime ends that missed the last close go out first thing this quarter.
+      // (Also `carry` items queued while the market was closed, e.g. regime ends at RESULTS.)
+      queue = [...carried, ...queue.filter((item) => item.carry)].map((item) => ({ ...item, tick: tradingStartTick }));
+      carried = [];
       priced = {};
       lastEarnings = null;
       const n = config.news;
@@ -273,9 +340,12 @@ export function createNews(deps: NewsDeps): News {
         gap = null;
       }
 
-      const due = queue[0];
+      // Players first: a due card or regime headline jumps any backlog of engine headlines.
+      const playerIndex = queue.findIndex((item) => item.tick <= tick && (item.source === 'card' || item.source === 'regime'));
+      const index = playerIndex >= 0 ? playerIndex : 0;
+      const due = queue[index];
       if (due !== undefined && due.tick <= tick && (lastPublished === null || tick - lastPublished >= minGapTicks)) {
-        queue.shift();
+        queue.splice(index, 1);
         const next = due.dRate === undefined ? undefined : Math.min(config.market.rateMax, Math.max(config.market.rateMin, rate + due.dRate));
         if (publish(due, tick, next) !== null) {
           lastPublished = tick;
@@ -290,6 +360,7 @@ export function createNews(deps: NewsDeps): News {
     },
 
     closeQuarter() {
+      carried.push(...queue.filter((item) => item.carry));
       queue = [];
       if (currentPlan === null) return [];
       const g = earningsGap(config, currentPlan, priced);
@@ -306,6 +377,7 @@ export function createNews(deps: NewsDeps): News {
     },
 
     upcoming: () => queue,
+    render,
     briefing: () => currentBriefing,
     earnings: () => lastEarnings,
     pendingGap: () => gap,
