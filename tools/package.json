@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "e2e": "tsx e2e/run.ts",
+    "balance": "tsx balance/run.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
