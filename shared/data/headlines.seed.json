@@ -1,0 +1,1424 @@
+[
+  {
+    "id": "h_seed_0001",
+    "text": "{GOV_AGENCY} trims benchmark rate by a quarter point, calls inflation \"contained\"",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0002",
+    "text": "Consumer confidence ticks higher for a third straight month",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0003",
+    "text": "Jobs report crushes forecasts as hiring surges across the board",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0004",
+    "text": "Central bank of {COUNTRY} unveils surprise mega-stimulus; global stocks rip higher",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0005",
+    "text": "Retail sales edge up, narrowly beating modest expectations",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0006",
+    "text": "{LEADER} signs sweeping tax cut into law; traders cheer",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0007",
+    "text": "Inflation cools faster than expected, rate-cut bets soar",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0008",
+    "text": "Stocks edge higher in a quiet session",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0009",
+    "text": "Ceasefire holds in {COUNTRY}; risk appetite returns",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0010",
+    "text": "Peace accord signed in {CITY}: war in {COUNTRY} formally ends",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0011",
+    "text": "Pandemic caseloads fall sharply; {GOV_AGENCY} lifts travel advisories",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0012",
+    "text": "Interim government in {COUNTRY} promises calm; bond yields ease",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0013",
+    "text": "Inflation runs hotter than forecast; rate-hike fears return",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0014",
+    "text": "{GOV_AGENCY} hikes rates by a full point in shock move",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0015",
+    "text": "Factory orders dip slightly in latest survey",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0016",
+    "text": "Mild jobs miss rattles traders",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0017",
+    "text": "Stocks dip in light trading",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0018",
+    "text": "Rating agency trims global growth outlook, warns of slowdown",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0019",
+    "text": "{COUNTRY} defaults on its sovereign debt; contagion fears grip global markets",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0020",
+    "text": "Border clashes erupt between {COUNTRY} and its neighbors; markets slide",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0021",
+    "text": "Coup in {COUNTRY}: {LEADER} deposed overnight, rates spike worldwide",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0022",
+    "text": "New pandemic variant detected in {CITY}; lockdown talk resurfaces",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0023",
+    "text": "Markets drift sideways ahead of {GOV_AGENCY} minutes",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0024",
+    "text": "Traders shrug off mixed data as volumes thin",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0025",
+    "text": "Strategists split on outlook: \"could go either way\"",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0026",
+    "text": "Bond market calm as traders await {LEADER}'s budget",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0027",
+    "text": "{GOV_AGENCY} holds rates steady, as widely expected",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0028",
+    "text": "{LEADER} gives two-hour speech, says nothing markets did not already know",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0029",
+    "text": "Pigeon briefly lands on trading floor; no impact on prices, officials say",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0030",
+    "text": "{COUNTRY} and {GOV_AGENCY} hold \"constructive\" talks, no deal yet",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0031",
+    "text": "BREAKING: {GOV_AGENCY} to halt all trading indefinitely, sources say",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "macro",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0032",
+    "text": "Rumor: {COUNTRY} plans to buy the entire stock market, insiders claim",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0033",
+    "text": "{GOV_AGENCY} confirms trading continues as normal, calls halt reports \"false\"",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0034",
+    "text": "{COUNTRY} finance ministry denies market-buying rumor, calls it \"a prank\"",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0035",
+    "text": "Massive solar flare knocks exchange servers offline for an hour",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0036",
+    "text": "Undersea cable cut near {CITY}; global payment networks briefly offline",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0037",
+    "text": "Meteor shower lights up {CITY}; harmless, but jittery traders flee to cash",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0038",
+    "text": "Surprise national holiday declared in {COUNTRY}; shoppers flood the malls",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0039",
+    "text": "{SECTOR} stocks firm as analysts lift sector outlook",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0040",
+    "text": "Mystery buyer scoops up {SECTOR} shares in late trading",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0041",
+    "text": "{SECTOR} index notches its best week in a year",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0042",
+    "text": "{GOV_AGENCY} loosens rules for {SECTOR} firms; shares climb",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0043",
+    "text": "{SECTOR} demand surges as {CITY} megaproject breaks ground",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "contract",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0044",
+    "text": "Lobbying win: bill granting {SECTOR} tax credits clears first vote",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0045",
+    "text": "{SECTOR} lobbying bill passes final vote, locking in permanent subsidies",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0046",
+    "text": "War in {COUNTRY} drives record orders across {SECTOR}",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0047",
+    "text": "{COUNTRY} opens its market to foreign {SECTOR} firms in landmark deal",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "contract",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0048",
+    "text": "{LEADER} announces trillion-dollar {SECTOR} spending plan",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0049",
+    "text": "New {PRODUCT} craze sends {SECTOR} orders soaring",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "product",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0050",
+    "text": "{SECTOR} shares slip on mild analyst downgrade",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0051",
+    "text": "Windfall tax on {SECTOR} profits floated by {LEADER}",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0052",
+    "text": "{SECTOR} lobbying bill dies in committee; subsidy hopes dashed",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0053",
+    "text": "{SECTOR} firms brace as war in {COUNTRY} disrupts supply routes",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0054",
+    "text": "{GOV_AGENCY} opens sweeping probe into {SECTOR} pricing",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0055",
+    "text": "Pandemic restrictions return in {CITY}; {SECTOR} bookings collapse",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0056",
+    "text": "Supply crunch hits {SECTOR}; shortages could last a year",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0057",
+    "text": "{COUNTRY} bans all {SECTOR} imports overnight",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0058",
+    "text": "{GOV_AGENCY} orders nationwide freeze on {SECTOR} operations",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0059",
+    "text": "Safety scare over {PRODUCT} weighs on the whole {SECTOR} group",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "product",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0060",
+    "text": "{SECTOR} executives gather in {CITY} for annual conference",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0061",
+    "text": "{SECTOR} analysts keep ratings unchanged after a quiet quarter",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0062",
+    "text": "Survey: {SECTOR} workers rate office coffee \"adequate\"",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0063",
+    "text": "{GOV_AGENCY} publishes long-awaited {SECTOR} report; few surprises",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0064",
+    "text": "{SECTOR} trade group elects new chair in uncontested vote",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0065",
+    "text": "{SECTOR} lobbying bill sent back for \"minor edits\"; vote pushed to next session",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0066",
+    "text": "Leaked memo: {GOV_AGENCY} to nationalize {SECTOR} next week",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "legal",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0067",
+    "text": "Sources: {LEADER} to hand {SECTOR} a blank-check bailout",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0068",
+    "text": "Unverified report claims {SECTOR} accounting scandal is \"bigger than anyone thinks\"",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "legal",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0069",
+    "text": "{GOV_AGENCY} denies plan to nationalize {SECTOR}, calls memo forged",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "legal",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0070",
+    "text": "{LEADER}'s office: no {SECTOR} bailout is planned",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0071",
+    "text": "Auditors find no evidence of {SECTOR} accounting scandal",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "legal",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0072",
+    "text": "Earthquake near {CITY} shutters key {SECTOR} facilities",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0073",
+    "text": "Giant hailstorm flattens {SECTOR} warehouses across {COUNTRY}",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0074",
+    "text": "Rare mineral deposit found under {CITY}, a windfall for {SECTOR}",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0075",
+    "text": "Flock of geese grounds {SECTOR} deliveries for an afternoon",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0076",
+    "text": "Leaked slide deck suggests {COMPANY} will beat earnings estimates",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0077",
+    "text": "Supplier chatter points to a blowout quarter at {COMPANY}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0078",
+    "text": "{COMPANY} insiders quietly cancel planned share sales ahead of earnings",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0079",
+    "text": "Channel checks show {PRODUCT} sales booming at {COMPANY}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0080",
+    "text": "Accidentally published draft shows {COMPANY} profits doubling",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0081",
+    "text": "{TICKER} warehouse staff told to prepare for record shipments",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0082",
+    "text": "Leaked memo: {COMPANY} to miss revenue targets by a wide margin",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0083",
+    "text": "{COMPANY} quietly freezes hiring ahead of earnings",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0084",
+    "text": "Sources say {COMPANY} sales team is far behind quarterly quota",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0085",
+    "text": "Draft filing hints {COMPANY} will write off its entire {PRODUCT} line",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0086",
+    "text": "Analysts spot unusual inventory pileup at {TICKER} distribution centers",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0087",
+    "text": "{CEO} cancels earnings-call rehearsal; insiders fear weak numbers at {COMPANY}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0088",
+    "text": "Unconfirmed: {COMPANY} set to report record profits",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0089",
+    "text": "Rumor: {COMPANY} earnings \"a disaster,\" says anonymous insider",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0090",
+    "text": "{COMPANY} dismisses record-profit rumor as \"pure fiction\"",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0091",
+    "text": "{COMPANY} says earnings rumor is false; guidance unchanged",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0092",
+    "text": "{COMPANY} wins surprise contract with {GOV_AGENCY}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "contract",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0093",
+    "text": "{COMPANY} lands multi-year supply deal with {RIVAL}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "contract",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0094",
+    "text": "{COMPANY} awarded record contract to rebuild {CITY} infrastructure",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "contract",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0095",
+    "text": "{COMPANY} chosen as sole supplier for {COUNTRY}'s national grid",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "contract",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0096",
+    "text": "Minor client drops {COMPANY} for {RIVAL}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "contract",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0097",
+    "text": "{COMPANY} loses key {GOV_AGENCY} contract to {RIVAL}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "contract",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0098",
+    "text": "{COUNTRY} cancels mega-order from {COMPANY}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "contract",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0099",
+    "text": "{COMPANY} renews routine service agreement with {GOV_AGENCY}",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "contract",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0100",
+    "text": "{GOV_AGENCY} fines {COMPANY} for late paperwork",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0101",
+    "text": "{COMPANY} hit with class action over {PRODUCT} defects",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0102",
+    "text": "{GOV_AGENCY} raids {COMPANY} headquarters in {CITY}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0103",
+    "text": "{GOV_AGENCY} orders {COMPANY} broken up",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0104",
+    "text": "Court tosses lawsuit against {COMPANY}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0105",
+    "text": "{COMPANY} wins patent fight against {RIVAL}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0106",
+    "text": "{COMPANY} settles long-running dispute with {RIVAL}; terms undisclosed",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "legal",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0107",
+    "text": "{COMPANY} CFO under investigation, sources say",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "legal",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0108",
+    "text": "Report: {GOV_AGENCY} preparing fraud charges against {COMPANY}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "legal",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0109",
+    "text": "Blog claims {COMPANY} hid losses in an offshore shell company",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "legal",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0110",
+    "text": "{COMPANY} denies reports of CFO probe; regulator finds no wrongdoing",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "legal",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0111",
+    "text": "{GOV_AGENCY} confirms no charges are planned against {COMPANY}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "legal",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0112",
+    "text": "Blog retracts claims about hidden {COMPANY} losses",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "legal",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0113",
+    "text": "{COMPANY} poaches star engineer from {RIVAL}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0114",
+    "text": "{CEO} buys a large block of {TICKER} shares on the open market",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0115",
+    "text": "Legendary turnaround chief joins {COMPANY} as CEO",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0116",
+    "text": "{CEO} spotted on a yacht during earnings week; {COMPANY} board \"not amused\"",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0117",
+    "text": "{COMPANY} chief {CEO} under fire after disastrous interview",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0118",
+    "text": "{COMPANY} CEO {CEO} resigns effective immediately",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0119",
+    "text": "{COMPANY} names new head of marketing",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0120",
+    "text": "{COMPANY} to present at investor conference in {CITY}",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0121",
+    "text": "{COMPANY} adds two directors to its board",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0122",
+    "text": "{COMPANY} moves headquarters across town in {CITY}",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "exec",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0123",
+    "text": "{COMPANY} chief {CEO} to step down amid health scare, insiders whisper",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "exec",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0124",
+    "text": "{RIVAL} in secret talks to buy {COMPANY} at a huge premium, sources say",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "contract",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0125",
+    "text": "{CEO} appears in fine health at {COMPANY} event, dismisses resignation rumors",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "exec",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0126",
+    "text": "{RIVAL} denies any takeover talks with {COMPANY}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "contract",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0127",
+    "text": "{PRODUCT} launch delayed again at {COMPANY}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "product",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0128",
+    "text": "{RIVAL} launches cheaper {PRODUCT} clone, undercutting {COMPANY}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "product",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0129",
+    "text": "{COMPANY} recalls millions of {PRODUCT} units",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "product",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0130",
+    "text": "{COMPANY} unveils {PRODUCT} to rave early reviews",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "product",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0131",
+    "text": "{COMPANY}'s new {PRODUCT} sells out in hours",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "product",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0132",
+    "text": "{COMPANY} breakthrough makes every rival {PRODUCT} obsolete overnight",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "product",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0133",
+    "text": "{COMPANY} refreshes {PRODUCT} packaging",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "product",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0134",
+    "text": "{COMPANY} {PRODUCT} reviews are in: \"fine, mostly\"",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "product",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0135",
+    "text": "Viral video claims {COMPANY} {PRODUCT} catches fire when charged",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "product",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0136",
+    "text": "Independent lab tests clear {COMPANY} {PRODUCT} of fire risk",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "product",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0137",
+    "text": "{COMPANY} mascot goes viral; merchandise sales jump",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0138",
+    "text": "{TICKER} surges after being confused with a similarly named startup",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0139",
+    "text": "{COMPANY} announces plan to rebrand as a cryptocurrency",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0140",
+    "text": "{COMPANY} accidentally emails its entire customer list a cat photo",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0141",
+    "text": "{CEO} challenges {RIVAL} boss to televised arm-wrestling match",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0142",
+    "text": "{COMPANY} chief {CEO} declares office dress code \"pajamas only\"",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0143",
+    "text": "{TICKER} trades flat as investors wait for fresh news",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0144",
+    "text": "Fact-checkers confirm viral {COMPANY} scandal story was satire",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_seed_0145",
+    "text": "Rumor: {COMPANY} headquarters is haunted, staff refuse night shifts",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_seed_0146",
+    "text": "{COMPANY} factory swallowed by sinkhole",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0147",
+    "text": "Fire guts {COMPANY} flagship plant in {CITY}; no injuries reported",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0148",
+    "text": "Flood forces {COMPANY} to halt production in {CITY}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0149",
+    "text": "Lightning strike knocks out {COMPANY} data center for a day",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0150",
+    "text": "Dormant volcano wakes beneath {COMPANY} headquarters; staff evacuated safely",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0151",
+    "text": "{COMPANY} strikes vast mineral deposit under its own parking lot",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0152",
+    "text": "{COMPANY} finds forgotten warehouse stockpile of {PRODUCT} worth billions",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0153",
+    "text": "{COMPANY} wins spectrum auction in {COUNTRY} by a single bid",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "contract",
+    "kind": "event"
+  },
+  {
+    "id": "h_seed_0154",
+    "text": "War in {COUNTRY} brings emergency orders for {COMPANY}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0155",
+    "text": "{COMPANY} named key beneficiary of new lobbying bill",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0156",
+    "text": "{COMPANY} pulls out of {COUNTRY} after {LEADER} is deposed",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0157",
+    "text": "Pandemic lockdowns crush foot traffic at {COMPANY} stores",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "regime_followup",
+    "kind": "real"
+  },
+  {
+    "id": "h_seed_0158",
+    "text": "New regime in {COUNTRY} seizes {COMPANY} local assets",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "regime_followup",
+    "kind": "real"
+  }
+]
