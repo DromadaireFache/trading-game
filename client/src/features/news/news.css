@@ -2,8 +2,8 @@
  * Headline papers (julien's newspaper clippings) piled at the bottom right, over your cards and inside
  * the side column (never over your positions). Colors and fonts only through var(--tg-...). The only
  * color on a paper is its ticker, in the stock's sector color (--sector, lib/sectorColor.ts).
- * The pile ignores the mouse; a paper can only be moved (drag) or removed (its x, or a right click,
- * throws it off screen).
+ * The pile ignores the mouse; a paper can be moved (drag) or removed (its x, or a right click, throws
+ * it off screen), and its ticker opens the stock.
  */
 .news-pile {
   position: absolute;
@@ -147,9 +147,11 @@
   font-size: 11px;
   font-style: italic;
 }
-/* The one color on the paper: the ticker wears its stock's sector color, as in the stock list. */
+/* The one color on the paper: the ticker wears its stock's sector color, as in the stock list. Click it to open the stock. */
 .paper__ticker {
   flex: none;
+  cursor: pointer;
+  line-height: inherit;
   padding: 2px 8px;
   font-family: var(--tg-font-mono);
   font-size: 16px;
@@ -160,6 +162,12 @@
   border: 2px solid var(--tg-color-card-text);
   border-radius: 2px;
   transform: rotate(-2deg);
+}
+
+.paper__ticker:hover {
+  /* No movement on hover: a press near the edge must still land on the ticker. */
+  box-shadow: 0 2px 0 var(--tg-color-card-text);
+  filter: brightness(1.08);
 }
 
 /* An insider tip: a secret memo, not a newspaper. */
