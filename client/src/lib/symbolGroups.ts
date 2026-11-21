@@ -8,13 +8,13 @@ export interface SymbolGroup {
   symbols: SymbolInfo[];
 }
 
-/** Funds first (index + sector funds), then one group per sector, in the order the server sent them. */
+/** Market index first, then each sector with its fund above its companies. */
 export function groupSymbols(symbols: readonly SymbolInfo[]): SymbolGroup[] {
-  const funds: SymbolGroup = { key: 'funds', label: 'Funds', symbols: [] };
+  const index: SymbolGroup = { key: 'index', label: 'Market', symbols: [] };
   const sectors = new Map<string, SymbolGroup>();
   for (const info of symbols) {
-    if (info.kind !== 'stock') {
-      funds.symbols.push(info);
+    if (info.kind === 'index') {
+      index.symbols.push(info);
       continue;
     }
     const key = info.sector ?? 'other';
@@ -25,5 +25,8 @@ export function groupSymbols(symbols: readonly SymbolInfo[]): SymbolGroup[] {
     }
     group.symbols.push(info);
   }
-  return [...(funds.symbols.length > 0 ? [funds] : []), ...sectors.values()];
+  for (const group of sectors.values()) {
+    group.symbols.sort((a, b) => Number(b.kind === 'sector') - Number(a.kind === 'sector'));
+  }
+  return [...(index.symbols.length > 0 ? [index] : []), ...sectors.values()];
 }
