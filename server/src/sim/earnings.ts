@@ -9,7 +9,7 @@
  *     early enough that the lead time and the leak's shock (2 ramps) fit before the close.
  *   - a leak prices in a share, drawn in [leakShareMin, leakShareMax], of the surprise:
  *     amount = share * true_surprise, its move = gapFactor * amount, priced_in += amount.
- * At EARNINGS (earningsGap): gap = gapFactor * (true_surprise - priced_in) per company. The news
+ * At the close of TRADING (earningsGap): gap = gapFactor * (true_surprise - priced_in) per company. The news
  * engine applies it after a trading window at the start of the next quarter. After the final
  * quarter, the sim applies it directly to the marks used for the final leaderboard.
  * Boardroom Mole (earnings_peek) reads plan.surprise[symbol].
@@ -77,7 +77,7 @@ export function pricedIn(plan: EarningsPlan, uptoTick = Number.POSITIVE_INFINITY
   return out;
 }
 
-/** The EARNINGS gap per company, as log-returns: gapFactor * (true_surprise - priced_in). */
+/** The earnings gap per company, as log-returns: gapFactor * (true_surprise - priced_in). */
 export function earningsGap(config: GameConfig, plan: EarningsPlan, priced: Record<SymbolId, number> = pricedIn(plan)): Record<SymbolId, number> {
   const out: Record<SymbolId, number> = {};
   for (const [symbol, s] of Object.entries(plan.surprise)) out[symbol] = config.earnings.gapFactor * (s - (priced[symbol] ?? 0));

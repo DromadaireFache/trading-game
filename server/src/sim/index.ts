@@ -3,7 +3,7 @@
  * (`@tg/server/sim` from other workspaces).
  *
  * Milestone 1: the phase state machine and the lobby roster.
- *   Each quarter starts with BRIEFING and ends with SHOP, except the last, which goes from EARNINGS to FINAL.
+ *   Each quarter starts with BRIEFING and ends with SHOP, except the last, which goes from TRADING to FINAL.
  * Milestone 2: the market (./universe.ts, ./market.ts). The universe is generated from the seed
  *   when the sim is created; prices step once per tick() while the phase is TRADING and are frozen
  *   otherwise, so every quarter has exactly daysPerQuarter candles and days count on across quarters.
@@ -164,7 +164,8 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     } : null };
   }
 
-  function enter(next: { phase: Phase; quarter: number }): void {
+  /** `ended`: the game was ended by a player (end_game), so a cut-short quarter reports no earnings. */
+  function enter(next: { phase: Phase; quarter: number }, ended = false): void {
     const previousPhase = phase;
     if (phase === 'TRADING' && next.phase !== 'TRADING') {
       for (const entry of delayed.splice(0)) {
@@ -183,7 +184,8 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       briefing.regimes = cards.activeRegimeNames();
       events.push({ e: 'briefing', ...briefing });
     }
-    if (phase === 'EARNINGS') {
+    // The close of TRADING: the quarter's earnings come out before its results.
+    if (previousPhase === 'TRADING' && !ended) {
       const reports = news.closeQuarter();
       results.recordEarnings(reports);
       events.push({ e: 'earnings', quarter, reports });
@@ -304,7 +306,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       case 'end_game':
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
         if (phase === 'LOBBY' || phase === 'FINAL') return reject(intent, 'wrong_phase', 'there is no active game to end'), false;
-        enter({ phase: 'FINAL', quarter });
+        enter({ phase: 'FINAL', quarter }, true);
         return true;
       case 'order': {
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;

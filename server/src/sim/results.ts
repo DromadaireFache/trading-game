@@ -4,7 +4,7 @@
  * createSim feeds it:
  *   startQuarter(q)       at BRIEFING: quarter-open prices, equity and positions
  *   recordFill(fill)      every fill (orders and forced closes)
- *   recordEarnings(...)   at EARNINGS: the gaps land early in the next quarter, so they explain its moves
+ *   recordEarnings(...)   at the close of TRADING: the gaps land early in the next quarter, so they explain its moves
  *   onCandle(...)         every closed day: may return a crash moment
  *   closeQuarter(...)     at RESULTS: the `results` event (leaderboard, statements, recap)
  *   final(...)            at FINAL: the `results` event with final: true and awards
@@ -116,7 +116,7 @@ export function createResults(deps: ResultsDeps): Results {
   let openEquity = new Map<PlayerId, number>();
   /** Per player, per symbol: qty at the quarter open, current qty, cash spent, ever short. */
   let book = new Map<PlayerId, Map<SymbolId, { startQty: number; qty: number; spent: number; wasShort: boolean }>>();
-  /** Gaps from the last EARNINGS, attributed to the quarter in which they land. */
+  /** Gaps from the last earnings, attributed to the quarter in which they land. */
   let pendingGaps: EarningsImpactReport[] = [];
   let gapsThisQuarter: EarningsImpactReport[] = [];
   let crashThisQuarter = false;

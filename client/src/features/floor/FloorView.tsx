@@ -4,7 +4,7 @@ import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { Roster } from '../../components/Roster.tsx';
 import { SeatTaken } from '../../components/SeatTaken.tsx';
 import { useCountdown } from '../../hooks/useCountdown.ts';
-import { PHASE_HINT, PHASE_LABEL } from '../../lib/phases.ts';
+import { PHASE_LABEL } from '../../lib/phases.ts';
 import { formatQuarter } from '../../lib/time.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 import { FloorResults, MomentBanner, useVisibleMoment } from '../results/FloorResults.tsx';
@@ -61,15 +61,11 @@ export function FloorView() {
             {countdown.text}
           </div>
         </div>
-        <div className="floor__hint">
-          {current === 'LOBBY' ? (
-            <>
-              Join at <span className="floor__url">{playUrl}</span>
-            </>
-          ) : (
-            PHASE_HINT[current]
-          )}
-        </div>
+        {current === 'LOBBY' && (
+          <div className="floor__hint">
+            Join at <span className="floor__url">{playUrl}</span>
+          </div>
+        )}
         <div className="floor__progress" aria-hidden="true">
           <div className="floor__progress-bar" style={{ transform: `scaleX(${countdown.progress ?? 0})` }} />
         </div>

@@ -263,7 +263,7 @@ describe('price impact', () => {
 
 const FAST = mergeConfig(defaultConfig, {
   time: { daysPerQuarter: 5, quarters: 2 },
-  phaseMs: { BRIEFING: 300, EARNINGS: 200, RESULTS: 200, SHOP: 200 },
+  phaseMs: { BRIEFING: 300, RESULTS: 200, SHOP: 200 },
 });
 
 function started(seed = 7, config: GameConfig = FAST, players = ['p1', 'p2']): Sim {

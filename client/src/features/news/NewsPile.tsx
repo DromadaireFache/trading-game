@@ -213,13 +213,11 @@ function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
         <h3 className="paper__headline" data-testid="headline-text">
           {headline.text}
         </h3>
-        <figure className="paper__art" aria-hidden="true">
-          <NewsDrawing scope={scope} />
-        </figure>
-      </div>
-      <footer className="paper__foot">
-        <span className="paper__note">{headline.early ? 'Only you can see this. Not public yet.' : 'Click the ticker to open it. The price moves in seconds.'}</span>
-        <button
+        <div className="paper__side">
+          <figure className="paper__art" aria-hidden="true">
+            <NewsDrawing scope={scope} />
+          </figure>
+          <button
           type="button"
           className="paper__ticker"
           onPointerDown={(e) => e.stopPropagation()}
@@ -229,9 +227,10 @@ function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
           title={`Open ${ticker}`}
           data-testid="headline-ticker"
         >
-          {ticker}
-        </button>
-      </footer>
+            {ticker}
+          </button>
+        </div>
+      </div>
     </article>
   );
 }

@@ -18,7 +18,7 @@ export function MoneyPanel({ className }: { className?: string }) {
   if (live === null) {
     return (
       <Panel title="Your money" className={className}>
-        <Placeholder>Your money shows up when the game starts.</Placeholder>
+        <Placeholder>{null}</Placeholder>
       </Panel>
     );
   }
@@ -52,7 +52,7 @@ export function PositionsPanel({ className }: { className?: string }) {
   if (live === null) {
     return (
       <Panel title="Your positions" className={className}>
-        <Placeholder>Your bets show up here when the game starts.</Placeholder>
+        <Placeholder>{null}</Placeholder>
       </Panel>
     );
   }
@@ -61,11 +61,10 @@ export function PositionsPanel({ className }: { className?: string }) {
   return (
     <Panel
       title="Your positions"
-      aside={<span className="positions__legend"><span className="change--up">▲ up</span> <span className="change--down">▼ down</span></span>}
       className={`positions${className ? ` ${className}` : ''}`}
     >
       {positions.length === 0 ? (
-        <div className="positions__empty">No bets yet. Pick a stock and bet UP or DOWN.</div>
+        <div className="positions__empty" />
       ) : (
         <div className="positions__scroll">
           <table className="positions__table" data-testid="positions">

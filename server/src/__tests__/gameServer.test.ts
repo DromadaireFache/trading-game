@@ -13,7 +13,7 @@ const WAIT_MS = 5_000;
 
 const fastConfig: GameConfig = mergeConfig(defaultConfig, {
   time: { tickMs: TICK_MS, ticksPerCandle: 2, daysPerQuarter: 3, quarters: 2 },
-  phaseMs: { BRIEFING: 3 * TICK_MS, EARNINGS: 2 * TICK_MS, RESULTS: 3 * TICK_MS, SHOP: 2 * TICK_MS },
+  phaseMs: { BRIEFING: 3 * TICK_MS, RESULTS: 3 * TICK_MS, SHOP: 2 * TICK_MS },
   lobby: { minPlayers: 1, maxPlayers: 2, maxSpectators: 1 },
 });
 
@@ -448,10 +448,10 @@ describe('start and phases', () => {
 
     await bob.next('phase', (m) => m.phase === 'TRADING');
     bob.send({ t: 'ready_up', quarter: 1, phase: 'TRADING' });
-    const earnings = await ann.next('phase');
-    expect(earnings.phase).toBe('EARNINGS');
-    expect(earnings.endsAt! - s.sim.config.phaseMs.EARNINGS).toBeLessThan(trading.endsAt!);
-    expect((await ann.next('phase')).phase).toBe('FINAL');
+    // Ready in the last TRADING ends the game at once (the earnings come out with the close).
+    const final0 = await ann.next('phase');
+    expect(final0.phase).toBe('FINAL');
+    expect(Date.now()).toBeLessThan(trading.endsAt!);
     const final = await ann.next('results');
     expect(final.final).toBe(true);
     expect(final.leaderboard).toHaveLength(2);
@@ -726,20 +726,20 @@ describe('market', () => {
   });
 
   it('sends a consistent snapshot between quarters, when no day is in progress', async () => {
-    const s = await start({ time: { daysPerQuarter: 10 }, phaseMs: { EARNINGS: 40 * TICK_MS } });
+    const s = await start({ time: { daysPerQuarter: 10 }, phaseMs: { RESULTS: 40 * TICK_MS } });
     const { daysPerQuarter } = s.sim.config.time;
     const ann = await open(s);
     await ann.join('player', 'Ann');
     const floor = await open(s);
     ann.send({ t: 'start' });
-    await ann.next('phase', (m) => m.phase === 'EARNINGS' && m.quarter === 1);
+    await ann.next('phase', (m) => m.phase === 'RESULTS' && m.quarter === 1);
     const report = await ann.next('earnings');
     expect(report.quarter).toBe(1);
     expect(report.reports).toHaveLength(s.sim.getUniverse().companies.length);
     for (const row of report.reports) expect(Object.keys(row).sort()).toEqual(['surprise', 'symbol']);
 
     const welcome = await floor.join('spectator');
-    expect(welcome.phase.phase).toBe('EARNINGS');
+    expect(welcome.phase.phase).toBe('RESULTS');
     const snapshot = await floor.next('market');
     expect(snapshot).toMatchObject({ day: daysPerQuarter, tickOfDay: 0, current: null });
     for (const id in snapshot.candles) expect(snapshot.candles[id]).toHaveLength(4 * daysPerQuarter);
@@ -855,6 +855,8 @@ describe('trading', () => {
 
     ann.send({ t: 'ready_up', phase: 'TRADING', quarter: 1 });
     const lastTick = s.sim.config.time.daysPerQuarter * s.sim.config.time.ticksPerCandle;
+    // The close sends the quarter's results first (same tick, no earnings phase in between), then the last sample.
+    const replay = await floor.next('results');
     const close = await floor.next('net_worth', (m) => m.samples.at(-1)?.tick === lastTick);
     expect(close.samples.length).toBeGreaterThan(1);
     const late = await open(s);
@@ -863,7 +865,6 @@ describe('trading', () => {
     expect(history.reset).toBe(true);
     expect(history.samples.map((sample) => sample.tick)).toEqual(Array.from({ length: lastTick + 1 }, (_, i) => i));
     expect(history.samples.slice(close.samples[0]!.tick, lastTick)).toEqual(close.samples.slice(0, -1));
-    const replay = await floor.next('results');
     expect((await ann.next('results')).netWorthHistory).toEqual(replay.netWorthHistory);
     expect(replay.netWorthHistory?.map(({ tick }) => tick)).toEqual(history.samples.map(({ tick }) => tick));
     for (const { playerId, startEquity, endEquity } of replay.statements) {

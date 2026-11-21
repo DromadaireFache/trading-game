@@ -13,7 +13,7 @@ export function RivalsPanel({ className }: { className?: string }) {
   const others = (lobby?.players ?? []).filter((p) => p.id !== me?.playerId);
   const seats = Math.max(1, config.lobby.maxPlayers - 1);
   return (
-    <Panel title="The other players" aside="what they hold right now" className={`rivals${className ? ` ${className}` : ''}`}>
+    <Panel title="The other players" className={`rivals${className ? ` ${className}` : ''}`}>
       <div className="rivals__cols" style={{ gridTemplateColumns: `repeat(${seats}, minmax(0, 1fr))` }} data-testid="rivals">
         {Array.from({ length: seats }, (_, i) => {
           const player = others[i];

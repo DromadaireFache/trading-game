@@ -378,7 +378,6 @@ export const defaultConfig: GameConfig = {
   },
   phaseMs: {
     BRIEFING: 5_000,
-    EARNINGS: 5_000,
     RESULTS: 20_000,
     SHOP: 30_000,
   },
@@ -772,7 +771,6 @@ export function scalePhaseLengths(base: GameConfig, factor: number): GameConfig 
     time: { ...base.time, daysPerQuarter: Math.max(1, Math.round(base.time.daysPerQuarter * factor)) },
     phaseMs: {
       BRIEFING: scaleMs(base.phaseMs.BRIEFING),
-      EARNINGS: scaleMs(base.phaseMs.EARNINGS),
       RESULTS: scaleMs(base.phaseMs.RESULTS),
       SHOP: scaleMs(base.phaseMs.SHOP),
     },
@@ -799,7 +797,6 @@ export function quarterTicks(config: GameConfig): number {
   return (
     phaseTicks(config, 'BRIEFING') +
     phaseTicks(config, 'TRADING') +
-    phaseTicks(config, 'EARNINGS') +
     phaseTicks(config, 'RESULTS') +
     phaseTicks(config, 'SHOP')
   );

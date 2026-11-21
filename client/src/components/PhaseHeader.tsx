@@ -1,5 +1,5 @@
 import { useCountdown } from '../hooks/useCountdown.ts';
-import { PHASE_HINT, PHASE_LABEL } from '../lib/phases.ts';
+import { PHASE_LABEL } from '../lib/phases.ts';
 import { formatQuarter } from '../lib/time.ts';
 import { useGame, useGameClient } from '../net/GameProvider.tsx';
 import { SoundToggle } from '../features/fx/SoundToggle.tsx';
@@ -29,7 +29,6 @@ export function PhaseHeader() {
         <span className="phase-header__name" data-testid="phase" data-phase={current}>
           {PHASE_LABEL[current]}
         </span>
-        <span className="phase-header__hint">{PHASE_HINT[current]}</span>
         {current === 'TRADING' && phase?.debugMode && <ReadyUp />}
       </div>
 

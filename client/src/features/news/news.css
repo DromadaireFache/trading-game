@@ -14,28 +14,18 @@
   border: 2px dashed color-mix(in srgb, var(--tg-color-card-face) 22%, transparent);
   border-radius: 6px;
 }
-.news-pile::before {
-  content: 'Headlines land here';
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-family: var(--tg-font-paper);
-  font-size: 14px;
-  font-style: italic;
-  color: color-mix(in srgb, var(--tg-color-card-face) 35%, transparent);
-}
+
 
 .paper {
   position: absolute;
-  bottom: 12px;
+  bottom: 8px;
   /* Inset so a tilted paper stays inside its column. */
   left: 14px;
   right: 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px 12px 10px;
+  padding: 8px 10px 10px;
   color: var(--tg-color-card-text);
   background: var(--tg-color-card-face);
   border: 1px solid color-mix(in srgb, var(--tg-color-card-text) 35%, transparent);
@@ -124,14 +114,14 @@
 
 .paper__body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px;
+  grid-template-columns: minmax(0, 1fr) 84px;
   gap: 10px;
   align-items: start;
 }
 .paper__headline {
   margin: 0;
   font-family: var(--tg-font-paper);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 900;
   line-height: 1.15;
 }
@@ -141,13 +131,20 @@
 }
 .news-art {
   display: block;
-  width: 92px;
-  height: 64px;
+  width: 84px;
+  height: 58px;
+}
+/* The drawing with the ticker under it: the ticker is the one dash of color and opens the stock. */
+.paper__side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 
 .paper__foot {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
   padding-top: 4px;

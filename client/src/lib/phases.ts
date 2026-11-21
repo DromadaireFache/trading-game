@@ -5,19 +5,9 @@ export const PHASE_LABEL: Record<Phase, string> = {
   LOBBY: 'Lobby',
   BRIEFING: 'Briefing',
   TRADING: 'Trading',
-  EARNINGS: 'Earnings',
   RESULTS: 'Results',
   SHOP: 'Shop',
   FINAL: 'Final',
 };
 
 /** One line telling a newcomer what to do right now. */
-export const PHASE_HINT: Record<Phase, string> = {
-  LOBBY: 'Waiting for players. Read how to play while you wait.',
-  BRIEFING: 'Get ready: see what news is coming. Trading opens soon.',
-  TRADING: 'Market open! Read the headlines, pick a stock, bet ▲ up or ▼ down.',
-  EARNINGS: 'See which companies beat or missed expectations.',
-  RESULTS: 'Who made the most money this quarter?',
-  SHOP: 'Buy cards to bend the market next quarter.',
-  FINAL: 'Game over! Richest player wins.',
-};

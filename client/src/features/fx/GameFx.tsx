@@ -27,8 +27,7 @@ const PHASE_BANNER: Partial<Record<Phase, { text: string; tone: 'up' | 'down' | 
 const PHASE_SOUND: Partial<Record<Phase, SoundName>> = {
   BRIEFING: 'briefing',
   TRADING: 'bell',
-  EARNINGS: 'earnings',
-  RESULTS: 'pop',
+  RESULTS: 'earnings',
   SHOP: 'shop',
   FINAL: 'final',
 };

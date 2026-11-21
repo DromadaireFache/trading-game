@@ -1,8 +1,8 @@
 /**
  * Phase order of the game. Pure (see ./types.ts for the purity rules).
  *
- *   LOBBY -> [BRIEFING -> TRADING -> EARNINGS -> RESULTS -> SHOP] -> ... -> FINAL
- *   The last quarter goes from EARNINGS to FINAL.
+ *   LOBBY -> [BRIEFING -> TRADING -> RESULTS -> SHOP] -> ... -> FINAL
+ *   The last quarter goes from TRADING to FINAL. The earnings come out as TRADING closes.
  */
 import { FINAL_QUARTER_PHASES, QUARTER_PHASES, phaseTicks } from '@tg/shared';
 import type { GameConfig, Phase, QuarterPhase } from '@tg/shared';

@@ -4,7 +4,7 @@
  *
  * Built on the teammates' number modules, which it does not change:
  *   ./shocks.ts    a move -> per-tick returns (ramp, overshoot, revert)
- *   ./earnings.ts  surprises, leaks and the EARNINGS gap
+ *   ./earnings.ts  surprises, leaks and the earnings gap
  *   ./headlines.ts template lookup (no repeats) and slot filling
  *
  * Per quarter, at BRIEFING (startQuarter):
@@ -24,7 +24,7 @@
  * news.leadMinMs-leadMaxMs trading-clock delay; a player's own card headline moves the market at once
  * (only its author was ready for it). Then turn all live shocks into this tick's symbolReturn. Items
  * still waiting at the close are dropped.
- * At EARNINGS (closeQuarter): reports with gap = gapFactor * (surprise - what PUBLISHED leaks priced
+ * At the close of TRADING (closeQuarter): reports with gap = gapFactor * (surprise - what PUBLISHED leaks priced
  * in). That gap lands after a seeded trading window at the start of the next quarter.
  *
  * Time is the market tick (day * ticksPerCandle + tickOfDay), like ./shocks.ts.
@@ -127,7 +127,7 @@ export interface News {
   startQuarter(quarter: number, tradingStartTick: number, rate: number): Briefing;
   /** Before each TRADING market step. */
   beforeStep(tick: number, rate: number): { symbolReturn: Record<SymbolId, number> | undefined; dRate: number; events: HeadlineEvent[] };
-  /** At EARNINGS: every company's report, in a stable shuffled order for this quarter. */
+  /** At the close of TRADING: every company's report, in a stable shuffled order for this quarter. */
   closeQuarter(): EarningsImpactReport[];
   /** Queue an extra item (cards, regimes). */
   enqueue(item: NewsItem): void;

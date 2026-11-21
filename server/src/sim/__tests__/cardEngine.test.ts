@@ -12,7 +12,7 @@ import type { Sim, SimEvent, SimEventOf } from '../index.ts';
 
 const BASE: GameConfig = mergeConfig(defaultConfig, {
   time: { daysPerQuarter: 30, quarters: 3 },
-  phaseMs: { BRIEFING: 200, EARNINGS: 200, RESULTS: 200, SHOP: 200 },
+  phaseMs: { BRIEFING: 200, RESULTS: 200, SHOP: 200 },
   lobby: { minPlayers: 1 },
   // Short quarters: a tighter news gap and lead so card headlines land within a few steps.
   news: { minGapMs: 2_000, leadMinMs: 1_000, leadMaxMs: 5_000 },
@@ -80,7 +80,7 @@ describe('shop and hand', () => {
     expect(shops[1]!.offers.length).toBe(BASE.cards.offersPerShop);
     for (const o of shops[0]!.offers) expect(o.price).toBeGreaterThanOrEqual(BASE.cards.minPrice);
     expect(g.sim.getShop('p1')?.offers).toEqual(shops.find((s) => s.playerId === 'p1')!.offers);
-    g.to('EARNINGS', 3);
+    g.to('TRADING', 3);
     const all = only(g.log, 'shop');
     const ids = (playerId: string) => all.filter((s) => s.playerId === playerId).map((s) => s.offers.map((o) => o.card.defId).join(','));
     expect(ids('p1')).toHaveLength(2);

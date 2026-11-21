@@ -10,7 +10,7 @@ export function EarningsPanel() {
   const market = useMarketStore();
   const earningsQuarter = phase?.phase === 'BRIEFING'
     ? phase.quarter - 1
-    : phase?.phase === 'EARNINGS' || phase?.phase === 'FINAL' ? phase.quarter : null;
+    : phase?.phase === 'FINAL' ? phase.quarter : null;
   if (!earnings || earnings.quarter !== earningsQuarter) return null;
 
   const { quarter, reports } = earnings;
@@ -20,13 +20,8 @@ export function EarningsPanel() {
   };
 
   return (
-    <Panel title="Earnings" aside={`Q${quarter} results vs. expectations`} className="earnings" key={quarter}>
+    <Panel title={`Q${quarter} earnings`} className="earnings" key={quarter}>
       <div className="earnings__report" data-testid="earnings">
-        <p className="earnings__tip" data-testid="earnings-tip">
-          {phase?.phase !== 'FINAL' && quarter < config.time.quarters
-            ? <>Find a big beat to bet <strong>UP</strong> or a big miss to bet <strong>DOWN</strong>. Click a ticker and trade as soon as Q{quarter + 1} opens.</>
-            : 'The final earnings report counts toward the standings.'}
-        </p>
         <div className="earnings__scroll" role="region" aria-label="Company earnings" tabIndex={0}>
           <ul className="earnings__list">
             {reports.map((r) => (

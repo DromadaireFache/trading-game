@@ -97,7 +97,7 @@ describe('price dynamics', () => {
 describe('news reaction', () => {
   const config = mergeConfig(defaultConfig, {
     time: { daysPerQuarter: 60, quarters: 6 },
-    phaseMs: { BRIEFING: 200, EARNINGS: 200, RESULTS: 200, SHOP: 200 },
+    phaseMs: { BRIEFING: 200, RESULTS: 200, SHOP: 200 },
     news: { randomHeadlinesPerQuarter: 20, minGapMs: 500 },
     earnings: { leaksPerQuarter: 10 },
   });

@@ -128,7 +128,7 @@ describe('slot filling', () => {
 
 const CONFIG: GameConfig = mergeConfig(defaultConfig, {
   time: { daysPerQuarter: 30, quarters: 3 },
-  phaseMs: { BRIEFING: 200, EARNINGS: 200, RESULTS: 200, SHOP: 200 },
+  phaseMs: { BRIEFING: 200, RESULTS: 200, SHOP: 200 },
   // Short quarters: the old, busier news pace so every quarter has plenty of headlines.
   news: { minGapMs: 2_000, scheduledBeatsPerQuarter: 3, randomHeadlinesPerQuarter: 3 },
   earnings: { leaksPerQuarter: 4 },
@@ -243,7 +243,7 @@ describe('news through the sim', () => {
   });
 
   it('with the default pace, headlines come 5 to 20 s apart, 10 s on average, from the open to the close', () => {
-    const config = mergeConfig(defaultConfig, { phaseMs: { BRIEFING: 200, EARNINGS: 200, RESULTS: 200, SHOP: 200 } });
+    const config = mergeConfig(defaultConfig, { phaseMs: { BRIEFING: 200, RESULTS: 200, SHOP: 200 } });
     const msPerDay = config.time.tickMs * config.time.ticksPerCandle;
     const allGaps: number[] = [];
     for (const seed of [1, 2, 3, 4, 5, 6]) {
@@ -298,7 +298,7 @@ describe('news through the sim', () => {
     expect(only(events, 'briefing').slice(1).map((b) => b.rate)).toEqual(rates.slice(0, -1).map((p) => p.rate));
   });
 
-  it('reports earnings for every company at EARNINGS, and the gap is surprise minus what the published leaks priced in', () => {
+  it('reports earnings for every company at the close of trading, and the gap is surprise minus what the published leaks priced in', () => {
     const { sim, events } = playGame(11, mergeConfig(CONFIG, { time: { quarters: 1 } }));
     const report = only(events, 'earnings')[0]!;
     expect(report.reports.map((r) => r.symbol).sort()).toEqual(sim.getUniverse().companies.map((c) => c.symbol).sort());
@@ -393,7 +393,6 @@ describe('news through the sim', () => {
       }
     }
 
-    for (let t = 0; t < phaseTicks(config, 'EARNINGS'); t++) sim.tick();
     expect(sim.getState().phase).toBe('FINAL');
     const recap = sim.getResults()!.recap;
     expect(recap.quarter).toBe(2);
@@ -432,7 +431,7 @@ describe('headlines only name what exists', () => {
     for (const h of catalog) if (h.sector !== undefined) expect(SECTORS).toContain(h.sector);
     const config = mergeConfig(defaultConfig, {
       time: { daysPerQuarter: 40, quarters: 4 },
-      phaseMs: { BRIEFING: 200, EARNINGS: 200, RESULTS: 200, SHOP: 200 },
+      phaseMs: { BRIEFING: 200, RESULTS: 200, SHOP: 200 },
       news: { randomHeadlinesPerQuarter: 12, minGapMs: 500 },
       earnings: { leaksPerQuarter: 6 },
     });

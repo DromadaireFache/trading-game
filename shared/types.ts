@@ -8,10 +8,14 @@
 // ---------------------------------------------------------------------------
 
 /** Phase labels in play order. RESULTS and SHOP occur between quarters. */
-export const PHASES = ['LOBBY', 'BRIEFING', 'TRADING', 'EARNINGS', 'RESULTS', 'SHOP', 'FINAL'] as const;
+export const PHASES = ['LOBBY', 'BRIEFING', 'TRADING', 'RESULTS', 'SHOP', 'FINAL'] as const;
 export type Phase = (typeof PHASES)[number];
 
-export const FINAL_QUARTER_PHASES = ['BRIEFING', 'TRADING', 'EARNINGS'] as const;
+/**
+ * The earnings reports come out at the close of TRADING (the `earnings` event, first thing in RESULTS
+ * or FINAL) and show at the next BRIEFING and at FINAL: there is no phase of their own.
+ */
+export const FINAL_QUARTER_PHASES = ['BRIEFING', 'TRADING'] as const;
 /** The phases of a quarter that ends with a shop, in order. */
 export const QUARTER_PHASES = [...FINAL_QUARTER_PHASES, 'RESULTS', 'SHOP'] as const;
 export type QuarterPhase = (typeof QUARTER_PHASES)[number];
@@ -238,12 +242,12 @@ export interface Briefing {
   regimes: string[];
   /**
    * Earnings consensus: the quarter's expected EPS per company, $ per share (revenue * margin / 4 /
-   * shares). At EARNINGS a company beats or misses it by its hidden surprise.
+   * shares). At the close a company beats or misses it by its hidden surprise.
    */
   consensus?: Record<SymbolId, number>;
 }
 
-/** One company's quarter result at EARNINGS. */
+/** One company's quarter result at the close of TRADING. */
 export interface EarningsReport {
   symbol: SymbolId;
   /** EPS against consensus: +0.08 = beat by 8%. */

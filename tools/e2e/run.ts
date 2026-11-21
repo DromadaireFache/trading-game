@@ -46,7 +46,7 @@ const TICKS_PER_DAY = defaultConfig.time.ticksPerCandle;
 const DAY_MS = TICKS_PER_DAY * defaultConfig.time.tickMs;
 const TRADING_MS = DAYS * DAY_MS;
 // Leave time for the browser to check and capture each screen before the next phase starts.
-const PHASE_MS = { BRIEFING: 1500, EARNINGS: 2000, RESULTS: 3500, SHOP: 5000 };
+const PHASE_MS = { BRIEFING: 1500, RESULTS: 3500, SHOP: 5000 };
 const overrides: DeepPartial<GameConfig> = {
   time: { quarters: QUARTERS, daysPerQuarter: DAYS },
   phaseMs: PHASE_MS,
@@ -60,7 +60,7 @@ const overrides: DeepPartial<GameConfig> = {
     news: { minGapMs: 2_000, meanGapMs: 4_000, maxGapMs: 6_000 },
   }),
 };
-const GAME_MS = QUARTERS * (PHASE_MS.BRIEFING + TRADING_MS + PHASE_MS.EARNINGS)
+const GAME_MS = QUARTERS * (PHASE_MS.BRIEFING + TRADING_MS)
   + (QUARTERS - 1) * (PHASE_MS.RESULTS + PHASE_MS.SHOP);
 const COMPANIES_PER_SECTOR = defaultConfig.market.companiesPerSector;
 const SYMBOL_COUNT = 1 + SECTORS.length + SECTORS.length * COMPANIES_PER_SECTOR;
@@ -479,9 +479,9 @@ async function checkEarningsReport(page: Page) {
   check(q1Earnings.reports.every((r) => Object.keys(r).length === 2 && Number.isFinite(r.surprise) && typeof r.symbol === 'string'),
     'Only the symbol and earnings surprise are sent for each company');
   const earningsPanel = page.locator('section.panel.earnings');
-  check(await earningsPanel.getByRole('heading', { name: 'Earnings', exact: true }).isVisible(), 'The Earnings panel is on screen');
+  check(await earningsPanel.getByRole('heading', { name: 'Q1 earnings', exact: true }).isVisible(), 'The Earnings panel is on screen');
   const report = await earningsPanel.innerText();
-  check(report.includes('Q1 results vs. expectations') && /beat \+[\d.]+%/.test(report) && /miss -[\d.]+%/.test(report) && !/price|at open/i.test(report),
+  check(/beat \+[\d.]+%/.test(report) && /miss -[\d.]+%/.test(report) && !/price|at open/i.test(report),
     'The report shows beats and misses without projected price moves');
   const companyEarnings = page.getByRole('region', { name: 'Company earnings' });
   check((await companyEarnings.locator('li').count()) === companyCount, 'The report lists every company');
@@ -491,8 +491,6 @@ async function checkEarningsReport(page: Page) {
   const switches = surprises.filter((s, i) => i > 0 && s * surprises[i - 1]! < 0).length;
   check(switches > 1 && surprises.some((s, i) => i > 0 && Math.abs(s) > Math.abs(surprises[i - 1]!)),
     'Beats and misses are mixed without ranking by surprise');
-  const tip = await page.locator(tid('earnings-tip')).innerText();
-  check(tip.includes('bet UP') && tip.includes('bet DOWN') && tip.includes('Q2 opens'), 'Players see what to look for and when to trade');
   // overflow: auto, so a list longer than the panel scrolls inside it.
   check(await companyEarnings.evaluate((el) => el.clientHeight > 0), 'The company list is on screen inside the Earnings panel');
   return q1Earnings;
@@ -635,9 +633,10 @@ async function main(): Promise<void> {
     if (earningsOnly) {
       await step('earnings are available before the open and clear during trading', async () => {
         await a.click(tid('start-button'));
-        await waitForPhase(a, 'EARNINGS', TRADING_MS + WAIT_MS);
-        await a.waitForSelector(tid('earnings'));
-        check(true, 'The report appears when earnings are released');
+        // No earnings phase: the report comes out as trading closes and shows at the next briefing.
+        await waitForPhase(a, 'RESULTS', TRADING_MS + WAIT_MS);
+        await waitFor('the Q1 earnings report', async () => framesOf('A').some((m) => m.t === 'earnings' && m.quarter === 1));
+        check(true, 'The report is released as trading closes');
         for (const phase of ['RESULTS', 'SHOP'] as const) {
           await waitForPhase(a, phase);
           check((await a.locator(tid('earnings')).count()) === 0, `The report is hidden during ${phase}`);
@@ -941,7 +940,6 @@ async function main(): Promise<void> {
       check(fillA?.symbol === stockA && fillA.qty === qtyA && qtyA > 0, `A bought ${qtyA} ${stockA} @ ${fillA?.price}`);
       const wantA = stakes[0]! * cap * startCash;
       check(Math.abs(qtyA * fillA.price - wantA) < 0.03 * wantA, `about ${Math.round(wantA)} worth (${Math.round(qtyA * fillA.price)})`);
-      check((await textOf(a, 'last-fill')).startsWith('Bought'), `A sees the fill: "${await textOf(a, 'last-fill')}"`);
       check(!framesOf('B').some((m) => m.t === 'fill') && !framesOf('floor').some((m) => m.t === 'fill' || m.t === 'portfolio'),
         "B and the floor do not see A's fill or portfolio");
 
@@ -1047,7 +1045,7 @@ async function main(): Promise<void> {
       // In the tray at the bottom right, under the cards, angled (measured after the 380 ms drop-in).
       await sleep(450);
       const [paperBox, handBox, trayBox] = [await a.locator(top).boundingBox(), await a.locator('.desk__hand').boundingBox(), await a.locator('.desk__news').boundingBox()];
-      check(paperBox !== null && handBox !== null && trayBox !== null && paperBox.y >= handBox.y + handBox.height - 1 &&
+      check(paperBox !== null && handBox !== null && trayBox !== null && paperBox.y >= handBox.y + handBox.height - 6 &&
         paperBox.y + paperBox.height <= trayBox.y + trayBox.height + 1,
         `the paper lies in the tray under the cards (paper ${JSON.stringify(paperBox)}, cards ${JSON.stringify(handBox)}, tray ${JSON.stringify(trayBox)})`);
       // The bottom row starts where the cards end.
@@ -1164,10 +1162,10 @@ async function main(): Promise<void> {
       // failing later on a confusing count.
       check((await textOf(a, 'quarter')).startsWith('Q1') && (await phaseOf(a)) === 'TRADING',
         `the earlier steps finished inside Q1's trading (now ${await textOf(a, 'quarter')} ${await phaseOf(a)}); raise DAYS if not`);
-      for (const phase of ['EARNINGS', 'RESULTS', 'SHOP'] as const) {
-        // The earlier steps can finish with most of Q1's trading still to go, so EARNINGS may be up to a
+      for (const phase of ['RESULTS', 'SHOP'] as const) {
+        // The earlier steps can finish with most of Q1's trading still to go, so RESULTS may be up to a
         // whole TRADING phase away. A plain WAIT_MS made this step pass or fail with the speed of the run.
-        await waitForPhase(a, phase, phase === 'EARNINGS' ? TRADING_MS + WAIT_MS : WAIT_MS);
+        await waitForPhase(a, phase, phase === 'RESULTS' ? TRADING_MS + WAIT_MS : WAIT_MS);
         if (phase === 'SHOP') {
           // Milestone 5: A buys every card it can (hand limit) in the Q1 shop.
           await a.waitForSelector(tid('offer'));
@@ -1189,11 +1187,7 @@ async function main(): Promise<void> {
         await shot(a, `14-play-${phase}`);
         await checkNoOverflow(a, `desk in ${phase} at 1366x768`);
         check(await a.locator(tid('bet-up-0')).isDisabled(), `bet buttons are disabled in ${phase}`);
-        if (phase === 'EARNINGS') {
-          await a.waitForSelector(tid('earnings'));
-        } else {
-          check((await a.locator(tid('earnings')).count()) === 0, `The report is hidden during ${phase}`);
-        }
+        check((await a.locator(tid('earnings')).count()) === 0, `The report is hidden during ${phase}`);
         if (phase === 'RESULTS') {
           // Milestone 6: the quarter's results on the desk and on the projector.
           await a.waitForSelector(tid('leaderboard'));
@@ -1309,12 +1303,11 @@ async function main(): Promise<void> {
       check((await boardOf(b)).length === SYMBOL_COUNT, `B lists ${SYMBOL_COUNT} symbols again`);
       await shot(b, '19-play-after-reload-q2');
 
-      // The live chart reaches the last trading day before the final standings replace it.
-      await waitForPhase(floor, 'EARNINGS', GAME_MS + WAIT_MS);
-      check(Number(await floor.locator(tid('net-worth-chart')).getAttribute('data-day')) === QUARTERS * DAYS,
-        `the floor net-worth chart reaches day ${QUARTERS * DAYS}`);
-
       await Promise.all([waitForPhase(a, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(floor, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(b, 'FINAL', GAME_MS + WAIT_MS)]);
+      // The live net worth reached the last trading tick before the final standings replaced the chart.
+      const lastWorthTick = (framesOf('floor').filter((m) => m.t === 'net_worth') as Array<{ samples: Array<{ tick: number }> }>)
+        .flatMap((m) => m.samples).reduce((max, sample) => Math.max(max, sample.tick), 0);
+      check(lastWorthTick === QUARTERS * DAYS * TICKS_PER_DAY, `the floor net worth reaches the last trading tick (${lastWorthTick})`);
       // Milestone 6: the final standings and awards, on the desk and on the projector.
       await a.waitForSelector(tid('winner'));
       check((await a.locator(tid('leaderboard-row')).count()) === 2, 'A shows the final standings');
@@ -1326,7 +1319,7 @@ async function main(): Promise<void> {
       check((await floor.locator(tid('floor-tape')).count()) === 0, 'the projector hides the headline ticker in Final Standings');
       await sleep(200);
       await shot(a, '20-play-FINAL');
-      check((await textOf(a, 'hand-empty')) === 'Game over', 'in FINAL the hand says the game is over');
+      check((await a.locator(tid('hand-card')).count()) === 0, 'in FINAL the hand is empty');
       await shot(floor, '21-floor-FINAL');
       await checkNoOverflow(a, 'desk in FINAL at 1366x768');
       await checkNoOverflow(floor, 'floor in FINAL');

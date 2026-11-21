@@ -9,6 +9,31 @@
  *   Effects   scale with --hype (0..1, fx/hype.ts): the better the player does, the louder it gets.
  */
 
+/* ------------------------------------------------------------------ fonts everywhere */
+
+/* Everything reads in the paper face (Bergoom) by default: shop, results, lobby, header... */
+body {
+  font-family: var(--tg-font-paper);
+}
+/* ...and in the stock font across the stock side (titles get the industrial face below). */
+.market-list,
+.market-chart,
+.order,
+.money,
+.positions,
+.rivals,
+.earnings,
+.floor {
+  font-family: var(--tg-font-mono);
+}
+/* Buttons and fields take the font of where they sit. */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
 /* ------------------------------------------------------------------ the table: a slow Balatro swirl */
 
 .play::before {
@@ -140,6 +165,17 @@
   50% {
     opacity: 0.15;
   }
+}
+
+/* The speaker icon (sound on / off). */
+.sound-toggle {
+  display: inline-grid;
+  place-items: center;
+  padding: 2px 6px;
+  line-height: 0;
+}
+.sound-toggle[aria-pressed='false'] {
+  opacity: 0.6;
 }
 
 /* Stock numbers in the stock font. */
@@ -407,10 +443,20 @@ span.fx-hot {
   font-size: 17px;
 }
 .card__btn {
+  flex: none;
   font-family: var(--tg-font-paper);
   font-weight: 700;
   font-size: 13px;
   border-radius: 4px;
+}
+/* Price and discount stay on one line; the price gives way, never the button's word. */
+.card__price {
+  min-width: 0;
+  font-size: 15px;
+  white-space: nowrap;
+}
+.card__discount {
+  white-space: nowrap;
 }
 /* An illegal card smolders. */
 .card--illegal .card__illegal {

@@ -637,7 +637,7 @@ ol {
    */
   grid-template-columns: 480px minmax(0, 1fr) minmax(0, 1fr) 380px;
   /* The bottom row is tall enough for several positions without scrolling. */
-  grid-template-rows: minmax(0, 1fr) minmax(220px, 31vh);
+  grid-template-rows: minmax(0, 1fr) minmax(190px, 26vh);
   grid-template-areas:
     'list   chart     chart     side'
     'rivals positions positions news';

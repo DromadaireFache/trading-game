@@ -11,7 +11,7 @@ import type { Sim, SimEvent } from '../index.ts';
 
 const fast: GameConfig = mergeConfig(defaultConfig, {
   time: { tickMs: 100, ticksPerCandle: 4, daysPerQuarter: 3, quarters: 2 },
-  phaseMs: { BRIEFING: 200, EARNINGS: 100, RESULTS: 100, SHOP: 100 },
+  phaseMs: { BRIEFING: 200, RESULTS: 100, SHOP: 100 },
 });
 
 function started(config: GameConfig, seed = 7): Sim {

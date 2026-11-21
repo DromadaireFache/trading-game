@@ -400,7 +400,7 @@ describe('market: candles and a full game', () => {
   it('prices are frozen outside TRADING: the first open of a quarter continues from the last close', () => {
     const config = mergeConfig(defaultConfig, {
       time: { daysPerQuarter: 5, quarters: 2 },
-      phaseMs: { BRIEFING: 300, EARNINGS: 200, RESULTS: 200, SHOP: 200 },
+      phaseMs: { BRIEFING: 300, RESULTS: 200, SHOP: 200 },
     });
     const sim = startedSim(2, config);
     let phase = 'LOBBY';

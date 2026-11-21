@@ -23,11 +23,9 @@ export function MarketPanel({ listClassName, chartClassName }: MarketPanelProps)
 
 function SymbolListPanel({ className }: { className?: string }) {
   const symbols = useSymbols();
-  const aside = symbols.length === 0 ? undefined : '% = up or down this quarter';
   return (
     <Panel
       title="Pick a company"
-      aside={aside}
       className={`market-list${className ? ` ${className}` : ''}`}
     >
       {symbols.length > 0 ? <SymbolList /> : <Placeholder>Waiting for market data...</Placeholder>}
@@ -38,7 +36,7 @@ function SymbolListPanel({ className }: { className?: string }) {
 function ChartPanel({ className }: { className?: string }) {
   const selected = useSelectedSymbol();
   return (
-    <Panel title="Price" aside="1 candle = 1 day · green went up, red went down" className={`market-chart${className ? ` ${className}` : ''}`}>
+    <Panel title="Price" className={`market-chart${className ? ` ${className}` : ''}`}>
       {selected === null ? (
         <Placeholder>Waiting for market data...</Placeholder>
       ) : (

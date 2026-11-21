@@ -85,7 +85,7 @@ function HeaderQuote({ symbol }: { symbol: SymbolId }) {
         {quote ? formatPrice(quote.price, decimals) : '--'}
       </span>
       <span className={`sym-head__change change--${changeDirection(change)}`} data-testid="selected-change" title="Change since the quarter opened">
-        {formatPercent(change)} <span className="sym-head__change-label">this quarter</span>
+        {formatPercent(change)}
       </span>
     </div>
   );

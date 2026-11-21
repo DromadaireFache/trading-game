@@ -103,7 +103,7 @@ export type SimEvent =
   | { e: 'headline'; to?: PlayerId; id: string; text: string; symbol?: SymbolId; sector?: Sector; ts: number; early?: boolean; rate?: number }
   /** Milestone 4: right after the BRIEFING phase event. */
   | ({ e: 'briefing' } & Briefing)
-  /** Right after the EARNINGS phase event. The price impact is server-only. */
+  /** At the close of TRADING, right after the RESULTS or FINAL phase event. The price impact is server-only. */
   | { e: 'earnings'; quarter: number; reports: EarningsImpactReport[] }
   /** Milestone 3: a market order (or a forced close) was filled. Price unrounded. */
   | { e: 'fill'; playerId: PlayerId; symbol: SymbolId; qty: number; price: number; ts: number; reason?: ForcedFillReason; realizedPnl?: number; requestId?: number }

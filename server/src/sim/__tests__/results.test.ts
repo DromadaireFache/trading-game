@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { defaultConfig, mergeConfig } from '@tg/shared';
+import { defaultConfig, mergeConfig, valuePortfolio } from '@tg/shared';
 import { createResults, createSim, generateUniverse, createRng } from '../index.ts';
 import type { Sim, SimEvent, SimEventOf } from '../index.ts';
 
 const config = mergeConfig(defaultConfig, {
   time: { quarters: 2, daysPerQuarter: 20 },
-  phaseMs: { BRIEFING: 200, EARNINGS: 200, RESULTS: 200, SHOP: 200 },
+  phaseMs: { BRIEFING: 200, RESULTS: 200, SHOP: 200 },
   lobby: { minPlayers: 2 },
 });
 
@@ -34,9 +34,9 @@ describe('results', () => {
     expect(all.at(-1)!.final).toBe(true);
     expect(all.at(-1)!.awards).toBeDefined();
     expect(sim.getResults()).toBe(all.at(-1));
-    // The first quarter's results come right after the RESULTS phase event.
+    // The first quarter's earnings, then its results, come right after the RESULTS phase event.
     const idx = events.findIndex((e) => e.e === 'phase' && e.phase === 'RESULTS');
-    expect(events[idx + 1]!.e).toBe('results');
+    expect(events.slice(idx + 1, idx + 3).map((e) => e.e)).toEqual(['earnings', 'results']);
   });
 
   it('recap: 3 moves in different sectors, each with a cause, matching real price changes', () => {
@@ -155,7 +155,7 @@ describe('results', () => {
 });
 
 describe('final standings include the last earnings gap', () => {
-  it('values positions after the last EARNINGS gap, which no market step applies', () => {
+  it('values positions after the last earnings gap, which no market step applies', () => {
     const sim = createSim(9, config);
     sim.submit({ kind: 'add_player', playerId: 'a', name: 'Ada' });
     sim.submit({ kind: 'add_player', playerId: 'b', name: 'Bo' });
@@ -172,12 +172,12 @@ describe('final standings include the last earnings gap', () => {
         bought = Object.entries(plan.surprise).sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))[0]![0];
         sim.submit({ kind: 'order', playerId: 'a', symbol: bought, qty: 20_000 });
       }
-      if (s.phase === 'EARNINGS' && s.quarter === config.time.quarters) {
-        quarterEquity = sim.getPortfolio('a')!.equity;
-        priceBefore = sim.getMarketSnapshot().prices[bought!]!;
-      }
       events.push(...sim.tick());
     }
+    // At FINAL the market holds the last close (no step applies the gap): value the account at it.
+    priceBefore = sim.getMarketSnapshot().prices[bought!]!;
+    const held = sim.getPortfolio('a')!;
+    quarterEquity = valuePortfolio(config, held.cash, held.positions, (symbol) => sim.getMarketSnapshot().prices[symbol]).equity;
     const gap = sim.news.pendingGap()![bought!]!;
     expect(Math.abs(gap)).toBeGreaterThan(0.01);
     const qty = sim.getPortfolio('a')!.positions.find((p) => p.symbol === bought)!.qty;

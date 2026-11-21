@@ -49,7 +49,7 @@ describe('parseClientMsg', () => {
       '{"t":"end_game","game":0}',
       '{"t":"ready_up"}',
       '{"t":"ready_up","quarter":1.5}',
-      '{"t":"ready_up","quarter":1,"phase":"EARNINGS"}',
+      '{"t":"ready_up","quarter":1,"phase":"BRIEFING"}',
       '{"t":"play_card","cardId":"c1","direction":"sideways"}',
       '{"t":"play_card","cardId":"c1","target":7}',
       '{"t":"join","role":"player"',

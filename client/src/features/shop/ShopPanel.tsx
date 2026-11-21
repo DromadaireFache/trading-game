@@ -26,7 +26,7 @@ export function ShopPanel({ className }: { className?: string }) {
   return (
     <Panel
       title="Card shop"
-      aside={`your cards ${handSize}/${config.cards.handLimit}${live ? ` · your money ${formatMoney(live.equity)}` : ''}`}
+      aside={`${handSize}/${config.cards.handLimit}`}
       className={`shop${className ? ` ${className}` : ''}`}
     >
       <ReadyUp />
@@ -34,14 +34,9 @@ export function ShopPanel({ className }: { className?: string }) {
         <Placeholder>No cards on offer.</Placeholder>
       ) : (
         <>
-        <p className="shop__intro">
-          Cards let you make the news. Buy now, play them next quarter while the market is open. Prices grow with your
-          money. Everyone gets a different shop. <strong>Illegal</strong> cards add heat: the SEC may fine you and put you in
-          jail. Legal cards never land you in jail. Cards hit harder each quarter.
-        </p>
         {shop[0]?.discount ? (
           <p className="shop__underdog" data-testid="underdog">
-            Underdog deal: you are in the bottom half, so every card is {Math.round(shop[0].discount * 100)}% off.
+            Underdog deal: {Math.round(shop[0].discount * 100)}% off
           </p>
         ) : null}
         <div className="shop__grid" data-testid="shop">

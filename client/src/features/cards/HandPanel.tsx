@@ -20,8 +20,8 @@ export function HandPanel({ className }: { className?: string }) {
 
   if (live === null) {
     return (
-      <Panel title="Your cards" aside={`up to ${config.cards.handLimit}`} className={className}>
-        <Placeholder>Buy cards in the SHOP, play them while the market is open.</Placeholder>
+      <Panel title="Your cards" className={className}>
+        <Placeholder>{null}</Placeholder>
       </Panel>
     );
   }
@@ -56,18 +56,11 @@ export function HandPanel({ className }: { className?: string }) {
         ))}
         {Array.from({ length: Math.max(0, config.cards.handLimit - hand.length) }, (_, i) => (
           <div key={`slot-${i}`} className="hand__slot" data-testid={hand.length === 0 && i === 0 ? 'hand-empty' : undefined}>
-            {i === 0 && emptyText(phase?.phase === 'FINAL', (phase?.quarter ?? 0) >= config.time.quarters, hand.length)}
           </div>
         ))}
       </div>
     </Panel>
   );
-}
-
-function emptyText(final: boolean, lastQuarter: boolean, held: number): string {
-  if (final) return 'Game over';
-  if (lastQuarter) return 'No shop in the last quarter';
-  return held === 0 ? 'Buy cards in the SHOP' : 'Empty slot';
 }
 
 function HandCard({ card, open }: { card: Card; open: boolean }) {

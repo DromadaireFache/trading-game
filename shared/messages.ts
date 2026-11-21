@@ -223,7 +223,8 @@ export interface BriefingMsg extends Briefing {
 }
 
 /**
- * Broadcast when EARNINGS starts. The latest report is replayed after `welcome`.
+ * Broadcast at the close of TRADING (right after the RESULTS or FINAL phase message). The latest
+ * report is replayed after `welcome`.
  */
 export interface EarningsMsg {
   t: 'earnings';
