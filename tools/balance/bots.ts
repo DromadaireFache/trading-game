@@ -101,7 +101,52 @@ export const lastTickPump: BotFactory = () => {
   };
 };
 
-export const DEFAULT_BOTS: readonly BotFactory[] = [holdIndex, leveredIndex, momentum, yolo, shortIndex, lastTickPump];
+/**
+ * A fast, news-reading human: sees a headline appear, takes `reactionMs` to read it, reads the
+ * direction off the first part of the move (a human reads it off the text), goes all in on the target
+ * at the leverage cap (the stock, the sector fund, or the index fund), and gets out once the shock has
+ * settled. One trade at a time; headlines during a trade are ignored. Neutral headlines do not move
+ * the price, so they are skipped.
+ */
+export function newsTrader(reactionMs = 1_000, name = 'news-trader'): BotFactory {
+  return () => {
+    let now = 0;
+    let watching: { symbol: SymbolId; price: number; at: number } | undefined;
+    let exitAt: number | undefined;
+    return {
+      name,
+      decide(view) {
+        now += 1;
+        const tickMs = view.config.time.tickMs;
+        const reaction = Math.max(1, Math.round(reactionMs / tickMs));
+        const settle = 2 * Math.round(view.config.news.rampMs / tickMs);
+
+        if (exitAt !== undefined) {
+          if (now < exitAt && view.ticksLeft > 1) return [];
+          exitAt = undefined;
+          return closeOthers(view, undefined);
+        }
+        if (watching === undefined) {
+          const h = view.headlines[0];
+          if (h === undefined) return [];
+          const symbol = h.symbol ?? (h.sector ? view.universe.funds.find((f) => f.sector === h.sector)!.symbol : indexFund(view));
+          watching = { symbol, price: view.prices[symbol]!, at: now };
+          return [];
+        }
+        if (now - watching.at < reaction) return [];
+        const move = Math.log(view.prices[watching.symbol]! / watching.price);
+        const symbol = watching.symbol;
+        watching = undefined;
+        // Smaller than a tick of noise: a neutral headline.
+        if (Math.abs(move) < 0.002) return [];
+        exitAt = now + Math.max(1, settle - reaction);
+        return allIn(view, symbol, Math.sign(move) * view.config.trading.leverageCap);
+      },
+    };
+  };
+}
+
+export const DEFAULT_BOTS: readonly BotFactory[] = [holdIndex, leveredIndex, momentum, yolo, shortIndex, lastTickPump, newsTrader()];
 
 export function botByName(name: string): BotFactory | undefined {
   return DEFAULT_BOTS.find((f) => f(undefined as never).name === name);

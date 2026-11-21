@@ -15,6 +15,7 @@ import { createRng, createSim } from '@tg/server/sim';
 import type { Rng, SimEventOf, Universe } from '@tg/server/sim';
 
 export type Portfolio = SimEventOf<'portfolio'>;
+export type Headline = SimEventOf<'headline'>;
 
 export interface BotView {
   config: GameConfig;
@@ -28,6 +29,8 @@ export interface BotView {
   ticksLeft: number;
   prices: Record<SymbolId, number>;
   portfolio: Portfolio;
+  /** Public headlines published on the last tick (what every player saw appear in the feed). */
+  headlines: Headline[];
 }
 
 export interface OrderIntent {
@@ -89,10 +92,14 @@ export function playGame(seed: number, baseConfig: GameConfig, factories: readon
   let prices: Record<SymbolId, number> = sim.getMarketSnapshot().prices;
   let day = 0;
   let tickOfDay = 0;
+  let headlines: Headline[] = [];
   const maxTicks = 10_000_000;
   for (let n = 0; n < maxTicks; n++) {
+    headlines = [];
     for (const event of sim.tick()) {
-      if (event.e === 'tick') {
+      if (event.e === 'headline' && event.to === undefined) {
+        headlines.push(event);
+      } else if (event.e === 'tick') {
         prices = event.prices;
         day = event.day;
         tickOfDay = event.tickOfDay;
@@ -109,7 +116,7 @@ export function playGame(seed: number, baseConfig: GameConfig, factories: readon
     bots.forEach((bot, i) => {
       const portfolio = sim.getPortfolio(ids[i]!)!;
       if (portfolio.eliminated) return;
-      const view: BotView = { config, universe, phase: state.phase, quarter: state.quarter, day, tickOfDay, ticksLeft: state.ticksLeft ?? 0, prices, portfolio };
+      const view: BotView = { config, universe, phase: state.phase, quarter: state.quarter, day, tickOfDay, ticksLeft: state.ticksLeft ?? 0, prices, portfolio, headlines };
       for (const order of bot.decide(view)) {
         if (!Number.isFinite(order.qty) || Math.trunc(order.qty) === 0) continue;
         sim.submit({ kind: 'order', playerId: ids[i]!, symbol: order.symbol, qty: order.qty });

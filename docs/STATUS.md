@@ -33,7 +33,7 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 
 1. **M5 Cards and shop.** Wire the catalog into the sim: shop offers, hand, card effects, heat, the SEC catch roll and jail.
 2. **M6 Results, final and floor.** Recap with causes, awards, and BREAKING moments.
-3. **M7 Balance harness.** `npm run balance` exists (`tools/balance/`): 6 bots (hold-index, levered-index, momentum, yolo, short-index, last-tick-pump) play whole games headless. With M4 headlines and earnings in, over 50 games the median winner is about $15M (p90 $98M), roughly 100x below the $1B–3B target. Cards, regimes and the SEC are not in the sim yet. Next: run it again once M5 is wired in, then tune toward $1B–3B.
+3. **M7 Balance.** First tuning pass done (see docs/BALANCE.md). A news-trader bot (a fast, news-reading human) was added, and huge shocks, magnitude/scope weights and daily volume were retuned. Over 50 games the median winner is $631M (p10 $199M, p90 $2.84B), short of $1B on purpose because cards are not in yet. Next: card-using bots and another pass once M5 lands.
 
 ## Suggested split
 
