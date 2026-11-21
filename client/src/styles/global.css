@@ -568,6 +568,56 @@ ol {
   height: 1.1em;
   animation: lobby-mark-pop 2.4s ease-in-out 1s infinite;
 }
+.lobby__settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--tg-color-border);
+  border-radius: 8px;
+  background: var(--tg-color-bg-inset);
+}
+.lobby__setting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.lobby__setting-label {
+  flex: 0 0 120px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tg-color-text-dim);
+}
+.lobby__setting-options {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+}
+.lobby__option {
+  flex: 1;
+  padding: 6px 4px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tg-color-text);
+  background: var(--tg-color-panel-raised);
+  border: 1px solid var(--tg-color-border-strong);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.lobby__option--on {
+  color: var(--tg-color-on-accent);
+  background: var(--tg-color-accent);
+  border-color: var(--tg-color-accent);
+}
+.lobby__option:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
 .lobby__actions {
   display: flex;
   flex-direction: column;

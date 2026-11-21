@@ -60,6 +60,27 @@ export interface StartMsg {
   debugMode?: boolean;
 }
 
+/** Choices offered in the lobby for the game's length. */
+export const QUARTER_OPTIONS = [2, 4, 8, 16] as const;
+/** Real-time length of a quarter's trading, in seconds. A quarter is always the same number of days. */
+export const QUARTER_SECONDS_OPTIONS = [30, 60, 90, 180] as const;
+
+/** Game length, set in the lobby by any player; shared by everyone in it. */
+export interface GameSettings {
+  quarters: number;
+  quarterSeconds: number;
+}
+
+/**
+ * LOBBY only, any player: change the game's length. Everyone gets a fresh welcome (with the new
+ * config) and lobby. Fields left out keep their value.
+ */
+export interface SetSettingsMsg {
+  t: 'set_settings';
+  quarters?: number;
+  quarterSeconds?: number;
+}
+
 /** FINAL only, any player: a fresh game (next seed) with the connected players back in the lobby. */
 export interface NewGameMsg {
   t: 'new_game';
@@ -106,7 +127,7 @@ export interface PlayCardMsg {
   direction?: CardDirection;
 }
 
-export type ClientMsg = JoinMsg | StartMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg | EndGameMsg;
+export type ClientMsg = JoinMsg | StartMsg | SetSettingsMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg | EndGameMsg;
 export type ClientMsgType = ClientMsg['t'];
 
 // ---------------------------------------------------------------------------
@@ -156,6 +177,8 @@ export interface LobbyState {
   spectators: number;
   minPlayers: number;
   maxPlayers: number;
+  /** The game length the next start will use. */
+  settings: GameSettings;
 }
 
 /** Roster broadcast: on every join, leave, disconnect and reconnect (in any phase). */

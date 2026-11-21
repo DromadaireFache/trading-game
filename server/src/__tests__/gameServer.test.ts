@@ -460,6 +460,47 @@ describe('start and phases', () => {
     expect((await ann.next('welcome')).phase.debugMode).toBeUndefined();
   });
 
+  it('lets any player set the game length in the lobby: quarters keep their days, days change length', async () => {
+    const s = await start({ time: { quarters: 3, daysPerQuarter: 60 } });
+    const base = s.sim.config.time;
+    const baseSeconds = Math.round((base.daysPerQuarter * base.ticksPerCandle * base.tickMs) / 1000);
+    const ann = await open(s);
+    const first = await ann.join('player', 'Ann');
+    const bob = await open(s);
+    await bob.join('player', 'Bob');
+    expect((await ann.next('lobby', (m) => m.players.length === 2)).settings).toEqual({ quarters: 3, quarterSeconds: baseSeconds });
+
+    // Not an option (and not the server's own value): refused, nothing changes.
+    bob.send({ t: 'set_settings', quarters: 5 });
+    expect(await bob.next('error')).toMatchObject({ code: 'bad_message' });
+    bob.send({ t: 'set_settings', quarterSeconds: 45 });
+    expect(await bob.next('error')).toMatchObject({ code: 'bad_message' });
+
+    bob.send({ t: 'set_settings', quarters: 2, quarterSeconds: 30 });
+    for (const client of [ann, bob]) {
+      const welcome = await client.next('welcome');
+      expect(welcome).toMatchObject({ game: first.game, phase: { phase: 'LOBBY', totalQuarters: 2 } });
+      const t = welcome.config.time;
+      expect(t.quarters).toBe(2);
+      expect(t.daysPerQuarter).toBe(60);
+      expect(t.daysPerQuarter * t.ticksPerCandle * t.tickMs).toBeCloseTo(30_000, 6);
+      expect(welcome.lobby.settings).toEqual({ quarters: 2, quarterSeconds: 30 });
+      expect(welcome.lobby.players.map((p) => p.name)).toEqual(['Ann', 'Bob']);
+    }
+    // The server's own length stays a choice and brings the server's tick back.
+    ann.send({ t: 'set_settings', quarters: 3, quarterSeconds: baseSeconds });
+    expect((await ann.next('welcome')).config.time).toEqual(base);
+
+    bob.send({ t: 'set_settings', quarterSeconds: 60 });
+    await ann.next('welcome');
+    ann.send({ t: 'start' });
+    const trading = await bob.next('phase', (m) => m.phase === 'TRADING');
+    expect(trading).toMatchObject({ quarter: 1, totalQuarters: 3 });
+    expect(s.sim.config.time.daysPerQuarter * s.sim.config.time.ticksPerCandle * s.sim.config.time.tickMs).toBeCloseTo(60_000, 6);
+    bob.send({ t: 'set_settings', quarters: 4 });
+    expect(await bob.next('error')).toMatchObject({ code: 'not_allowed' });
+  });
+
   it.each([false, true])('ends an active match from a player’s request (debug = %s)', async (debugMode) => {
     const s = await start({ time: { quarters: 3, daysPerQuarter: 60 } });
     const ann = await open(s);

@@ -13,7 +13,7 @@
  * Tick accounting: without Ready Up, a phase of N ticks whose `phase` event is returned by tick() call T ends on
  * call T + N, which returns the next `phase` event. The tick that processes `start` only enters
  * BRIEFING; it does not consume a BRIEFING tick. The N tick() calls after the one that announced
- * TRADING each step the market once; the last of them returns `tick`, `candle`, then the EARNINGS
+ * TRADING each step the market once; the last of them returns `tick`, `candle`, then the earnings
  * `phase` event, in that order.
  *
  * RNG streams: forked from the root in a FIXED order (universe, market, then later subsystems at
@@ -68,7 +68,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     ...universe.funds.map((f) => [f.symbol, f.adv] as const),
   ]);
   /**
-   * Prices that value accounts after the game. The last EARNINGS gap has no market step left to land
+   * Prices that value accounts after the game. The last earnings gap has no market step left to land
    * on (prices only move in TRADING), so at FINAL it is applied here instead: companies at
    * price * exp(gap), funds scaled by how much their basket moved. Null until FINAL.
    */

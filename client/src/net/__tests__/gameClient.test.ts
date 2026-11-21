@@ -40,7 +40,7 @@ function memoryStorage(): SessionStorageLike & { data: Map<string, string> } {
   };
 }
 
-const lobby: LobbyState = { players: [{ id: 'p1', name: 'Ann', connected: true }], spectators: 0, minPlayers: 1, maxPlayers: 4 };
+const lobby: LobbyState = { players: [{ id: 'p1', name: 'Ann', connected: true }], spectators: 0, minPlayers: 1, maxPlayers: 4, settings: { quarters: 4, quarterSeconds: 90 } };
 const phaseAt = (serverTime: number, over: Partial<PhaseInfo> = {}): PhaseInfo => ({
   phase: 'LOBBY',
   endsAt: null,

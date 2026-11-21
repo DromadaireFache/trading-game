@@ -19,8 +19,8 @@ import type { AddressInfo } from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
-import { WS_CLOSE_REPLACED, roundOhlc, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
-import type { ClientMsg, ErrorCode, HoldingsMsg, JoinMsg, LobbyState, MarketMsg, NetWorthSample, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg } from '@tg/shared';
+import { QUARTER_OPTIONS, QUARTER_SECONDS_OPTIONS, WS_CLOSE_REPLACED, quarterSeconds, roundOhlc, withGameLength, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
+import type { ClientMsg, ErrorCode, GameConfig, HoldingsMsg, JoinMsg, LobbyState, MarketMsg, NetWorthSample, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg, SetSettingsMsg } from '@tg/shared';
 import type { ServerEnv } from './env.ts';
 import { lanUrls } from './lan.ts';
 import { runTickClock } from './loop.ts';
@@ -73,7 +73,9 @@ export interface GameServer {
 type JoinFailure = { code: ErrorCode; message: string };
 
 export function startGameServer(env: ServerEnv, options: GameServerOptions = {}): Promise<GameServer> {
-  const { config } = env;
+  /** The server's config; `config` is it with the lobby's game length applied (see handleSettings). */
+  const baseConfig = env.config;
+  let config = baseConfig;
   const now = options.now ?? Date.now;
   const log = options.log ?? ((line: string) => console.log(line));
 
@@ -151,6 +153,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       spectators,
       minPlayers: config.lobby.minPlayers,
       maxPlayers: config.lobby.maxPlayers,
+      settings: { quarters: config.time.quarters, quarterSeconds: quarterSeconds(config) },
     };
   }
 
@@ -399,6 +402,44 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     for (const [clientSocket, clientSession] of [...bySocket]) attach(clientSession, clientSocket);
   }
 
+  /**
+   * LOBBY only: a new game length. The lobby's sim is rebuilt on the same seed with the same players
+   * (in join order) and every client gets a fresh welcome with the new config, as after "play again".
+   * A quarter keeps its days; the length sets how long a day lasts (see withGameLength). Choices are
+   * the lobby's options, or the server's own (a dev or test config may use others).
+   */
+  function handleSettings(socket: WebSocket, session: Session, msg: SetSettingsMsg): void {
+    if (session.role !== 'player') return sendError(socket, 'not_allowed', 'only players can change the settings');
+    if (!inLobby()) return sendError(socket, 'not_allowed', 'the game has already started');
+    const quarters = msg.quarters ?? config.time.quarters;
+    const seconds = msg.quarterSeconds ?? quarterSeconds(config);
+    if (!(QUARTER_OPTIONS as readonly number[]).includes(quarters) && quarters !== baseConfig.time.quarters) {
+      return sendError(socket, 'bad_message', `quarters must be one of ${QUARTER_OPTIONS.join(', ')}`);
+    }
+    if (!(QUARTER_SECONDS_OPTIONS as readonly number[]).includes(seconds) && seconds !== quarterSeconds(baseConfig)) {
+      return sendError(socket, 'bad_message', `a quarter must last one of ${QUARTER_SECONDS_OPTIONS.join(', ')} seconds`);
+    }
+    if (quarters === config.time.quarters && seconds === quarterSeconds(config)) return;
+    let next: GameConfig;
+    try {
+      next = withGameLength(baseConfig, quarters, seconds);
+    } catch (err) {
+      return sendError(socket, 'bad_message', err instanceof Error ? err.message : 'invalid settings');
+    }
+    const retime = next.time.tickMs !== config.time.tickMs;
+    config = next;
+    lastSentWorth = undefined;
+    sim = createSim(env.seed + gameNumber - 1, config, { headlines });
+    for (const s of playerSessions()) sim.submit({ kind: 'add_player', playerId: s.id, name: s.name });
+    // A new day length can mean a new tick length: the clock restarts on it (nothing runs in the lobby).
+    if (retime) {
+      running.stop();
+      running = startClock();
+    }
+    log(`[server] ${session.name} set ${quarters} quarters of ${seconds} s`);
+    for (const [clientSocket, clientSession] of [...bySocket]) attach(clientSession, clientSocket);
+  }
+
   function handleMessage(socket: WebSocket, msg: ClientMsg): void {
     if (msg.t === 'join') return handleJoin(socket, msg);
 
@@ -406,6 +447,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     if (session === undefined) return sendError(socket, 'not_joined', 'send a join message first');
     if (msg.t === 'start') return handleStart(socket, session, msg.debugMode);
     if (msg.t === 'new_game') return handleNewGame(socket, session);
+    if (msg.t === 'set_settings') return handleSettings(socket, session, msg);
 
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'spectators cannot do that');
     switch (msg.t) {
@@ -560,29 +602,34 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
 
   // --- clock ---------------------------------------------------------------
 
-  const running = runTickClock(
-    {
-      tickMs: config.time.tickMs,
-      maxCatchUpTicks: config.net.maxCatchUpTicks,
-      onTick(tickTime) {
-        try {
-          const events = sim.tick();
-          for (const event of events) dispatch(event, tickTime);
-          if (events.some((event) => event.e === 'tick' || event.e === 'candle' || event.e === 'portfolio')) {
-            broadcastNetWorth();
+  /** Restarted when the lobby changes the tick length (handleSettings). */
+  let running = startClock();
+
+  function startClock(): ReturnType<typeof runTickClock> {
+    return runTickClock(
+      {
+        tickMs: config.time.tickMs,
+        maxCatchUpTicks: config.net.maxCatchUpTicks,
+        onTick(tickTime) {
+          try {
+            const events = sim.tick();
+            for (const event of events) dispatch(event, tickTime);
+            if (events.some((event) => event.e === 'tick' || event.e === 'candle' || event.e === 'portfolio')) {
+              broadcastNetWorth();
+            }
+          } catch (error) {
+            log(`[server] tick failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
           }
-        } catch (error) {
-          log(`[server] tick failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
-        }
+        },
+        onResync() {
+          // Ticks were dropped, so the deadline everybody is counting down to has moved.
+          const info = phaseInfo();
+          if (info.endsAt !== null) broadcast({ t: 'phase', ...info });
+        },
       },
-      onResync() {
-        // Ticks were dropped, so the deadline everybody is counting down to has moved.
-        const info = phaseInfo();
-        if (info.endsAt !== null) broadcast({ t: 'phase', ...info });
-      },
-    },
-    now,
-  );
+      now,
+    );
+  }
 
   // --- sockets -------------------------------------------------------------
 
