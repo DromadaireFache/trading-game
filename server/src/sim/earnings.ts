@@ -6,25 +6,27 @@
  *   - every company draws true_surprise ~ N(0, earnings.surpriseSigma): +0.08 = beats by 8%.
  *   - earnings.leaksPerQuarter leaks go to distinct companies (a company can get only one leak per
  *     quarter; capped at the number of companies), at market ticks drawn uniformly inside TRADING but
- *     early enough that the leak's shock settles (2 ramps) before the close.
+ *     early enough that the lead time and the leak's shock (2 ramps) fit before the close.
  *   - a leak prices in a share, drawn in [leakShareMin, leakShareMax], of the surprise:
  *     amount = share * true_surprise, its move = gapFactor * amount, priced_in += amount.
- * At EARNINGS (earningsGap): gap = gapFactor * (true_surprise - priced_in) per company. Prices are
- * frozen outside TRADING, so the caller passes the gap as `symbolReturn` on the first market step of
- * the next quarter: it shows between the last close and the next open (the market contract). After
- * the last quarter there is no next step; the final leaderboard can apply it to marks directly.
+ * At EARNINGS (earningsGap): gap = gapFactor * (true_surprise - priced_in) per company. The news
+ * engine applies it after a trading window at the start of the next quarter. After the final
+ * quarter, the sim applies it directly to the marks used for the final leaderboard.
  * Boardroom Mole (earnings_peek) reads plan.surprise[symbol].
- *
- * Not wired into createSim yet (M4): fork a new RNG stream for it at the END of createSim's forks.
  */
-import type { GameConfig, SymbolId } from '@tg/shared';
+import type { EarningsReport, GameConfig, SymbolId } from '@tg/shared';
 import { msToTicks } from '@tg/shared';
 import type { Rng } from './rng.ts';
 import type { Universe } from './universe.ts';
 
+export interface EarningsImpactReport extends EarningsReport {
+  /** Remaining log return after published leaks, kept on the server. */
+  gap: number;
+}
+
 export interface Leak {
   symbol: SymbolId;
-  /** Market tick its shock starts on. */
+  /** Earliest market tick its headline can publish. */
   tick: number;
   /** Surprise units priced in by this leak (signed, same sign as the surprise). */
   amount: number;
@@ -56,7 +58,7 @@ export function drawEarnings(rng: Rng, config: GameConfig, universe: Universe, q
   for (let i = 0; i < count; i++) picked.push(pool.splice(rng.int(pool.length), 1)[0]!);
 
   const tradingTicks = config.time.daysPerQuarter * config.time.ticksPerCandle;
-  const settleTicks = 2 * msToTicks(config, config.news.rampMs);
+  const settleTicks = 2 * msToTicks(config, config.news.rampMs) + Math.ceil(config.news.leadMaxMs / config.time.tickMs);
   const window = Math.max(1, tradingTicks - settleTicks);
   const leaks: Leak[] = picked.map((symbol) => {
     const tick = tradingStartTick + rng.int(window);

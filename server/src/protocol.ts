@@ -40,8 +40,10 @@ export function parseClientMsg(text: string): ParseResult {
       if (raw.token !== undefined && typeof raw.token !== 'string') return bad('join.token must be a string');
       return { ok: true, msg: { t: 'join', role: raw.role, name: raw.name, token: raw.token } };
     }
-    case 'start':
-      return { ok: true, msg: { t: 'start' } };
+    case 'start': {
+      if (raw.debugMode !== undefined && typeof raw.debugMode !== 'boolean') return bad('start.debugMode must be a boolean');
+      return { ok: true, msg: { t: 'start', ...(raw.debugMode === undefined ? {} : { debugMode: raw.debugMode }) } };
+    }
     case 'new_game':
       return { ok: true, msg: { t: 'new_game' } };
     case 'order': {
@@ -57,6 +59,16 @@ export function parseClientMsg(text: string): ParseResult {
     case 'buy_card': {
       if (!isNonEmptyString(raw.offerId)) return bad('buy_card.offerId must be a non-empty string');
       return { ok: true, msg: { t: 'buy_card', offerId: raw.offerId } };
+    }
+    case 'ready_up': {
+      if (typeof raw.quarter !== 'number' || !Number.isSafeInteger(raw.quarter) || raw.quarter < 1) {
+        return bad('ready_up.quarter must be a positive whole number');
+      }
+      const phase = raw.phase === undefined ? 'SHOP' : raw.phase;
+      if (phase !== 'TRADING' && phase !== 'RESULTS' && phase !== 'SHOP') {
+        return bad('ready_up.phase must be TRADING, RESULTS or SHOP');
+      }
+      return { ok: true, msg: { t: 'ready_up', quarter: raw.quarter, phase } };
     }
     case 'play_card': {
       if (!isNonEmptyString(raw.cardId)) return bad('play_card.cardId must be a non-empty string');

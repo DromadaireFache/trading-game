@@ -38,14 +38,15 @@ function phaseEvents(log: Logged[]): Array<{ tick: number } & SimEventOf<'phase'
 }
 
 describe('phase order', () => {
-  it('nextPhase walks LOBBY -> quarter phases x N -> FINAL', () => {
+  it('nextPhase skips the shop in the final quarter', () => {
     const seen: string[] = [];
     let at = { phase: 'LOBBY' as Phase, quarter: 0 };
     for (let i = 0; i < 100 && at.phase !== 'FINAL'; i++) {
       at = nextPhase(fast, at);
       seen.push(`${at.phase}:${at.quarter}`);
     }
-    const expected = [1, 2, 3].flatMap((q) => QUARTER_PHASES.map((p) => `${p}:${q}`)).concat('FINAL:3');
+    const expected = [1, 2, 3].flatMap((q) => QUARTER_PHASES.filter((p) => q < 3 || p !== 'SHOP').map((p) => `${p}:${q}`));
+    expected.push('FINAL:3');
     expect(seen).toEqual(expected);
     expect(nextPhase(fast, { phase: 'FINAL', quarter: 3 })).toEqual({ phase: 'FINAL', quarter: 3 });
   });
@@ -59,7 +60,9 @@ describe('phase order', () => {
       { phase: 'LOBBY', quarter: 0, durationTicks: null },
     ];
     for (let q = 1; q <= fast.time.quarters; q++) {
-      for (const phase of QUARTER_PHASES) expected.push({ phase, quarter: q, durationTicks: phaseTicks(fast, phase) });
+      for (const phase of QUARTER_PHASES) {
+        if (phase !== 'SHOP' || q < fast.time.quarters) expected.push({ phase, quarter: q, durationTicks: phaseTicks(fast, phase) });
+      }
     }
     expected.push({ phase: 'FINAL', quarter: fast.time.quarters, durationTicks: null });
 
@@ -73,15 +76,15 @@ describe('phase order', () => {
     expect(phases[0]!.tick).toBe(0);
     expect(phases[1]!.tick).toBe(0);
     // FINAL arrives exactly one full game after the start.
-    expect(phases.at(-1)!.tick).toBe(quarterTicks(fast) * fast.time.quarters);
+    expect(phases.at(-1)!.tick).toBe(quarterTicks(fast) * fast.time.quarters - phaseTicks(fast, 'SHOP'));
   });
 
   it('reaches FINAL after N quarters and stays there', () => {
     for (const quarters of [1, 2, 5]) {
       const config = mergeConfig(fast, { time: { quarters } });
       const { sim, log } = startedSim(config);
-      run(sim, log, quarterTicks(config) * quarters); // call 0 only enters BRIEFING
-      expect(sim.getState().phase).toBe('SHOP');
+      run(sim, log, quarterTicks(config) * quarters - phaseTicks(config, 'SHOP')); // call 0 only enters BRIEFING
+      expect(sim.getState().phase).toBe('RESULTS');
       expect(sim.getState().quarter).toBe(quarters);
       expect(sim.getState().ticksLeft).toBe(1);
 
@@ -96,17 +99,17 @@ describe('phase order', () => {
     }
   });
 
-  it('uses the default lengths from config (150 / 900 / 50 / 200 / 300 ticks)', () => {
+  it('uses the default lengths from config (50 / 900 / 50 / 200 / 300 ticks)', () => {
     const { sim, log } = startedSim(defaultConfig);
     run(sim, log, quarterTicks(defaultConfig) + 1);
     const phases = phaseEvents(log).slice(1, 7);
     expect(phases.map((p) => [p.phase, p.quarter, p.tick])).toEqual([
       ['BRIEFING', 1, 0],
-      ['TRADING', 1, 150],
-      ['EARNINGS', 1, 1050],
-      ['RESULTS', 1, 1100],
-      ['SHOP', 1, 1300],
-      ['BRIEFING', 2, 1600],
+      ['TRADING', 1, 50],
+      ['EARNINGS', 1, 950],
+      ['RESULTS', 1, 1000],
+      ['SHOP', 1, 1200],
+      ['BRIEFING', 2, 1500],
     ]);
   });
 });
@@ -136,6 +139,43 @@ describe('state snapshot', () => {
     sim.tick();
     sim.getState().players.push({ id: 'x', name: 'x' });
     expect(sim.getState().players).toEqual([{ id: 'p1', name: 'Ann' }]);
+  });
+});
+
+describe('Trading Ready Up', () => {
+  it('requires debug mode and every player, then settles the full quarter as if it ran at normal speed', () => {
+    const play = (debugMode: boolean) => {
+      const sim = createSim(1, fast);
+      sim.submit({ kind: 'add_player', playerId: 'p1', name: 'Ann' });
+      sim.submit({ kind: 'add_player', playerId: 'p2', name: 'Bob' });
+      sim.submit({ kind: 'start', playerId: 'p1', debugMode });
+      run(sim, [], 1 + phaseTicks(fast, 'BRIEFING'));
+      const symbol = sim.getUniverse().companies[0]!.symbol;
+      sim.submit({ kind: 'order', playerId: 'p1', symbol, qty: 10, holdDays: fast.time.daysPerQuarter });
+      sim.submit({ kind: 'ready_up', playerId: 'p1', quarter: 1, phase: 'TRADING' });
+      const events = sim.tick();
+      expect(sim.getState()).toMatchObject({ phase: 'TRADING', phaseTick: 1 });
+      expect(events.map((event) => event.e)).toContain(debugMode ? 'phase_ready' : 'reject');
+      return sim;
+    };
+
+    const normal = play(false);
+    run(normal, [], phaseTicks(fast, 'TRADING') - 1);
+
+    const debug = play(true);
+    debug.submit({ kind: 'ready_up', playerId: 'p2', quarter: 1, phase: 'TRADING' });
+    const events = debug.tick();
+    expect(debug.getState()).toMatchObject({ phase: 'EARNINGS', phaseTick: 0 });
+    expect(events.filter((event) => event.e === 'candle').map((event) => event.day)).toEqual([0, 1, 2]);
+    expect(events.some((event) => event.e === 'tick')).toBe(false);
+    expect(events).toContainEqual(expect.objectContaining({ e: 'bet_result', playerId: 'p1' }));
+    expect(debug.getMarketSnapshot()).toEqual(normal.getMarketSnapshot());
+    expect(debug.getPortfolio('p1')).toEqual(normal.getPortfolio('p1'));
+    expect(debug.getNewsSnapshot()).toEqual(normal.getNewsSnapshot());
+
+    for (const sim of [debug, normal]) run(sim, [], phaseTicks(fast, 'EARNINGS'));
+    expect(debug.getResults()).toEqual(normal.getResults());
+    expect(debug.getPhaseReady()?.readyPlayerIds).toEqual([]);
   });
 });
 

@@ -12,6 +12,7 @@
  *   A join is handled between two sim ticks, so snapshot + the live stream that follows have no gap
  *   and no overlap: the first `tick` after a `market` is the one right after its (day, tickOfDay).
  */
+import { loadHeadlineTemplates } from './headlineCatalog.ts';
 import { createServer } from 'node:http';
 import type { Server as HttpServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -77,7 +78,8 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
   const log = options.log ?? ((line: string) => console.log(line));
 
   /** Replaced by "play again" (handleNewGame); everything below reads the current one. */
-  let sim = createSim(env.seed, config);
+  const headlines = loadHeadlineTemplates(env.headlinesPath);
+  let sim = createSim(env.seed, config, { headlines });
   /** 1 for the first game of this server run, +1 per "play again". Game n uses seed env.seed + n - 1. */
   let gameNumber = 1;
 
@@ -145,6 +147,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       endsAt: state.ticksLeft === null ? null : running.clock.lastTickTime() + state.ticksLeft * config.time.tickMs,
       quarter: state.quarter,
       totalQuarters: config.time.quarters,
+      ...(state.debugMode ? { debugMode: true } : {}),
       serverTime: now(),
     };
   }
@@ -178,7 +181,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       return { t: 'briefing', ...rest };
     }
     const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
-    return { t: 'earnings', quarter: event.quarter, reports: event.reports.map((r) => ({ symbol: r.symbol, surprise: round4(r.surprise), gap: round4(r.gap) })) };
+    return { t: 'earnings', quarter: event.quarter, reports: event.reports.map(({ symbol, surprise }) => ({ symbol, surprise: round4(surprise) })) };
   }
 
   /** Replays a public news event to one socket (join / reconnect). */
@@ -239,6 +242,8 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     // In SHOP, the offers this player was shown.
     const shop = session.role === 'player' ? sim.getShop(session.id) : null;
     if (shop !== null) send(socket, { t: 'shop', offers: shop.offers });
+    const phaseReady = sim.getPhaseReady();
+    if (phaseReady !== null) send(socket, { t: 'phase_ready', readyPlayerIds: phaseReady.readyPlayerIds });
     // The news so far: this quarter's briefing, the latest earnings, the recent headlines (oldest first).
     const news = sim.getNewsSnapshot();
     if (news.briefing !== null) dispatchTo(socket, news.briefing);
@@ -316,7 +321,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     attach(result, socket);
   }
 
-  function handleStart(socket: WebSocket, session: Session): void {
+  function handleStart(socket: WebSocket, session: Session, debugMode = false): void {
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'only players can start the game');
     if (!inLobby()) return sendError(socket, 'not_allowed', 'the game has already started');
     const players = playerSessions();
@@ -330,7 +335,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     const ghosts = players.filter((s) => s.socket === null && startedAt - (s.disconnectedAt ?? startedAt) >= config.lobby.ghostGraceMs);
     for (const ghost of ghosts) evictFromLobby(ghost);
     starting = true;
-    sim.submit({ kind: 'start', playerId: session.id });
+    sim.submit({ kind: 'start', playerId: session.id, debugMode });
     if (ghosts.length > 0) broadcastLobby();
   }
 
@@ -343,7 +348,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'only players can start a new game');
     if (sim.getState().phase !== 'FINAL') return sendError(socket, 'not_allowed', 'a new game can only start after the final results');
     gameNumber += 1;
-    sim = createSim(env.seed + gameNumber - 1, config);
+    sim = createSim(env.seed + gameNumber - 1, config, { headlines });
     starting = false;
     for (const s of playerSessions()) {
       if (s.socket === null) dropSession(s);
@@ -358,7 +363,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
 
     const session = bySocket.get(socket);
     if (session === undefined) return sendError(socket, 'not_joined', 'send a join message first');
-    if (msg.t === 'start') return handleStart(socket, session);
+    if (msg.t === 'start') return handleStart(socket, session, msg.debugMode);
     if (msg.t === 'new_game') return handleNewGame(socket, session);
 
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'spectators cannot do that');
@@ -367,6 +372,8 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
         return sim.submit({ kind: 'order', playerId: session.id, symbol: msg.symbol, qty: msg.qty, ...(msg.holdDays === undefined ? {} : { holdDays: msg.holdDays }) });
       case 'buy_card':
         return sim.submit({ kind: 'buy_card', playerId: session.id, offerId: msg.offerId });
+      case 'ready_up':
+        return sim.submit({ kind: 'ready_up', playerId: session.id, quarter: msg.quarter, phase: msg.phase });
       case 'play_card':
         return sim.submit({ kind: 'play_card', playerId: session.id, cardId: msg.cardId, target: msg.target, direction: msg.direction });
     }
@@ -422,6 +429,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
           endsAt: event.durationTicks === null ? null : tickTime + event.durationTicks * config.time.tickMs,
           quarter: event.quarter,
           totalQuarters: config.time.quarters,
+          ...(sim.getState().debugMode ? { debugMode: true } : {}),
           serverTime: now(),
         });
         return;
@@ -477,6 +485,8 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
         const { e: _e, playerId, ...rest } = event;
         return sendTo(playerId, { t: 'shop', ...rest });
       }
+      case 'phase_ready':
+        return broadcast({ t: 'phase_ready', readyPlayerIds: event.readyPlayerIds });
       case 'results': {
         const { e: _e, ...rest } = event;
         return broadcast({ t: 'results', ...rest });

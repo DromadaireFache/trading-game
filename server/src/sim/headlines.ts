@@ -27,6 +27,7 @@ export const MAGNITUDES: readonly HeadlineMagnitude[] = ['small', 'medium', 'lar
 
 export interface HeadlineQuery {
   kind: HeadlineKind;
+  sector?: Sector;
   scope: HeadlineScope;
   direction: HeadlineDirection;
   magnitude?: HeadlineMagnitude;
@@ -69,7 +70,7 @@ export function createHeadlineBook(templates: readonly HeadlineTemplate[], rng: 
 
   return {
     pick(query) {
-      const base = templates.filter((t) => t.kind === query.kind && t.scope === query.scope && t.direction === query.direction);
+      const base = templates.filter((t) => t.kind === query.kind && t.scope === query.scope && t.direction === query.direction && (t.sector === undefined || t.sector === query.sector));
       if (base.length === 0) return undefined;
       const fresh = base.filter((t) => !lastUsed.has(t.id));
 

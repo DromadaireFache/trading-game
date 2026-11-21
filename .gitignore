@@ -9,3 +9,6 @@ coverage/
 .env.local
 .DS_Store
 Thumbs.db
+/shared/data/headlines.generated.json.lock
+/shared/data/headlines.generated.json.tmp
+/shared/data/.headlines-pull-*/

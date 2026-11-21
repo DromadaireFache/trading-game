@@ -7,7 +7,7 @@
  *   - asserts the behaviour of the milestones so far and saves screenshots to <repo>/.e2e/,
  *   - ALWAYS tears its children down (Windows: taskkill /T /F) and checks the ports are free again.
  *
- * Flags (env): TG_E2E_HEADED=1 shows the browser windows.
+ * TG_E2E_HEADED=1 shows the browser windows. TG_E2E_EARNINGS=1 runs just the earnings flow.
  *
  * Milestone 1 (skeleton): join by name, lobby roster, duplicate name, start gating, phase loop with a
  * live countdown through every quarter to FINAL, reload = same player, late join refused, /floor as a
@@ -29,19 +29,20 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import type { Browser, Page } from 'playwright-core';
 import { QUARTER_PHASES, SECTORS, defaultConfig } from '@tg/shared';
-import type { DeepPartial, GameConfig, LobbyState, MarketMsg, Phase, ServerMsg, TickMsg } from '@tg/shared';
+import type { DeepPartial, EarningsMsg, GameConfig, LobbyState, MarketMsg, Phase, ServerMsg, TickMsg } from '@tg/shared';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const outDir = resolve(repo, '.e2e');
+const earningsOnly = process.env.TG_E2E_EARNINGS === '1';
 
-/** Short phases: one quarter = 1.5 + 26 + 0.8 + 1.5 + 1.5 = 31.3 s, two quarters to FINAL. */
+/** Short phases and two quarters to FINAL. */
 const QUARTERS = 2;
 /**
  * Trading days per quarter: long enough to click around, reload and watch candles appear. Every step up
  * to the headline checks must fit in Q1's trading phase: they take about 25 s, with a reload step that
  * varies by several seconds; 26 and 32 days were too tight (the phase loop then caught Q2's EARNINGS).
  */
-const DAYS = 40;
+const DAYS = earningsOnly ? 8 : 40;
 const TICKS_PER_DAY = defaultConfig.time.ticksPerCandle;
 const DAY_MS = TICKS_PER_DAY * defaultConfig.time.tickMs;
 const TRADING_MS = DAYS * DAY_MS;
@@ -50,8 +51,12 @@ const overrides: DeepPartial<GameConfig> = {
   // SHOP is long enough to buy cards in (milestone 5).
   phaseMs: { BRIEFING: 1500, EARNINGS: 800, RESULTS: 1500, SHOP: 3000 },
   lobby: { minPlayers: 2 },
+  ...(earningsOnly ? {
+    news: { randomHeadlinesPerQuarter: 3, scheduledBeatsPerQuarter: 0, noiseShare: 1, quietDays: 0 },
+    earnings: { leaksPerQuarter: 0 },
+  } : {}),
 };
-const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800 + 1500 + 3000);
+const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800 + 1500) + (QUARTERS - 1) * 3000;
 const COMPANIES_PER_SECTOR = defaultConfig.market.companiesPerSector;
 const SYMBOL_COUNT = 1 + SECTORS.length + SECTORS.length * COMPANIES_PER_SECTOR;
 const WAIT_MS = 15_000;
@@ -216,7 +221,7 @@ function checkCadence(label: string, ticks: PhaseSeen[]): void {
     const [from, to] = [countdownSeconds(prev.countdown), countdownSeconds(cur.countdown)];
     const samePhase = prev.phase === cur.phase && prev.quarter === cur.quarter;
     if (samePhase && !prevOpensPhase && from !== null && to !== null && to > 0) steps.push(from - to === 1 ? cur.at - prev.at : Number.NaN);
-    if (!samePhase && from === 1) flips.push(cur.at - prev.at);
+    if (!samePhase && from === 1 && prev.phase !== 'SHOP') flips.push(cur.at - prev.at);
   }
   const worst = steps.reduce((m, ms) => (Number.isNaN(ms) ? Infinity : Math.max(m, Math.abs(ms - 1000))), 0);
   check(steps.length >= 6 && worst <= CADENCE_TOLERANCE_MS,
@@ -433,6 +438,43 @@ const perfOf = (page: Page) =>
 
 const rowOf = (symbol: string) => `${tid('symbol-row')}[data-symbol="${symbol}"]`;
 
+async function checkEarningsReport(page: Page) {
+  const companyCount = snapshotsOf('A')[0]!.universe.symbols.filter((s) => s.kind === 'stock').length;
+  const q1Earnings = framesOf('A').find((m) => m.t === 'earnings' && m.quarter === 1);
+  check(q1Earnings?.t === 'earnings' && q1Earnings.reports.length === companyCount, `A got the Q1 earnings of all ${companyCount} companies`);
+  check(q1Earnings.reports.every((r) => Object.keys(r).length === 2 && Number.isFinite(r.surprise) && typeof r.symbol === 'string'),
+    'Only the symbol and earnings surprise are sent for each company');
+  const earningsPanel = page.locator('section.panel.earnings');
+  const newsPanel = page.locator('section.panel.news');
+  check(await earningsPanel.getByRole('heading', { name: 'Earnings', exact: true }).isVisible()
+    && await newsPanel.getByRole('heading', { name: 'News', exact: true }).isVisible()
+    && (await newsPanel.locator(tid('earnings')).count()) === 0,
+    'Earnings and News have separate visible panels');
+  const report = await earningsPanel.innerText();
+  check(report.includes('Q1 results vs. expectations') && /beat \+[\d.]+%/.test(report) && /miss -[\d.]+%/.test(report) && !/price|at open/i.test(report),
+    'The report shows beats and misses without projected price moves');
+  const companyEarnings = page.getByRole('region', { name: 'Company earnings' });
+  check((await companyEarnings.locator('li').count()) === companyCount, 'The report lists every company');
+  const symbols = await companyEarnings.getByRole('button').allTextContents();
+  check(symbols.join(',') === q1Earnings.reports.map((r) => r.symbol).join(','), 'The report preserves the shuffled order');
+  const surprises = q1Earnings.reports.map((r) => r.surprise).filter((s) => s !== 0);
+  const switches = surprises.filter((s, i) => i > 0 && s * surprises[i - 1]! < 0).length;
+  check(switches > 1 && surprises.some((s, i) => i > 0 && Math.abs(s) > Math.abs(surprises[i - 1]!)),
+    'Beats and misses are mixed without ranking by surprise');
+  const tip = await page.locator(tid('earnings-tip')).innerText();
+  check(tip.includes('bet UP') && tip.includes('bet DOWN') && tip.includes('Q2 opens'), 'Players see what to look for and when to trade');
+  check(await companyEarnings.evaluate((el) => el.clientHeight > 0 && el.scrollHeight > el.clientHeight),
+    'The company list scrolls within the Earnings panel');
+  return q1Earnings;
+}
+
+async function checkEarningsAtOpen(page: Page, report: EarningsMsg, q1Last: TickMsg, q2First: TickMsg) {
+  check((await page.locator('section.panel.earnings').count()) === 0 && await page.locator('section.panel.news').isVisible(),
+    'The Earnings panel closes and News stays visible when trading starts');
+  const biggestOpeningMove = Math.max(...report.reports.map((r) => Math.abs(Math.log(q2First.prices[r.symbol]! / q1Last.prices[r.symbol]!))));
+  check(biggestOpeningMove < 0.03, 'Trading starts before the earnings adjustment');
+}
+
 /** Clicks a row and waits until header and chart follow; returns how long that took. */
 async function selectSymbol(page: Page, symbol: string): Promise<number> {
   const started = Date.now();
@@ -561,6 +603,55 @@ async function main(): Promise<void> {
       await shot(b, '03-lobby-b');
       await checkNoOverflow(a, 'lobby at 1366x768');
     });
+
+    if (earningsOnly) {
+      await step('earnings are available before the open and clear during trading', async () => {
+        await a.click(tid('start-button'));
+        await waitForPhase(a, 'EARNINGS', TRADING_MS + WAIT_MS);
+        await a.waitForSelector(tid('earnings'));
+        check(true, 'The report appears when earnings are released');
+        for (const phase of ['RESULTS', 'SHOP'] as const) {
+          await waitForPhase(a, phase);
+          check((await a.locator(tid('earnings')).count()) === 0, `The report is hidden during ${phase}`);
+        }
+        await waitForPhase(a, 'BRIEFING');
+        const report = await checkEarningsReport(a);
+        const briefingFeed = await a.locator(tid('headlines')).evaluate((el) => el.clientHeight);
+        check(briefingFeed >= 90, `News has ${briefingFeed}px for headlines in Briefing`);
+        const pick = report.reports.at(-1)!;
+        await a.getByRole('region', { name: 'Company earnings' }).getByRole('button', { name: pick.symbol, exact: true }).click();
+        check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === pick.symbol, 'A player can select a stock from earnings during briefing');
+        await shot(a, 'earnings-briefing-q2');
+
+        await waitFor('first tick of Q2', async () => ticksOf('A').some((t) => t.day === DAYS));
+        const ticks = ticksOf('A');
+        const q2Start = ticks.findIndex((t) => t.day === DAYS);
+        await checkEarningsAtOpen(a, report, ticks[q2Start - 1]!, ticks[q2Start]!);
+        check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === pick.symbol, 'The prepared stock stays selected when trading starts');
+
+        const beforeReload = framesOf('A').length;
+        await a.reload();
+        await waitFor('replayed earnings', async () => framesOf('A').slice(beforeReload).some((m) => m.t === 'earnings' && m.quarter === 1));
+        const replay = framesOf('A').slice(beforeReload).find((m) => m.t === 'earnings');
+        check(JSON.stringify(replay) === JSON.stringify(report), 'Reconnect replays the same public report');
+        check((await a.locator(tid('earnings')).count()) === 0, 'Reconnecting during trading keeps the report hidden');
+        check(problems.length === 0, `Clean browser logs: ${problems.join(', ')}`);
+        await shot(a, 'news-trading-q2');
+
+        await waitForPhase(a, 'FINAL', TRADING_MS + WAIT_MS);
+        const news = await a.locator('section.panel.news').boundingBox();
+        const earnings = await a.locator('section.panel.earnings').boundingBox();
+        check(news && earnings && news.x >= earnings.x + earnings.width && Math.abs(news.y - earnings.y) < 1,
+          'News and Earnings sit side by side on the wide Final screen');
+        const finalFeed = await a.locator(tid('headlines')).evaluate((el) => el.clientHeight);
+        check(finalFeed >= 180, `News has ${finalFeed}px for headlines on the Final screen`);
+        check((await a.locator(tid('headline')).count()) > 1, 'The Final screen shows the latest headlines');
+        await checkNoOverflow(a, 'Final desk at 1366x768');
+        await shot(a, 'news-final');
+      });
+      log(`PASS: ${checks} checks. Screenshots: ${outDir}`);
+      return;
+    }
 
     await step('/floor joins as a spectator and is not a player', async () => {
       await floor.goto(`${base}/floor`);
@@ -968,9 +1059,10 @@ async function main(): Promise<void> {
         await shot(a, `14-play-${phase}`);
         await checkNoOverflow(a, `desk in ${phase} at 1366x768`);
         check(await a.locator(tid('size-usd-1000000')).isDisabled(), `order buttons are disabled in ${phase}`);
-        if (phase !== 'EARNINGS') {
+        if (phase === 'EARNINGS') {
           await a.waitForSelector(tid('earnings'));
-          check(true, `A shows the Q1 earnings reports in ${phase}`);
+        } else {
+          check((await a.locator(tid('earnings')).count()) === 0, `The report is hidden during ${phase}`);
         }
         if (phase === 'RESULTS') {
           // Milestone 6: the quarter's results on the desk and on the projector.
@@ -999,7 +1091,13 @@ async function main(): Promise<void> {
       const floorFrozen = shownPrice(await textOf(floor, 'selected-price'));
       check(floorFrozen === q1Last.prices[indexSymbol], `in SHOP the floor still shows the Q1 close of ${indexSymbol} (${floorFrozen})`);
       await shot(floor, '14-floor-SHOP');
+      await a.locator(tid('ready-up')).click();
+      await waitFor('the shop shows one player ready', async () => (await textOf(b, 'ready-count')) === '1/2 players ready');
+      check(await a.locator(tid('ready-up')).isDisabled(), 'A is marked ready while B is still in the shop');
+      await b.locator(tid('ready-up')).click();
       await waitForPhase(a, 'BRIEFING');
+      check((await a.locator('.phase-strip').getByText('Shop', { exact: true }).count()) === 0, 'the final quarter phase list skips Shop');
+      const q1Report = await checkEarningsReport(a);
       await a.waitForSelector(rowOf(stockA));
       const frozen1 = await boardOf(a);
       await sleep(700);
@@ -1016,16 +1114,7 @@ async function main(): Promise<void> {
       await waitFor('first ticks of Q2', async () => ticksOf('A').length >= q1Ticks.length + 3);
       const q2First = ticksOf('A')[q1Ticks.length]!;
       check(q2First.day === DAYS && q2First.tickOfDay === 1, `the first tick of Q2 is day ${q2First.day}, tick ${q2First.tickOfDay} (days continue)`);
-      // Milestone 4: each company opens at its Q1 close moved by its earnings gap (plus one tick of noise).
-      const q1Earnings = framesOf('A').find((m) => m.t === 'earnings' && m.quarter === 1) as
-        | { reports: Array<{ symbol: string; gap: number }> }
-        | undefined;
-      check(q1Earnings !== undefined && q1Earnings.reports.length === stocks.length, `A got the Q1 earnings of all ${stocks.length} companies`);
-      const off = Math.max(
-        ...q1Earnings.reports.map((r) => Math.abs(Math.log(q2First.prices[r.symbol]! / q1Last.prices[r.symbol]!) - r.gap)),
-      );
-      const biggest = Math.max(...q1Earnings.reports.map((r) => Math.abs(r.gap)));
-      check(off < 0.05, `Q2 opens at the Q1 close plus the earnings gap: worst miss ${(off * 100).toFixed(2)}% (biggest gap ${(biggest * 100).toFixed(1)}%)`);
+      await checkEarningsAtOpen(a, q1Report, q1Last, q2First);
       await sleep(4 * DAY_MS);
       const q2Chart = await checkChartDrawn(a, 'A in Q2', stockA, DAYS + 4);
       const q2Open = framesOf('A').flatMap((m) => (m.t === 'candle' && m.day === DAYS ? [m.ohlc[stockA]!.o] : []))[0];
@@ -1071,9 +1160,9 @@ async function main(): Promise<void> {
       check((await boardOf(b)).length === SYMBOL_COUNT, `B lists ${SYMBOL_COUNT} symbols again`);
       await shot(b, '19-play-after-reload-q2');
 
-      // The floor chart holds every candle of the game by the last SHOP (in FINAL the standings replace it).
-      await waitFor('the floor in the last SHOP', async () => (await floor.locator(`${tid('phase')}[data-phase=SHOP]`).count()) === 1 && (await textOf(floor, 'quarter')).startsWith(`Q${QUARTERS}`), GAME_MS + WAIT_MS);
-      const floorEnd = await checkChartDrawn(floor, 'floor in the last SHOP', indexSymbol, QUARTERS * DAYS);
+      // The floor chart holds every candle of the game by the last EARNINGS, before the standings replace it.
+      await waitForPhase(floor, 'EARNINGS', GAME_MS + WAIT_MS);
+      const floorEnd = await checkChartDrawn(floor, 'floor in the last EARNINGS', indexSymbol, QUARTERS * DAYS);
       check(floorEnd.candles === QUARTERS * DAYS, `the floor chart ends with all ${QUARTERS * DAYS} candles`);
 
       await Promise.all([waitForPhase(a, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(floor, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(b, 'FINAL', GAME_MS + WAIT_MS)]);
@@ -1093,7 +1182,11 @@ async function main(): Promise<void> {
       await checkNoOverflow(floor, 'floor in FINAL');
 
       const expected: string[] = [`LOBBY Q-/${QUARTERS}`];
-      for (let q = 1; q <= QUARTERS; q++) for (const phase of QUARTER_PHASES) expected.push(`${phase} Q${q}/${QUARTERS}`);
+      for (let q = 1; q <= QUARTERS; q++) {
+        for (const phase of QUARTER_PHASES) {
+          if (phase !== 'SHOP' || q < QUARTERS) expected.push(`${phase} Q${q}/${QUARTERS}`);
+        }
+      }
       expected.push(`FINAL Q${QUARTERS}/${QUARTERS}`);
       for (const [label, page] of [['A', a], ['floor', floor]] as const) {
         const seen = await seenOn(page);

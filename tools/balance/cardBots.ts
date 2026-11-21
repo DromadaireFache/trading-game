@@ -121,8 +121,13 @@ export function insiderTrader(name = 'insider-trader'): BotFactory {
         core.now += 1;
         const cap = view.config.trading.leverageCap;
 
-        // The earnings carry closes once the gap is in (first ticks of the next quarter).
+        // Close after the latest possible earnings move in the next quarter.
         if (carrying && view.quarter >= carrying.closeQuarter) {
+          const { daysPerQuarter, ticksPerCandle, tickMs } = view.config.time;
+          const tradingTicks = daysPerQuarter * ticksPerCandle;
+          const openTick = (view.quarter - 1) * tradingTicks;
+          const latestDelay = Math.min(Math.ceil(view.config.news.leadMaxMs / tickMs), tradingTicks);
+          if (view.marketTick < openTick + latestDelay) return [];
           carrying = undefined;
           return closeOthers(view, undefined);
         }

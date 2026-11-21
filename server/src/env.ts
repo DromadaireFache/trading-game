@@ -6,6 +6,7 @@
  *   TG_CLIENT_PORT   Vite port, for the LAN URLs (default config.net.clientPort = 5173)
  *   TG_SEED          sim seed, integer           (default: derived from the clock at startup)
  *   TG_PHASE_SCALE   e.g. 0.1 = phases ten times shorter (scalePhaseLengths)
+ *   TG_HEADLINES_PATH offline generated headline catalog override
  *   TG_CONFIG        JSON DeepPartial<GameConfig>, deep-merged last, e.g. {"time":{"quarters":2}}
  */
 import { defaultConfig, mergeConfig, scalePhaseLengths } from '@tg/shared';
@@ -16,6 +17,7 @@ export interface ServerEnv {
   clientPort: number;
   seed: number;
   config: GameConfig;
+  headlinesPath?: string;
 }
 
 type EnvVars = Record<string, string | undefined>;
@@ -71,5 +73,6 @@ export function loadServerEnv(env: EnvVars = process.env, now: number = Date.now
     clientPort: intVar(env, 'TG_CLIENT_PORT', config.net.clientPort),
     seed: intVar(env, 'TG_SEED', now >>> 0),
     config,
+    headlinesPath: env.TG_HEADLINES_PATH || undefined,
   };
 }

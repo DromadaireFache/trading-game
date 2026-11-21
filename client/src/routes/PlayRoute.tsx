@@ -4,6 +4,7 @@ import { Panel } from '../components/Panel.tsx';
 import { PhaseHeader } from '../components/PhaseHeader.tsx';
 import { Roster } from '../components/Roster.tsx';
 import { SeatTaken } from '../components/SeatTaken.tsx';
+import { EarningsPanel } from '../features/headlines/EarningsPanel.tsx';
 import { HandPanel } from '../features/cards/HandPanel.tsx';
 import { HeadlinesPanel } from '../features/headlines/HeadlinesPanel.tsx';
 import { JoinForm } from '../features/lobby/JoinForm.tsx';
@@ -59,12 +60,15 @@ const STAGE_PHASES: readonly Phase[] = ['RESULTS', 'SHOP', 'FINAL'];
 function Desk({ phase }: { phase: Phase }) {
   const { lobby, me } = useGame();
   return (
-    <main className={`desk${STAGE_PHASES.includes(phase) ? ' desk--stage' : ''}`}>
+    <main className={`desk${STAGE_PHASES.includes(phase) ? ' desk--stage' : ''}${phase === 'FINAL' ? ' desk--final' : ''}`}>
       <div className="desk__errors">
         <ErrorBanner />
       </div>
       <Stage phase={phase} />
-      <HeadlinesPanel className="desk__headlines" />
+      <div className="desk__updates">
+        <EarningsPanel />
+        <HeadlinesPanel className="desk__headlines" />
+      </div>
       <OrderPanel className="desk__order" />
       <PositionsPanel className="desk__positions" />
       <HandPanel className="desk__hand" />

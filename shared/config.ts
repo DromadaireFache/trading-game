@@ -12,7 +12,7 @@
  * - First values come from docs/DESIGN.md; later milestones tune them with the balance harness.
  */
 import { SECTORS } from './types.ts';
-import type { HeadlineMagnitude, QuarterPhase, Sector } from './types.ts';
+import type { HeadlineMagnitude, Phase, QuarterPhase, ReadyPhase, Sector } from './types.ts';
 
 /**
  * Where a sector's companies sit inside the generation ranges of config.market: each value is a
@@ -172,6 +172,9 @@ export interface GameConfig {
     overshoot: number;
     /** Global headline queue: minimum gap between two headlines. */
     minGapMs: number;
+    /** Delay between a headline and its market effect. */
+    leadMinMs: number;
+    leadMaxMs: number;
     scheduledBeatsPerQuarter: number;
     randomHeadlinesPerQuarter: number;
     /** Share of random headlines that are neutral noise. */
@@ -275,10 +278,10 @@ export const defaultConfig: GameConfig = {
     tickMs: 100,
     ticksPerCandle: 10,
     daysPerQuarter: 90,
-    quarters: 8,
+    quarters: 4,
   },
   phaseMs: {
-    BRIEFING: 15_000,
+    BRIEFING: 5_000,
     EARNINGS: 5_000,
     RESULTS: 20_000,
     SHOP: 30_000,
@@ -320,8 +323,8 @@ export const defaultConfig: GameConfig = {
     betaMarketMax: 1.6,
     betaSectorMin: 0.5,
     betaSectorMax: 1.5,
-    idioVolPerDayMin: 0.01,
-    idioVolPerDayMax: 0.03,
+    idioVolPerDayMin: 0.0025,
+    idioVolPerDayMax: 0.0075,
     rateSensitivityMin: 2,
     rateSensitivityMax: 12,
     startPriceMin: 20,
@@ -349,8 +352,8 @@ export const defaultConfig: GameConfig = {
     rateLovingSectors: ['finance'],
     fundWeighting: 'cap',
     fundStartPrice: 100,
-    marketVolPerDay: 0.01,
-    sectorVolPerDay: 0.008,
+    marketVolPerDay: 0.0025,
+    sectorVolPerDay: 0.002,
     priceFloor: 1,
     priceDecimals: 2,
     startRate: 0.03,
@@ -376,8 +379,10 @@ export const defaultConfig: GameConfig = {
     rampMs: 3_000,
     overshoot: 0.15,
     minGapMs: 2_000,
+    leadMinMs: 1_000,
+    leadMaxMs: 5_000,
     scheduledBeatsPerQuarter: 3,
-    randomHeadlinesPerQuarter: 12,
+    randomHeadlinesPerQuarter: 3,
     noiseShare: 0.25,
     scopeWeights: { market: 0.05, sector: 0.3, stock: 0.65 },
     magnitudeWeights: { small: 0.3, medium: 0.3, large: 0.2, huge: 0.2 },
@@ -390,8 +395,9 @@ export const defaultConfig: GameConfig = {
     surpriseSigma: 0.08,
     gapFactor: 1,
     leaksPerQuarter: 4,
-    leakShareMin: 0.3,
-    leakShareMax: 0.6,
+    // Leaks hint at direction while leaving most of the move for the reported beat or miss.
+    leakShareMin: 0.05,
+    leakShareMax: 0.1,
   },
   cards: {
     handLimit: 3,
@@ -578,6 +584,7 @@ export function validateConfig(config: GameConfig): GameConfig {
       problems.push('config.market.rateMin <= startRate <= rateMax must hold');
     }
     const n = config.news;
+    if (n.leadMinMs <= 0 || n.leadMinMs > n.leadMaxMs) problems.push('config.news.leadMinMs must be > 0 and <= leadMaxMs');
     if (n.shockJitter > 1) problems.push('config.news.shockJitter must be <= 1');
     if (Object.values(n.scopeWeights).every((w) => w === 0)) problems.push('config.news.scopeWeights must not all be 0');
     if (Object.values(n.magnitudeWeights).every((w) => w === 0)) problems.push('config.news.magnitudeWeights must not all be 0');
@@ -630,7 +637,11 @@ export function phaseTicks(config: GameConfig, phase: QuarterPhase): number {
   return msToTicks(config, config.phaseMs[phase]);
 }
 
-/** Total ticks of one full quarter (BRIEFING..SHOP). */
+export function canReadyUp(phase: Phase, debugMode = false): phase is ReadyPhase {
+  return phase === 'RESULTS' || phase === 'SHOP' || (phase === 'TRADING' && debugMode);
+}
+
+/** Total ticks of a quarter that runs through the full shop timer. */
 export function quarterTicks(config: GameConfig): number {
   return (
     phaseTicks(config, 'BRIEFING') +

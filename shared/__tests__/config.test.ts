@@ -3,19 +3,28 @@ import { defaultConfig, mergeConfig, phaseTicks, quarterTicks, scalePhaseLengths
 
 describe('config', () => {
   it('derives the design phase lengths in ticks', () => {
-    expect(phaseTicks(defaultConfig, 'BRIEFING')).toBe(150);
+    expect(defaultConfig.time).toEqual({ tickMs: 100, ticksPerCandle: 10, daysPerQuarter: 90, quarters: 4 });
+    expect(defaultConfig.phaseMs).toEqual({ BRIEFING: 5_000, EARNINGS: 5_000, RESULTS: 20_000, SHOP: 30_000 });
+    expect(phaseTicks(defaultConfig, 'BRIEFING')).toBe(50);
     expect(phaseTicks(defaultConfig, 'TRADING')).toBe(900);
     expect(phaseTicks(defaultConfig, 'EARNINGS')).toBe(50);
     expect(phaseTicks(defaultConfig, 'RESULTS')).toBe(200);
     expect(phaseTicks(defaultConfig, 'SHOP')).toBe(300);
-    expect(quarterTicks(defaultConfig)).toBe(1600);
+    expect(quarterTicks(defaultConfig)).toBe(1500);
+  });
+
+  it('keeps scheduled news and leaks while reducing random headlines', () => {
+    expect(defaultConfig.news.randomHeadlinesPerQuarter).toBe(3);
+    expect(defaultConfig.news.scheduledBeatsPerQuarter).toBe(3);
+    expect(defaultConfig.news.minGapMs).toBe(2_000);
+    expect(defaultConfig.earnings.leaksPerQuarter).toBe(4);
   });
 
   it('mergeConfig deep-merges without mutating the base and drops unknown keys', () => {
     const merged = mergeConfig(defaultConfig, { time: { quarters: 2 }, bogus: 1 } as never);
     expect(merged.time.quarters).toBe(2);
     expect(merged.time.tickMs).toBe(defaultConfig.time.tickMs);
-    expect(defaultConfig.time.quarters).toBe(8);
+    expect(defaultConfig.time.quarters).toBe(4);
     expect('bogus' in merged).toBe(false);
   });
 
@@ -44,7 +53,7 @@ describe('config', () => {
 
   it('scalePhaseLengths shortens every phase and never reaches zero', () => {
     const fast = scalePhaseLengths(defaultConfig, 0.1);
-    expect(phaseTicks(fast, 'BRIEFING')).toBe(15);
+    expect(phaseTicks(fast, 'BRIEFING')).toBe(5);
     expect(phaseTicks(fast, 'TRADING')).toBe(90);
     const tiny = scalePhaseLengths(defaultConfig, 0.0001);
     expect(phaseTicks(tiny, 'EARNINGS')).toBe(1);

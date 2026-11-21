@@ -26,6 +26,7 @@ import type {
   PlayerId,
   Position,
   QuickBet,
+  ReadyPhase,
   Recap,
   Role,
   Sector,
@@ -55,6 +56,8 @@ export interface JoinMsg {
 /** Any joined player may start the game while in LOBBY. */
 export interface StartMsg {
   t: 'start';
+  /** Enable Ready Up during Trading for this game. */
+  debugMode?: boolean;
 }
 
 /** FINAL only, any player: a fresh game (next seed) with the connected players back in the lobby. */
@@ -79,6 +82,13 @@ export interface BuyCardMsg {
   offerId: string;
 }
 
+/** Marks the player ready to leave this phase of the quarter. */
+export interface ReadyUpMsg {
+  t: 'ready_up';
+  quarter: number;
+  phase: ReadyPhase;
+}
+
 export interface PlayCardMsg {
   t: 'play_card';
   cardId: string;
@@ -87,7 +97,7 @@ export interface PlayCardMsg {
   direction?: CardDirection;
 }
 
-export type ClientMsg = JoinMsg | StartMsg | OrderMsg | BuyCardMsg | PlayCardMsg | NewGameMsg;
+export type ClientMsg = JoinMsg | StartMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg;
 export type ClientMsgType = ClientMsg['t'];
 
 // ---------------------------------------------------------------------------
@@ -102,6 +112,8 @@ export interface PhaseInfo {
   /** 0 in LOBBY, then 1..totalQuarters. Stays at totalQuarters in FINAL. */
   quarter: number;
   totalQuarters: number;
+  /** Set when the game was started in debug mode. */
+  debugMode?: boolean;
   /** Server clock when this was sent; clients use it to correct for clock offset. */
   serverTime: number;
 }
@@ -150,7 +162,7 @@ export interface PhaseMsg extends PhaseInfo {
  * Universe + price history. Sent to ONE connection right after every `welcome` (first join,
  * reconnect, spectator, in any phase including LOBBY), so a refresh restores the chart.
  * Never broadcast and never repeated: after it the client keeps itself current with tick/candle.
- * Up to 61 symbols x 720 candles (about 1 MB of JSON late in a game), prices rounded with roundPrice().
+ * Up to 61 symbols x 360 candles by default, prices rounded with roundPrice().
  */
 export interface MarketMsg extends MarketSnapshot {
   t: 'market';
@@ -202,13 +214,12 @@ export interface BriefingMsg extends Briefing {
 }
 
 /**
- * Broadcast when EARNINGS starts (and replayed after `welcome` until the next BRIEFING). Prices are
- * frozen outside TRADING, so the gaps show at the next quarter's first tick.
+ * Broadcast when EARNINGS starts. The latest report is replayed after `welcome`.
  */
 export interface EarningsMsg {
   t: 'earnings';
   quarter: number;
-  /** Every company, sorted by |gap|, largest first. */
+  /** Every company, in the same shuffled order on broadcast and reconnect. */
   reports: EarningsReport[];
 }
 
@@ -264,6 +275,11 @@ export interface BetResultMsg {
 export interface ShopMsg {
   t: 'shop';
   offers: CardOffer[];
+}
+
+export interface PhaseReadyMsg {
+  t: 'phase_ready';
+  readyPlayerIds: PlayerId[];
 }
 
 export interface ResultsMsg {
@@ -324,6 +340,7 @@ export type ServerMsg =
   | BetResultMsg
   | PortfolioMsg
   | ShopMsg
+  | PhaseReadyMsg
   | ResultsMsg
   | MomentMsg
   | ErrorMsg;

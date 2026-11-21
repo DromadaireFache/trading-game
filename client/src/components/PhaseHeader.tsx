@@ -6,16 +6,19 @@ import { useGame } from '../net/GameProvider.tsx';
 import { SoundToggle } from '../features/fx/SoundToggle.tsx';
 import { ConnectionBadge } from './ConnectionBadge.tsx';
 import { ModeToggle } from './ModeToggle.tsx';
+import { ReadyUp } from './ReadyUp.tsx';
 
 /**
- * Top bar of /play: always shows the current phase, the quarter (Q3/8) and the live countdown,
+ * Top bar of /play: always shows the current phase, the quarter (Q3/4) and the live countdown,
  * plus who you are and the connection state.
  */
 export function PhaseHeader() {
   const { phase, me, config } = useGame();
   const countdown = useCountdown();
   const current = phase?.phase ?? 'LOBBY';
+  const quarter = phase?.quarter ?? 0;
   const totalQuarters = phase?.totalQuarters ?? config.time.quarters;
+  const phases = quarter < totalQuarters ? QUARTER_PHASES : QUARTER_PHASES.filter((p) => p !== 'SHOP');
   const urgent = countdown.ms !== null && countdown.ms <= config.presentation.countdownUrgentMs;
 
   return (
@@ -27,10 +30,11 @@ export function PhaseHeader() {
           {PHASE_LABEL[current]}
         </span>
         <span className="phase-header__hint">{PHASE_HINT[current]}</span>
+        {current === 'TRADING' && phase?.debugMode && <ReadyUp />}
       </div>
 
       <ol className="phase-strip" aria-label="Phases of the quarter">
-        {QUARTER_PHASES.map((p) => (
+        {phases.map((p) => (
           <li key={p} className={`phase-strip__step${p === current ? ' phase-strip__step--current' : ''}`}>
             {PHASE_LABEL[p]}
           </li>
@@ -38,7 +42,7 @@ export function PhaseHeader() {
       </ol>
 
       <div className="phase-header__quarter" data-testid="quarter">
-        {formatQuarter(phase?.quarter ?? 0, totalQuarters)}
+        {formatQuarter(quarter, totalQuarters)}
       </div>
 
       <div className={`phase-header__countdown${urgent ? ' phase-header__countdown--urgent' : ''}`} data-testid="countdown">

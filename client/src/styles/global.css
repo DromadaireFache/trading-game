@@ -416,6 +416,16 @@ ol {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.phase-ready {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 13px;
+}
+.phase-header .phase-ready {
+  margin-top: 4px;
+}
 .phase-strip {
   display: flex;
   gap: 4px;
@@ -516,6 +526,12 @@ ol {
   color: var(--tg-color-text-dim);
   font-size: 12px;
 }
+.lobby__debug {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
 .rules {
   display: flex;
   flex-direction: column;
@@ -582,6 +598,9 @@ ol {
     'headlines headlines hand'
     'headlines headlines players';
 }
+.desk--final {
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 2fr) auto;
+}
 /* Server errors (rejected order, ...) float as a toast so the grid never jumps. */
 .desk__errors {
   position: fixed;
@@ -603,8 +622,25 @@ ol {
 .desk__chart {
   grid-area: chart;
 }
-.desk__headlines {
+.desk__updates {
   grid-area: headlines;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  gap: 8px;
+  grid-template-rows: minmax(0, 1fr);
+}
+.desk__updates:has(> .earnings) {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+.desk:not(.desk--stage):has(.desk__updates > .earnings) {
+  grid-template-rows: auto minmax(0, 3fr) minmax(0, 6fr) auto;
+}
+@media (min-width: 1140px) {
+  .desk--final .desk__updates:has(> .earnings) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
 }
 .desk__order {
   grid-area: order;

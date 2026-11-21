@@ -8,6 +8,7 @@
   "exports": {
     ".": "./index.ts",
     "./config": "./config.ts",
+    "./headlines": "./headlines.ts",
     "./cards": "./cards.ts",
     "./data/cards.json": "./data/cards.json",
     "./data/headlines.seed.json": "./data/headlines.seed.json",

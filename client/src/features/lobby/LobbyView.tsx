@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { Panel } from '../../components/Panel.tsx';
 import { Roster } from '../../components/Roster.tsx';
@@ -9,6 +10,7 @@ import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 export function LobbyView() {
   const { lobby, me, connection, config } = useGame();
   const client = useGameClient();
+  const [debugMode, setDebugMode] = useState(false);
 
   const count = lobby?.players.length ?? 0;
   const minPlayers = lobby?.minPlayers ?? config.lobby.minPlayers;
@@ -29,10 +31,14 @@ export function LobbyView() {
             className="btn btn--primary btn--wide"
             data-testid="start-button"
             disabled={!canStart}
-            onClick={() => client.startGame()}
+            onClick={() => client.startGame(debugMode)}
           >
             Start game
           </button>
+          <label className="lobby__debug">
+            <input type="checkbox" checked={debugMode} onChange={(event) => setDebugMode(event.target.checked)} />
+            Debug mode (Ready Up in Trading)
+          </label>
           <p className="lobby__note">
             {missing > 0
               ? `Waiting for ${missing} more player${missing === 1 ? '' : 's'}.`

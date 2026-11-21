@@ -55,6 +55,22 @@ describe('earnings', () => {
     }
   });
 
+  it('keeps the biggest beat and worst miss the strongest earnings moves in at least 95% of quarters', () => {
+    const rng = createRng(774);
+    const quarters = 2_000;
+    let matches = 0;
+    for (let q = 1; q <= quarters; q++) {
+      const plan = drawEarnings(rng, defaultConfig, universe, q, 0);
+      // Count every planned leak as published to test the full effect of leaks on the ranking.
+      const gap = earningsGap(defaultConfig, plan);
+      const symbols = Object.keys(plan.surprise);
+      const ranked = [...symbols].sort((a, b) => plan.surprise[b]! - plan.surprise[a]!);
+      const rankedMoves = symbols.sort((a, b) => gap[b]! - gap[a]!);
+      if (ranked[0] === rankedMoves[0] && ranked.at(-1) === rankedMoves.at(-1)) matches++;
+    }
+    expect(matches / quarters).toBeGreaterThanOrEqual(0.95);
+  });
+
   it('pricedIn only counts leaks up to a tick', () => {
     const plan = drawEarnings(createRng(5), defaultConfig, universe, 1, 0);
     const first = plan.leaks[0]!;

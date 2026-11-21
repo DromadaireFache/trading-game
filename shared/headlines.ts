@@ -1,7 +1,8 @@
 /**
  * Schema and placeholder rules for headline templates (DESIGN.md section 7). Used by the generator to
- * drop bad model output and by the tests to check the hand-written seed file.
+ * drop bad model output and by the server to load the offline catalog.
  */
+import { SECTORS } from './types.ts';
 import type {
   HeadlineCategory,
   HeadlineDirection,
@@ -9,7 +10,8 @@ import type {
   HeadlineMagnitude,
   HeadlineScope,
   HeadlineTemplate,
-} from '../../shared/types.ts';
+  Sector,
+} from './types.ts';
 
 export const SCOPES: readonly HeadlineScope[] = ['market', 'sector', 'stock'];
 export const DIRECTIONS: readonly HeadlineDirection[] = ['up', 'down', 'neutral'];
@@ -86,9 +88,9 @@ export function findPlaceholders(text: string): string[] {
   return [...text.matchAll(TOKEN_RE)].map((m) => m[1]!);
 }
 
-/** Key used for dedupe: case-insensitive, whitespace-insensitive. */
+/** Ignore punctuation and spelling out the same subject slot a different way. */
 export function normalizeText(text: string): string {
-  return text.toLowerCase().replace(/\s+/g, ' ').trim();
+  return text.replace(/\{(?:COMPANY|TICKER)\}/g, '{SUBJECT}').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 }
 
 export type ValidationResult = { ok: true; value: HeadlineTemplate } | { ok: false; errors: string[] };
@@ -100,7 +102,7 @@ export interface ValidateOptions {
   idPattern?: RegExp;
 }
 
-const FIELDS = ['id', 'text', 'scope', 'direction', 'magnitude', 'category', 'kind'] as const;
+const FIELDS = ['id', 'text', 'scope', 'sector', 'direction', 'magnitude', 'category', 'kind'] as const;
 
 function oneOf<T extends string>(list: readonly T[], v: unknown): v is T {
   return typeof v === 'string' && (list as readonly string[]).includes(v);
@@ -123,6 +125,8 @@ export function validateHeadline(item: unknown, opts: ValidateOptions = {}): Val
     else if (opts.idPattern && !opts.idPattern.test(o.id)) errors.push(`id "${o.id}" does not match ${opts.idPattern}`);
   }
   if (!oneOf(SCOPES, o.scope)) errors.push(`scope must be one of ${SCOPES.join('|')}`);
+  if (o.sector !== undefined && !oneOf(SECTORS, o.sector)) errors.push('sector must be a game sector');
+  if (o.scope === 'market' && o.sector !== undefined) errors.push('market headlines cannot have a sector');
   if (!oneOf(DIRECTIONS, o.direction)) errors.push(`direction must be one of ${DIRECTIONS.join('|')}`);
   if (!oneOf(MAGNITUDES, o.magnitude)) errors.push(`magnitude must be one of ${MAGNITUDES.join('|')}`);
   if (!oneOf(CATEGORIES, o.category)) errors.push(`category must be one of ${CATEGORIES.join('|')}`);
@@ -151,6 +155,7 @@ export function validateHeadline(item: unknown, opts: ValidateOptions = {}): Val
     id: typeof o.id === 'string' ? o.id : '',
     text: o.text as string,
     scope: o.scope as HeadlineScope,
+    ...(oneOf(SECTORS, o.sector) ? { sector: o.sector } : {}),
     direction: o.direction as HeadlineDirection,
     magnitude: o.magnitude as HeadlineMagnitude,
     category: o.category as HeadlineCategory,
@@ -238,6 +243,7 @@ export function validateHeadlineFile(items: unknown, opts: ValidateOptions = {})
 
 export interface Slice {
   scope: HeadlineScope;
+  sector?: Sector;
   direction: HeadlineDirection;
   magnitude: HeadlineMagnitude;
   category: HeadlineCategory;
@@ -265,24 +271,8 @@ export function isValidSlice(s: Slice): boolean {
   return true;
 }
 
-/** Every valid full slice (scope x direction x magnitude x category x kind). */
-export function allSlices(): Slice[] {
-  const out: Slice[] = [];
-  for (const { scope, direction, magnitude } of requiredShockCombos()) {
-    for (const category of CATEGORIES) {
-      for (const kind of KINDS) {
-        const s: Slice = { scope, direction, magnitude, category, kind };
-        if (isValidSlice(s)) out.push(s);
-      }
-    }
-  }
-  return out;
-}
+export type HeadlineBucket = Omit<Slice, 'category'>;
 
-export function sliceKey(s: Slice): string {
-  return `${s.scope}/${s.direction}/${s.magnitude}/${s.category}/${s.kind}`;
-}
-
-export function comboKey(s: Pick<Slice, 'scope' | 'direction' | 'magnitude'>): string {
-  return `${s.scope}/${s.direction}/${s.magnitude}`;
+export function bucketKey(s: HeadlineBucket): string {
+  return `${s.scope}/${s.sector ?? '*'}/${s.direction}/${s.magnitude}/${s.kind}`;
 }

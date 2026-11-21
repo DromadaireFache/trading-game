@@ -16,19 +16,20 @@
  *     draw scope, magnitude and direction from config.news, at a random tick after quietDays.
  * Every TRADING tick (beforeStep): publish at most ONE due item, and only when news.minGapMs has
  * passed since the last headline (the global queue; later items wait; a due card or regime item goes
- * before any backlog of engine headlines), then turn all live shocks into
+ * before any backlog of engine headlines). Published news shocks and rate changes start after a
+ * seeded 1–5 second trading-clock delay; then turn all live shocks into
  * this tick's symbolReturn. Items still waiting at the close are dropped.
  * At EARNINGS (closeQuarter): reports with gap = gapFactor * (surprise - what PUBLISHED leaks priced
- * in). The gap goes into the first step of the next quarter (prices are frozen outside TRADING).
+ * in). That gap lands after a seeded trading window at the start of the next quarter.
  *
  * Time is the market tick (day * ticksPerCandle + tickOfDay), like ./shocks.ts.
  * Cards and regimes (M5) publish through enqueue() so they share the queue and the gap.
  */
 import { msToTicks } from '@tg/shared';
-import type { Briefing, EarningsReport, GameConfig, HeadlineMagnitude, HeadlineTemplate, Sector, SymbolId } from '@tg/shared';
+import type { Briefing, GameConfig, HeadlineMagnitude, HeadlineTemplate, Sector, SymbolId } from '@tg/shared';
 import { SECTORS } from '@tg/shared';
 import { drawEarnings, earningsGap } from './earnings.ts';
-import type { EarningsPlan } from './earnings.ts';
+import type { EarningsImpactReport, EarningsPlan } from './earnings.ts';
 import { fillHeadline } from './headlines.ts';
 import type { HeadlineBook, HeadlineQuery, PlaceholderLists } from './headlines.ts';
 import type { Rng } from './rng.ts';
@@ -105,6 +106,10 @@ export interface NewsDeps {
   rng: Rng;
   /** Earnings draws (its own stream, as earnings.ts asks). */
   earningsRng: Rng;
+  /** Delay before the prior earnings report affects the market. */
+  earningsLeadRng: Rng;
+  /** Presentation order of the earnings reports. */
+  earningsOrderRng: Rng;
 }
 
 export interface News {
@@ -112,8 +117,8 @@ export interface News {
   startQuarter(quarter: number, tradingStartTick: number, rate: number): Briefing;
   /** Before each TRADING market step. */
   beforeStep(tick: number, rate: number): { symbolReturn: Record<SymbolId, number> | undefined; dRate: number; events: HeadlineEvent[] };
-  /** At EARNINGS: every company's report, largest |gap| first. */
-  closeQuarter(): EarningsReport[];
+  /** At EARNINGS: every company's report, in a stable shuffled order for this quarter. */
+  closeQuarter(): EarningsImpactReport[];
   /** Queue an extra item (cards, regimes). */
   enqueue(item: NewsItem): void;
   /** Items not published yet, earliest first (insider tips peek here). */
@@ -124,9 +129,9 @@ export interface News {
    */
   render(item: NewsItem): Omit<HeadlineEvent, 'id'> | null;
   briefing(): Briefing | null;
-  /** Latest earnings reports and their quarter, until the next BRIEFING. */
-  earnings(): { quarter: number; reports: EarningsReport[] } | null;
-  /** Gap waiting for the next quarter's first step (after the last quarter: never applied by the market). */
+  /** Latest earnings reports and their quarter. */
+  earnings(): { quarter: number; reports: EarningsImpactReport[] } | null;
+  /** Gap waiting to land (after the last quarter, used to settle the final standings). */
   pendingGap(): Record<SymbolId, number> | null;
   /** The last `n` public headlines, oldest first. */
   recent(n: number): HeadlineEvent[];
@@ -148,11 +153,13 @@ function weighted<K extends string>(rng: Rng, weights: Record<K, number>): K {
 }
 
 export function createNews(deps: NewsDeps): News {
-  const { config, universe, book, lists, rng, earningsRng } = deps;
+  const { config, universe, book, lists, rng, earningsRng, earningsLeadRng, earningsOrderRng } = deps;
   const tpc = config.time.ticksPerCandle;
   const tradingTicks = config.time.daysPerQuarter * tpc;
   const minGapTicks = msToTicks(config, config.news.minGapMs);
-  const settleTicks = 2 * msToTicks(config, config.news.rampMs);
+  const leadMinTicks = Math.ceil(config.news.leadMinMs / config.time.tickMs);
+  const leadMaxTicks = Math.max(leadMinTicks, Math.floor(config.news.leadMaxMs / config.time.tickMs));
+  const settleTicks = 2 * msToTicks(config, config.news.rampMs) + leadMaxTicks;
   const companyBySymbol = new Map(universe.companies.map((c) => [c.symbol, c]));
   /** Expected quarterly EPS per company (fundamentals are fixed for the game), rounded to cents. */
   const consensus: Record<SymbolId, number> = {};
@@ -165,14 +172,15 @@ export function createNews(deps: NewsDeps): News {
   /** Items with `carry` still waiting at the close. */
   let carried: NewsItem[] = [];
   let shocks: Shock[] = [];
+  const delayedEffects: Array<{ tick: number; dRate?: number; reverts?: string }> = [];
   let lastPublished: number | null = null;
   let seq = 0;
   let quarter = 0;
   let currentPlan: EarningsPlan | null = null;
   let priced: Record<SymbolId, number> = {};
-  let gap: Record<SymbolId, number> | null = null;
+  let pendingEarnings: { returns: Record<SymbolId, number>; effectTick?: number } | null = null;
   let currentBriefing: Briefing | null = null;
-  let lastEarnings: { quarter: number; reports: EarningsReport[] } | null = null;
+  let lastEarnings: { quarter: number; reports: EarningsImpactReport[] } | null = null;
   const published: PublishedHeadline[] = [];
   const events: HeadlineEvent[] = [];
 
@@ -194,7 +202,9 @@ export function createNews(deps: NewsDeps): News {
         template = book.byId(item.templateId);
         if (template) book.use(template);
       }
-      template ??= book.pick(item.query);
+      const targetSector = item.target.scope === 'sector' ? item.target.sector
+        : item.target.scope === 'stock' ? companyBySymbol.get(item.target.symbol)?.sector : undefined;
+      template ??= book.pick({ ...item.query, sector: targetSector });
       if (template === undefined) return null; // nothing in the database fits: no headline, no move
       const target = item.target;
       const company = target.scope === 'stock' ? companyBySymbol.get(target.symbol) : undefined;
@@ -218,12 +228,15 @@ export function createNews(deps: NewsDeps): News {
     const { template, text } = item.rendered;
     const target = item.target;
     const id = `n${++seq}`;
+    const effectTick = tick + leadMinTicks + rng.int(leadMaxTicks - leadMinTicks + 1);
     if (item.logReturn !== 0) {
-      const shock = createShock(config, universe, { id, target, logReturn: item.logReturn, startTick: tick });
+      const shock = createShock(config, universe, { id, target, logReturn: item.logReturn, startTick: effectTick });
       // A fake stays revertible until its debunk lands (an unset revertTick would drop it once settled).
       shocks.push(item.fake ? { ...shock, revertTick: Number.POSITIVE_INFINITY } : shock);
     }
-    if (item.reverts !== undefined) shocks = shocks.map((s) => (s.id === item.reverts ? revertShock(s, tick) : s));
+    if (item.reverts !== undefined || item.dRate !== undefined) {
+      delayedEffects.push({ tick: effectTick, ...(item.reverts === undefined ? {} : { reverts: item.reverts }), ...(item.dRate === undefined ? {} : { dRate: item.dRate }) });
+    }
     if (item.leakAmount !== undefined && target.scope === 'stock') priced[target.symbol] = (priced[target.symbol] ?? 0) + item.leakAmount;
     if (item.fake) {
       const direction = item.query.direction === 'up' ? 'down' : 'up';
@@ -270,7 +283,11 @@ export function createNews(deps: NewsDeps): News {
       queue = [...carried, ...queue.filter((item) => item.carry)].map((item) => ({ ...item, tick: tradingStartTick }));
       carried = [];
       priced = {};
-      lastEarnings = null;
+      if (pendingEarnings !== null) {
+        const delay = leadMinTicks + earningsLeadRng.int(leadMaxTicks - leadMinTicks + 1);
+        // The first step runs one tick after the trading phase is announced.
+        pendingEarnings.effectTick = tradingStartTick + Math.min(delay, tradingTicks) - 1;
+      }
       const n = config.news;
 
       // 1. Earnings plan and its leaks.
@@ -341,9 +358,9 @@ export function createNews(deps: NewsDeps): News {
       events.length = 0;
       let dRate = 0;
       let extra: Record<SymbolId, number> | undefined;
-      if (gap !== null) {
-        extra = gap;
-        gap = null;
+      if (pendingEarnings?.effectTick !== undefined && pendingEarnings.effectTick <= tick) {
+        extra = pendingEarnings.returns;
+        pendingEarnings = null;
       }
 
       // Players first: a due card or regime headline jumps any backlog of engine headlines.
@@ -353,10 +370,22 @@ export function createNews(deps: NewsDeps): News {
       if (due !== undefined && due.tick <= tick && (lastPublished === null || tick - lastPublished >= minGapTicks)) {
         queue.splice(index, 1);
         const next = due.dRate === undefined ? undefined : Math.min(config.market.rateMax, Math.max(config.market.rateMin, rate + due.dRate));
-        if (publish(due, tick, next) !== null) {
+        // A late leak must settle before earnings or its move would be counted twice.
+        const tooLateForLeak = due.leakAmount !== undefined && tick + settleTicks >= quarter * tradingTicks;
+        if (!tooLateForLeak && publish(due, tick, next) !== null) {
           lastPublished = tick;
-          if (next !== undefined) dRate = next - rate;
         }
+      }
+
+      for (let i = delayedEffects.length - 1; i >= 0; i--) {
+        const effect = delayedEffects[i]!;
+        if (effect.tick > tick) continue;
+        if (effect.reverts !== undefined) shocks = shocks.map((s) => (s.id === effect.reverts ? revertShock(s, tick) : s));
+        if (effect.dRate !== undefined) {
+          const nextRate = Math.min(config.market.rateMax, Math.max(config.market.rateMin, rate + dRate + effect.dRate));
+          dRate = nextRate - rate;
+        }
+        delayedEffects.splice(i, 1);
       }
 
       const stepped = stepShocks(shocks, tick);
@@ -370,9 +399,12 @@ export function createNews(deps: NewsDeps): News {
       queue = [];
       if (currentPlan === null) return [];
       const g = earningsGap(config, currentPlan, priced);
-      gap = g;
+      pendingEarnings = { returns: g };
       const reports = Object.entries(currentPlan.surprise).map(([symbol, surprise]) => ({ symbol, surprise, gap: g[symbol] ?? 0 }));
-      reports.sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap) || (a.symbol < b.symbol ? -1 : 1));
+      for (let i = reports.length - 1; i > 0; i--) {
+        const j = earningsOrderRng.int(i + 1);
+        [reports[i], reports[j]] = [reports[j]!, reports[i]!];
+      }
       lastEarnings = { quarter, reports };
       return reports;
     },
@@ -386,7 +418,7 @@ export function createNews(deps: NewsDeps): News {
     render,
     briefing: () => currentBriefing,
     earnings: () => lastEarnings,
-    pendingGap: () => gap,
+    pendingGap: () => pendingEarnings?.returns ?? null,
     recent(n) {
       return published.slice(-n).map((p) => {
         const event: HeadlineEvent = { e: 'headline', id: p.id, text: p.text, ts: p.ts };

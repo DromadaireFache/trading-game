@@ -1,7 +1,6 @@
 import { SECTOR_LABELS, dayOfQuarter, dayToQuarter } from '@tg/shared';
-import type { EarningsReport, HeadlineMsg, Sector } from '@tg/shared';
+import type { HeadlineMsg, Sector } from '@tg/shared';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
-import { changeDirection, formatPercent } from '../../lib/format.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 import { useLastDay, useMarketStore, useSymbols } from '../../net/marketHooks.ts';
 import { useUiMode } from '../../lib/uiMode.ts';
@@ -9,12 +8,12 @@ import { useQuickBet } from '../../lib/quickBet.ts';
 import './headlines.css';
 
 /**
- * The news desk: this quarter's scheduled beats (day known, direction not), the earnings reports
- * between EARNINGS and the next BRIEFING, and the live headline feed, newest first. A headline's tag
+ * The news desk: this quarter's scheduled beats (day known, direction not) and the live headline
+ * feed, newest first. A headline's tag
  * selects its stock (or its sector fund) in the list and chart.
  */
 export function HeadlinesPanel({ className }: { className?: string }) {
-  const { headlines, briefing, earnings, config, phase } = useGame();
+  const { headlines, briefing, config, phase } = useGame();
   const mode = useUiMode();
   const quick = useQuickBet();
   // One bet function for the whole feed (rows never subscribe to prices themselves).
@@ -23,7 +22,7 @@ export function HeadlinesPanel({ className }: { className?: string }) {
   const decided = headlines.find((h) => h.rate !== undefined && briefing !== null && dayToQuarter(config, h.ts) === briefing.quarter)?.rate;
   const current = decided ?? briefing?.rate;
   const rate = current === undefined ? 'live feed' : `interest rate ${(current * 100).toFixed(2)}%`;
-  const empty = headlines.length === 0 && briefing === null && earnings === null;
+  const empty = headlines.length === 0 && briefing === null;
 
   return (
     <Panel
@@ -41,8 +40,7 @@ export function HeadlinesPanel({ className }: { className?: string }) {
               In force: {briefing.regimes.join(' · ')}
             </div>
           )}
-          {earnings && <Earnings quarter={earnings.quarter} reports={earnings.reports} />}
-          {!earnings && headlines.length < 3 && (
+          {headlines.length < 3 && (
             <div className="news__tip">Tip: good news pushes a price up, bad news pushes it down. Click a tag to see that stock.</div>
           )}
           <ol className="news__feed" data-testid="headlines">
@@ -73,39 +71,6 @@ function Beats({ beats }: { beats: { day: number; title: string }[] }) {
   );
 }
 
-function Earnings({ quarter, reports }: { quarter: number; reports: EarningsReport[] }) {
-  const market = useMarketStore();
-  const { briefing } = useGame();
-  const eps = (r: EarningsReport) => {
-    const est = briefing?.consensus?.[r.symbol];
-    return est === undefined ? undefined : `Profit per share $${(est * (1 + r.surprise)).toFixed(2)}, expected $${est.toFixed(2)}`;
-  };
-  const beats = reports.filter((r) => r.surprise > 0).sort((a, b) => b.surprise - a.surprise).slice(0, 3);
-  const misses = reports.filter((r) => r.surprise < 0).sort((a, b) => a.surprise - b.surprise).slice(0, 3);
-  const row = (r: EarningsReport) => (
-    <li key={r.symbol} title={eps(r)}>
-      <button type="button" className="news__tag" onClick={() => market.select(r.symbol)}>
-        {r.symbol}
-      </button>{' '}
-      <span className={`change--${changeDirection(r.surprise)}`}>
-        {r.surprise >= 0 ? 'beat' : 'missed'} by {formatPercent(Math.abs(r.surprise)).replace('+', '')}
-      </span>
-      <span className="news__dim"> → price {formatPercent(Math.expm1(r.gap))} at open</span>
-    </li>
-  );
-  return (
-    <div className="news__earnings" data-testid="earnings">
-      <div className="news__earnings-title">
-        Q{quarter} results vs. expectations <span className="news__dim">(prices jump when the market opens)</span>
-      </div>
-      <div className="news__earnings-cols">
-        <ul>{beats.map(row)}</ul>
-        <ul>{misses.map(row)}</ul>
-      </div>
-    </div>
-  );
-}
-
 interface HeadlineRowProps {
   headline: Omit<HeadlineMsg, 't'>;
   label: string;
@@ -127,7 +92,7 @@ function HeadlineRow({ headline, label, quickBets, onBet }: HeadlineRowProps) {
       data-symbol={headline.symbol ?? ''}
     >
       <span className="news__time">{label}</span>
-      <button type="button" className="news__tag" disabled={target === undefined} onClick={() => target && market.select(target)}>
+      <button type="button" className="ticker-tag" disabled={target === undefined} onClick={() => target && market.select(target)}>
         {tag}
       </button>
       <span className="news__text">

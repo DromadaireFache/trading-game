@@ -3,14 +3,14 @@
  * (`@tg/server/sim` from other workspaces).
  *
  * Milestone 1: the phase state machine and the lobby roster.
- *   LOBBY -> [BRIEFING -> TRADING -> EARNINGS -> RESULTS -> SHOP] x config.time.quarters -> FINAL
+ *   Each quarter starts with BRIEFING and ends with SHOP, except the last, which goes from RESULTS to FINAL.
  * Milestone 2: the market (./universe.ts, ./market.ts). The universe is generated from the seed
  *   when the sim is created; prices step once per tick() while the phase is TRADING and are frozen
  *   otherwise, so every quarter has exactly daysPerQuarter candles and days count on across quarters.
  * Later milestones hang portfolios, headlines, cards and SEC off the same tick().
  * See ./types.ts for the contract and the purity rules.
  *
- * Tick accounting: a phase of N ticks whose `phase` event is returned by tick() call T ends on
+ * Tick accounting: without Ready Up, a phase of N ticks whose `phase` event is returned by tick() call T ends on
  * call T + N, which returns the next `phase` event. The tick that processes `start` only enters
  * BRIEFING; it does not consume a BRIEFING tick. The N tick() calls after the one that announced
  * TRADING each step the market once; the last of them returns `tick`, `candle`, then the EARNINGS
@@ -19,7 +19,8 @@
  * RNG streams: forked from the root in a FIXED order (universe, market, then later subsystems at
  * the end), so adding a subsystem never changes the universe or the price path of a seed.
  */
-import type { GameConfig, Phase } from '@tg/shared';
+import { canReadyUp } from '@tg/shared';
+import type { GameConfig, Phase, PlayerId } from '@tg/shared';
 import { createMarket } from './market.ts';
 import { nextPhase, phaseLength } from './phases.ts';
 import { createCardEngine } from './cardEngine.ts';
@@ -77,9 +78,14 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     advOf: (symbol) => advBySymbol.get(symbol),
     now: () => market.getDay() + market.getTickOfDay() / config.time.ticksPerCandle,
   });
-  // Milestone 4 streams, appended after the market's so universes and price paths stay the same.
+  // Keep existing streams in their original order and append new ones.
   const newsRng = rng.fork();
   const earningsRng = rng.fork();
+  const shopRng = rng.fork();
+  const secRng = rng.fork();
+  const regimeRng = rng.fork();
+  const earningsLeadRng = rng.fork();
+  const earningsOrderRng = rng.fork();
   const news = createNews({
     config,
     universe,
@@ -87,6 +93,8 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     lists: options.placeholders ?? DEFAULT_PLACEHOLDERS,
     rng: newsRng,
     earningsRng,
+    earningsLeadRng,
+    earningsOrderRng,
   });
   // Milestone 6: leaderboard, statements, recap, awards, projector moments. No randomness.
   const results = createResults({
@@ -101,16 +109,15 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   const tpc = config.time.ticksPerCandle;
   /** Market tick of the step about to be made (shocks.ts / news.ts time). */
   const marketTick = () => market.getDay() * tpc + market.getTickOfDay();
-  // Milestone 5 streams, appended after the news ones.
   const cards = createCardEngine({
     config,
     universe,
     catalog: options.catalog ?? DEFAULT_CATALOG,
     news,
     trading,
-    shopRng: rng.fork(),
-    secRng: rng.fork(),
-    regimeRng: rng.fork(),
+    shopRng,
+    secRng,
+    regimeRng,
     marketTick,
     quarterEndTick: () => quarter * config.time.daysPerQuarter * tpc - 1,
   });
@@ -121,6 +128,8 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
 
   const queue: SimIntent[] = [];
   const players: SimPlayer[] = [];
+  const readyPlayers = new Set<PlayerId>();
+  let debugMode = false;
   let phase: Phase = 'LOBBY';
   let quarter = 0;
   let tick = 0;
@@ -133,6 +142,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     phase = next.phase;
     quarter = next.quarter;
     phaseTick = 0;
+    readyPlayers.clear();
     events.push({ e: 'phase', phase, quarter, durationTicks: phaseLength(config, phase) });
     if (phase === 'BRIEFING') {
       cards.startQuarter();
@@ -249,6 +259,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         if (players.length < config.lobby.minPlayers) {
           return reject(intent, 'not_enough_players', `need at least ${config.lobby.minPlayers} player(s) to start`), false;
         }
+        debugMode = intent.debugMode === true;
         enter(nextPhase(config, { phase, quarter }));
         // Everybody learns their starting cash right away.
         for (const p of players) events.push(portfolioOf(p.id)!);
@@ -280,6 +291,16 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         for (const event of result.events) events.push(event);
         return false;
       }
+      case 'ready_up': {
+        if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
+        if (intent.phase !== phase || intent.quarter !== quarter || !canReadyUp(phase, debugMode)) {
+          return reject(intent, 'wrong_phase', 'you cannot ready up for that phase right now'), false;
+        }
+        if (readyPlayers.has(intent.playerId)) return false;
+        readyPlayers.add(intent.playerId);
+        events.push({ e: 'phase_ready', readyPlayerIds: [...readyPlayers] });
+        return false;
+      }
       case 'play_card': {
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
         if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'cards can only be played while the market is open'), false;
@@ -291,6 +312,37 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         return false;
       }
     }
+  }
+
+  function stepTrading(publishTick: boolean): void {
+    const impact = trading.stepInput();
+    for (const event of cards.beforeStep(marketTick())) events.push(event); // insider previews first
+    const headlines = news.beforeStep(marketTick(), market.getRate());
+    for (const event of headlines.events) events.push(event);
+    const symbolReturn = impact && headlines.symbolReturn ? addReturns(impact, headlines.symbolReturn) : (impact ?? headlines.symbolReturn);
+    const { dRate: regimeDRate = 0, ...regimeInput } = cards.marketInput();
+    const dRate = headlines.dRate + regimeDRate;
+    const input = {
+      ...regimeInput,
+      ...(symbolReturn === undefined ? {} : { symbolReturn }),
+      ...(dRate === 0 ? {} : { dRate }),
+    };
+    let dayClosed = false;
+    let moment: SimEventOf<'moment'> | null = null;
+    for (const event of market.step(input)) {
+      if (event.e === 'candle') {
+        dayClosed = true;
+        const close: Record<string, number> = {};
+        for (const [symbol, c] of Object.entries(event.ohlc)) close[symbol] = c.c;
+        moment = results.onCandle(event.day, close);
+      }
+      if (event.e !== 'tick' || publishTick) events.push(event);
+    }
+    for (const event of trading.afterStep(dayClosed)) {
+      if (event.e === 'fill') results.recordFill(event);
+      events.push(event);
+    }
+    if (moment) events.push(moment);
   }
 
   return {
@@ -315,40 +367,19 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       // 2. clock (does not run in LOBBY and FINAL)
       const length = phaseLength(config, phase);
       if (length !== null && !enteredByIntent) {
-        // Prices move only in TRADING: one market step per tick of the phase.
-        // Later milestones add regimes / news to the step input next to the price impact.
+        const allReady = canReadyUp(phase, debugMode) && readyPlayers.size === players.length;
         if (phase === 'TRADING') {
-          const impact = trading.stepInput();
-          for (const event of cards.beforeStep(marketTick())) events.push(event); // insider previews first
-          const headlines = news.beforeStep(marketTick(), market.getRate());
-          for (const event of headlines.events) events.push(event);
-          const symbolReturn = impact && headlines.symbolReturn ? addReturns(impact, headlines.symbolReturn) : (impact ?? headlines.symbolReturn);
-          const { dRate: regimeDRate = 0, ...regimeInput } = cards.marketInput();
-          const dRate = headlines.dRate + regimeDRate;
-          const input = {
-            ...regimeInput,
-            ...(symbolReturn === undefined ? {} : { symbolReturn }),
-            ...(dRate === 0 ? {} : { dRate }),
-          };
-          let dayClosed = false;
-          let moment: SimEventOf<'moment'> | null = null;
-          for (const event of market.step(input)) {
-            if (event.e === 'candle') {
-              dayClosed = true;
-              const close: Record<string, number> = {};
-              for (const [symbol, c] of Object.entries(event.ohlc)) close[symbol] = c.c;
-              moment = results.onCandle(event.day, close);
-            }
-            events.push(event);
-          }
-          for (const event of trading.afterStep(dayClosed)) {
-            if (event.e === 'fill') results.recordFill(event);
-            events.push(event);
-          }
-          if (moment) events.push(moment);
+          // Debug Ready Up runs the remaining market steps at once. Candles carry the full history
+          // and closing quotes to clients without a burst of intraday price messages.
+          const steps = allReady ? length - phaseTick : 1;
+          for (let i = 0; i < steps; i++) stepTrading(!allReady);
+          phaseTick += steps;
+        } else {
+          phaseTick += 1;
         }
-        phaseTick += 1;
-        if (phaseTick >= length) enter(nextPhase(config, { phase, quarter }));
+        if (phaseTick >= length || allReady) {
+          enter(nextPhase(config, { phase, quarter }));
+        }
       }
 
       tick += 1;
@@ -359,6 +390,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       const length = phaseLength(config, phase);
       return {
         phase,
+        debugMode,
         quarter,
         tick,
         phaseTick,
@@ -371,6 +403,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     getMarketSnapshot: () => market.getSnapshot(),
     getPortfolio: (playerId) => portfolioOf(playerId),
     getShop: (playerId) => (phase === 'SHOP' ? cards.offersOf(playerId) : null),
+    getPhaseReady: () => (canReadyUp(phase, debugMode) ? { e: 'phase_ready', readyPlayerIds: [...readyPlayers] } : null),
     getResults: () => results.last(),
     cards,
     getNewsSnapshot() {

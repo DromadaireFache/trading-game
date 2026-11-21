@@ -91,6 +91,21 @@ function playToFinal(sim: Sim, onEvents?: (events: SimEvent[]) => void): void {
 }
 
 describe('market: determinism', () => {
+  it('reduces quiet-market daily fluctuations to a quarter of the previous defaults', () => {
+    const previous = mergeConfig(defaultConfig, { market: {
+      marketVolPerDay: 0.01, sectorVolPerDay: 0.008, idioVolPerDayMin: 0.01, idioVolPerDayMax: 0.03,
+    } });
+    for (const seed of [1, 42, 2026]) {
+      const calm = marketOf(seed);
+      const old = marketOf(seed, previous);
+      const calmReturns = dailyReturns(calm, 90);
+      const oldReturns = dailyReturns(old, 90, previous);
+      const calmVol = mean(calm.universe.companies.map((c) => std(calmReturns.get(c.symbol)!)));
+      const oldVol = mean(old.universe.companies.map((c) => std(oldReturns.get(c.symbol)!)));
+      expect(calmVol / oldVol).toBeCloseTo(0.25, 5);
+    }
+  });
+
   it('same seed -> identical price paths; different seed -> different', () => {
     const path = (seed: number) => {
       const market = marketOf(seed);
@@ -170,10 +185,10 @@ describe('market: volatility', () => {
     }
     expect(mean(ratios)).toBeGreaterThan(0.96);
     expect(mean(ratios)).toBeLessThan(1.04);
-    // A typical stock: a few percent a day, not a flat line and not a coin flip on bankruptcy.
+    // A typical stock has a quiet but measurable daily move.
     const typical = mean(market.universe.companies.map((c) => std(returns.get(c.symbol)!)));
-    expect(typical).toBeGreaterThan(0.01);
-    expect(typical).toBeLessThan(0.05);
+    expect(typical).toBeGreaterThan(0.0025);
+    expect(typical).toBeLessThan(0.0125);
   });
 
   it('daily vol does not depend on the tick rate (sqrt-of-time scaling)', () => {
@@ -327,7 +342,7 @@ describe('market: hooks for later milestones', () => {
 });
 
 describe('market: candles and a full game', () => {
-  it('8 quarters: 90 candles per quarter, ticksPerCandle ticks per candle, OHLC built from the ticks', () => {
+  it('4 quarters: 90 candles per quarter, ticksPerCandle ticks per candle, OHLC built from the ticks', () => {
     const { ticksPerCandle, daysPerQuarter, quarters } = defaultConfig.time;
     const sim = startedSim(31);
     const symbols = sim.getUniverse().symbols;

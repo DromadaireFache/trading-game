@@ -23,7 +23,7 @@ describe('market helpers', () => {
     expect(dayOfQuarter(defaultConfig, 0)).toBe(1);
     expect(dayOfQuarter(defaultConfig, 179)).toBe(90);
     expect(quarterFirstDay(defaultConfig, 3)).toBe(180);
-    expect(totalTradingDays(defaultConfig)).toBe(720);
+    expect(totalTradingDays(defaultConfig)).toBe(360);
   });
 
   it('packs and unpacks candles', () => {
