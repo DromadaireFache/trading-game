@@ -20,7 +20,8 @@ const MAX_POPS = 3;
 
 /**
  * Headlines land on the desk as newspaper clippings: masthead, headline, a drawing and the ticker.
- * Nothing on a paper links to the stock: read the ticker, then find it in the stock list yourself.
+ * Clicking the paper itself does nothing; its "Go to" button closes it and selects the stock (or the
+ * sector fund, or the index for market-wide news) in the list, chart and bet panel.
  * A paper can be dragged out of the way and dismissed with its x (Escape dismisses the front one);
  * otherwise it stays up until the price has had time to move (news.leadMaxMs + news.rampMs), then
  * goes. Replayed headlines after a reconnect (older than that) never pop up. The pile itself ignores
@@ -60,6 +61,15 @@ export function NewsPopups({ className }: { className?: string }) {
     setPops((current) => current.filter((p) => p.key !== key));
   }, []);
 
+  /** Close the paper and open its stock. */
+  const goTo = useCallback(
+    (key: string, symbol: string) => {
+      market.select(symbol);
+      dismiss(key);
+    },
+    [market, dismiss],
+  );
+
   // Escape dismisses the paper on top of the pile.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -84,7 +94,14 @@ export function NewsPopups({ className }: { className?: string }) {
   return (
     <div className={`news-pops${className ? ` ${className}` : ''}`} aria-live="polite" data-testid="news-pops">
       {pops.map((pop, i) => (
-        <Paper key={pop.key} headline={pop.headline} depth={pops.length - 1 - i} symbols={symbols} onDismiss={() => dismiss(pop.key)} />
+        <Paper
+          key={pop.key}
+          headline={pop.headline}
+          depth={pops.length - 1 - i}
+          symbols={symbols}
+          onDismiss={() => dismiss(pop.key)}
+          onGoTo={(symbol) => goTo(pop.key, symbol)}
+        />
       ))}
     </div>
   );
@@ -108,9 +125,11 @@ interface PaperProps {
   depth: number;
   symbols: readonly SymbolInfo[];
   onDismiss: () => void;
+  /** Close the paper and select this symbol. */
+  onGoTo: (symbol: string) => void;
 }
 
-function Paper({ headline, depth, symbols, onDismiss }: PaperProps) {
+function Paper({ headline, depth, symbols, onDismiss, onGoTo }: PaperProps) {
   const { config } = useGame();
   // Dragging: the offset from where the pile put the paper.
   const [drag, setDrag] = useState({ x: 0, y: 0 });
@@ -174,13 +193,24 @@ function Paper({ headline, depth, symbols, onDismiss }: PaperProps) {
         </figure>
       </div>
       <footer className="paper__foot">
-        <span className="paper__note">{headline.early ? 'Only you can see this. Not public yet.' : 'Find it in your list: the price moves in seconds.'}</span>
+        <span className="paper__note">{headline.early ? 'Only you can see this. Not public yet.' : 'The price moves in seconds.'}</span>
         <span className="paper__stock">
           {company && <span className="paper__company">{company}</span>}
           <span className="paper__ticker" data-testid="news-pop-ticker">
             {ticker}
           </span>
         </span>
+        {symbols.some((s) => s.symbol === ticker) && (
+          <button
+            type="button"
+            className="paper__goto"
+            onClick={() => onGoTo(ticker)}
+            title={`Close this paper and open ${ticker}`}
+            data-testid="news-pop-goto"
+          >
+            Go to {ticker} →
+          </button>
+        )}
       </footer>
     </article>
   );

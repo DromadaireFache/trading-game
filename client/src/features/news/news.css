@@ -1,7 +1,7 @@
 /*
  * Headline popups: newspaper clippings dropped on the desk. Colors and fonts only through var(--tg-...).
- * The pile ignores the mouse; a paper can be dragged and dismissed, but nothing on it links to the
- * stock: you have to find its ticker in the list.
+ * The pile ignores the mouse; a paper can be dragged and dismissed, and its Go to button opens the
+ * stock (and closes the paper). Clicking the paper itself selects nothing.
  */
 /* The pile sits on top of the side column's cards (Your cards), bottom-aligned, older papers higher. */
 .news-pops {
@@ -148,6 +148,29 @@
   gap: 8px;
   padding-top: 4px;
   border-top: 1px solid color-mix(in srgb, var(--tg-color-card-text) 40%, transparent);
+}
+.paper__goto {
+  flex: none;
+  padding: 4px 10px;
+  font: inherit;
+  font-family: var(--tg-font-display);
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--tg-color-card-face);
+  background: var(--tg-color-card-text);
+  border: 2px solid var(--tg-color-card-text);
+  border-radius: 8px;
+  box-shadow: 0 3px 0 var(--sector);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.paper__goto:hover {
+  color: var(--tg-color-card-text);
+  background: var(--sector);
+}
+.paper__goto:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--sector);
 }
 .paper__note {
   font-family: var(--tg-font-serif);
