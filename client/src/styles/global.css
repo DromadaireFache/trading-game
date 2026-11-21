@@ -579,10 +579,11 @@ ol {
   height: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 26vw);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas:
     'top  top'
-    'main side';
+    'main side'
+    'tape tape';
 }
 .floor__top {
   grid-area: top;

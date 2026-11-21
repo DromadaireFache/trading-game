@@ -6,7 +6,7 @@
  * (localStorage 'tg.muted'). Everything here is best-effort: a failure never reaches the game.
  */
 
-export type SoundName = 'fill' | 'cash' | 'loss' | 'news' | 'whoosh' | 'sting' | 'bell' | 'pop' | 'count' | 'thump';
+export type SoundName = 'fill' | 'cash' | 'loss' | 'news' | 'whoosh' | 'sting' | 'bell' | 'pop' | 'count' | 'thump' | 'card' | 'secret' | 'siren';
 
 const MUTE_KEY = 'tg.muted';
 const MASTER_GAIN = 0.22;
@@ -171,6 +171,20 @@ export function play(name: SoundName, pitch = 1): void {
         break;
       case 'thump':
         tone(t, { freq: 110, to: 40, type: 'sine', dur: 0.22, gain: 0.9 });
+        break;
+      case 'card': // a card flicked onto the table
+        noise(t, { dur: 0.09, from: 6000, to: 2500, gain: 0.5, q: 0.8 });
+        tone(t, { freq: 700 * p, to: 1100 * p, type: 'triangle', start: 0.02, dur: 0.07, gain: 0.25 });
+        break;
+      case 'secret': // a whispered tip: two soft bells, a fifth apart
+        tone(t, { freq: 988, type: 'sine', dur: 0.5, gain: 0.3 });
+        tone(t, { freq: 1480, type: 'sine', start: 0.12, dur: 0.6, gain: 0.25 });
+        tone(t, { freq: 2960, type: 'sine', start: 0.12, dur: 0.25, gain: 0.06 });
+        break;
+      case 'siren': // busted
+        tone(t, { freq: 660, to: 990, type: 'square', dur: 0.25, gain: 0.2 });
+        tone(t, { freq: 990, to: 660, type: 'square', start: 0.25, dur: 0.25, gain: 0.2 });
+        tone(t, { freq: 660, to: 990, type: 'square', start: 0.5, dur: 0.25, gain: 0.2 });
         break;
     }
   } catch {

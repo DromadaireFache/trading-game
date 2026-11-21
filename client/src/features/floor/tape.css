@@ -1,0 +1,79 @@
+/* Projector headline tape. Theme tokens only; one transform animation (compositor only). */
+
+.tape {
+  grid-area: tape;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  height: 6vh;
+  min-height: 36px;
+  border-top: 1px solid var(--tg-color-border-strong);
+  background: var(--tg-color-bg-inset);
+  overflow: hidden;
+}
+.tape__label {
+  display: flex;
+  align-items: center;
+  padding: 0 1.5vw;
+  font-size: 1.5vw;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--tg-color-on-accent);
+  background: var(--tg-color-accent);
+  flex: none;
+}
+.tape__window {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  mask-image: linear-gradient(to right, transparent, var(--tg-color-bg) 3%, var(--tg-color-bg) 97%, transparent);
+}
+.tape__track {
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform;
+  animation-name: tape-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.tape__copy {
+  display: inline-flex;
+}
+.tape__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8vw;
+  padding-right: 1.6vw;
+  font-size: 1.6vw;
+  color: var(--tg-color-text-bright);
+}
+.tape__item--fresh {
+  color: var(--tg-color-accent);
+}
+.tape__tag {
+  font-size: 1.1vw;
+  font-weight: 700;
+  padding: 0.1vh 0.6vw;
+  border: 1px solid var(--tg-color-border-strong);
+  border-radius: 3px;
+  color: var(--tg-color-info);
+}
+.tape__sep {
+  color: var(--tg-color-text-dim);
+  font-size: 1vw;
+}
+@keyframes tape-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tape__track {
+    animation: none;
+  }
+}

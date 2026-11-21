@@ -134,3 +134,46 @@ describe('results', () => {
     expect(r.addMoment('regime', 'War!')).toBeNull(); // budget of 2 used up
   });
 });
+
+describe('final standings include the last earnings gap', () => {
+  it('values positions after the last EARNINGS gap, which no market step applies', () => {
+    const sim = createSim(9, config);
+    sim.submit({ kind: 'add_player', playerId: 'a', name: 'Ada' });
+    sim.submit({ kind: 'add_player', playerId: 'b', name: 'Bo' });
+    sim.submit({ kind: 'start', playerId: 'a' });
+    let bought: string | null = null;
+    const events: SimEvent[] = [];
+    let shopEquity = 0;
+    let priceBefore = 0;
+    for (let t = 0; t < 100_000 && sim.getState().phase !== 'FINAL'; t++) {
+      const s = sim.getState();
+      // Last quarter, early in TRADING: buy the stock whose earnings surprise is largest.
+      if (s.phase === 'TRADING' && s.quarter === config.time.quarters && bought === null && s.phaseTick > 5) {
+        const plan = sim.news.plan()!;
+        bought = Object.entries(plan.surprise).sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))[0]![0];
+        sim.submit({ kind: 'order', playerId: 'a', symbol: bought, qty: 20_000 });
+      }
+      if (s.phase === 'SHOP' && s.quarter === config.time.quarters) {
+        shopEquity = sim.getPortfolio('a')!.equity;
+        priceBefore = sim.getMarketSnapshot().prices[bought!]!;
+      }
+      events.push(...sim.tick());
+    }
+    const gap = sim.news.pendingGap()![bought!]!;
+    expect(Math.abs(gap)).toBeGreaterThan(0.01);
+    const qty = sim.getPortfolio('a')!.positions.find((p) => p.symbol === bought)!.qty;
+    const finalEquity = sim.getPortfolio('a')!.equity;
+    // Within 0.1%: the position is valued at the fair price, which still nets out a trace of the order's own temporary impact.
+    const expected = qty * priceBefore * (Math.exp(gap) - 1);
+    expect(Math.abs(finalEquity - shopEquity - expected)).toBeLessThan(Math.abs(expected) * 1e-3);
+    // The final standings and the last portfolio message say the same.
+    const fin = events.filter((e): e is SimEventOf<'results'> => e.e === 'results').at(-1)!;
+    expect(fin.final).toBe(true);
+    expect(fin.leaderboard.find((r) => r.playerId === 'a')!.netWorth).toBeCloseTo(finalEquity, 6);
+    const lastPortfolio = events.filter((e): e is SimEventOf<'portfolio'> => e.e === 'portfolio' && e.playerId === 'a').at(-1)!;
+    expect(lastPortfolio.equity).toBeCloseTo(finalEquity, 6);
+    // No price moved on the wire: FINAL sends no tick.
+    const finalIdx = events.findIndex((e) => e.e === 'phase' && e.phase === 'FINAL');
+    expect(events.slice(finalIdx).some((e) => e.e === 'tick' || e.e === 'candle')).toBe(false);
+  });
+});
