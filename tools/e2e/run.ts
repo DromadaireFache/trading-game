@@ -975,6 +975,13 @@ async function main(): Promise<void> {
       check((await b.getAttribute(tid('selected-symbol'), 'data-symbol')) === stockB, `the reloaded tab still has ${stockB} selected`);
       await b.waitForSelector(`${tid('position-row')}[data-symbol="${stockB}"]`);
       check(true, `the reloaded tab still shows B's short in ${stockB}`);
+      // Only headlines from the last few seconds (NewsPile FRESH_MS = 4 s, plus a day of rounding) land on a fresh page.
+      const reloadedPapers = (await b.evaluate(`[...document.querySelectorAll('[data-testid=headline]')].map((el) => el.dataset.id)`)) as string[];
+      const tsOf = new Map((framesOf('B').filter((m) => m.t === 'headline') as Array<{ id: string; ts: number }>).map((h) => [h.id, h.ts]));
+      const reloadDay = snapshotsOf('B').at(-1)!.day;
+      const ages = reloadedPapers.map((id) => (reloadDay - (tsOf.get(id) ?? -Infinity)) * DAY_MS);
+      check(ages.every((age) => age <= 4_000 + DAY_MS),
+        `the reloaded tab does not pile up old replayed headlines (papers ${reloadedPapers.join(', ') || 'none'}, ages ${ages.map((x) => Math.round(x)).join(', ')} ms)`);
       const snapshot = snapshotsOf('B').at(-1)!;
       check(snapshot.day >= 5 && (snapshot.candles[stockB]?.length ?? 0) === snapshot.day * 4,
         `the reload got a snapshot with ${snapshot.day} closed candles of history`);
@@ -1026,13 +1033,17 @@ async function main(): Promise<void> {
       const tickerBg = await style(`${top} ${tid('headline-ticker')}`, 'backgroundColor');
       const paperBg = await style(top, 'backgroundColor');
       check(tickerBg !== paperBg && !/rgba\(0, 0, 0, 0\)/.test(tickerBg), `the ticker wears a color of its own (${tickerBg})`);
-      // Over the cards, angled.
+      // Over the cards, angled (measured after the 380 ms drop-in).
+      await sleep(450);
       const [paperBox, handBox] = [await a.locator(top).boundingBox(), await a.locator('.desk__hand').boundingBox()];
       check(paperBox !== null && handBox !== null && paperBox.x < handBox.x + handBox.width && paperBox.x + paperBox.width > handBox.x &&
         paperBox.y < handBox.y + handBox.height && paperBox.y + paperBox.height > handBox.y,
         `the paper lies over the cards (paper ${JSON.stringify(paperBox)}, cards ${JSON.stringify(handBox)})`);
       check((await style(top, 'transform')) !== 'none', 'the paper is angled');
-      // Nothing on it to press, and it does not move when dragged.
+      // Inside the side column: never over the positions or the chart.
+      const sideBox = (await a.locator('.desk__side').boundingBox())!;
+      check(paperBox!.x >= sideBox.x - 1 && paperBox!.x + paperBox!.width <= sideBox.x + sideBox.width + 1,
+        `the paper stays inside the side column (paper x ${Math.round(paperBox!.x)}..${Math.round(paperBox!.x + paperBox!.width)}, column ${Math.round(sideBox.x)}..${Math.round(sideBox.x + sideBox.width)})`);
       check((await a.locator(`${tid('headline')} button`).count()) === 0, 'the papers have no buttons');
       // A headline arriving mid-check drops in for a moment: read the box once it holds still.
       const stillBox = async (selector: string) => {
@@ -1045,17 +1056,17 @@ async function main(): Promise<void> {
         }
         return box;
       };
+      // Dragging moves a paper (and does not open its stock).
       const pinned = `${tid('headline')}[data-id="${await a.getAttribute(top, 'data-id')}"]`;
+      const selectedBefore = await a.getAttribute(tid('selected-symbol'), 'data-symbol');
       const before = await stillBox(pinned);
-      await a.mouse.move(before!.x + before!.width / 2, before!.y + 20);
+      await a.mouse.move(before!.x + before!.width / 2, before!.y + 30);
       await a.mouse.down();
-      await a.mouse.move(before!.x - 100, before!.y - 120, { steps: 5 });
+      await a.mouse.move(before!.x + before!.width / 2 - 80, before!.y - 90, { steps: 8 });
       await a.mouse.up();
-      await a.mouse.move(before!.x + before!.width / 2, before!.y + 20);
       const after = await stillBox(pinned);
-      const sameDepth = (await a.getAttribute(pinned, 'data-depth')) === '0';
-      check(!sameDepth || (after !== null && Math.abs(after.x - before!.x) < 1 && Math.abs(after.y - before!.y) < 1),
-        `the paper cannot be dragged (${JSON.stringify(before)} -> ${JSON.stringify(after)})`);
+      check(after !== null && before!.x - after.x > 60 && before!.y - after.y > 70, `dragging moves the paper (${JSON.stringify(before)} -> ${JSON.stringify(after)})`);
+      check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === selectedBefore, 'a drag does not open the stock');
       await shot(a, '20-play-headline');
       // Clicking a paper opens its stock; the paper stays.
       const openId = await a.getAttribute(top, 'data-id');
@@ -1072,7 +1083,12 @@ async function main(): Promise<void> {
       const buried = await a.getAttribute(`${tid('headline')}[data-id="${openId}"]`, 'data-depth').catch(() => null);
       check(buried !== null && Number(buried) >= 1, `the old paper is buried under the new one (depth ${buried})`);
       const tilts = (await a.evaluate(`[...document.querySelectorAll('${tid('headline')}')].map((el) => getComputedStyle(el).transform)`)) as string[];
-      check(new Set(tilts).size === tilts.length && tilts.length >= 2, `the pile is messy: ${tilts.length} papers, each at its own angle`);
+      check(new Set(tilts).size === tilts.length && tilts.length >= 2, `the pile has ${tilts.length} papers, each at its own angle`);
+      // Right click throws a paper off screen.
+      const thrownId = await a.getAttribute(top, 'data-id');
+      await a.click(top, { button: 'right' });
+      await waitFor('the thrown paper to leave', async () => (await a.locator(`${tid('headline')}[data-id="${thrownId}"]`).count()) === 0);
+      check(true, `right click threw paper ${thrownId} off the screen`);
       // While the pointer is over the cards the pile slides out of the way.
       const pileY = (await a.locator(tid('news-pile')).boundingBox())!.y;
       const hand = (await a.locator('.desk__hand').boundingBox())!;

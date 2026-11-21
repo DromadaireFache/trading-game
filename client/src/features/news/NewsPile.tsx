@@ -1,4 +1,5 @@
-import type { CSSProperties, KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent } from 'react';
 import { dayOfQuarter, dayToQuarter } from '@tg/shared';
 import type { HeadlineMsg, Sector, SymbolInfo } from '@tg/shared';
 import { useGame } from '../../net/GameProvider.tsx';
@@ -9,27 +10,93 @@ import './news.css';
 
 type Headline = Omit<HeadlineMsg, 't'>;
 
-/** The newest papers on the pile; an older one falls off when a new one lands. */
+interface Pop {
+  key: string;
+  headline: Headline;
+  /** Thrown out (right click): flying off screen in this direction, then removed. */
+  thrown?: { x: number; y: number; spin: number };
+}
+
+/** At most this many papers on the pile; the oldest falls off when a new one lands. */
 const PILE = 4;
+/** Only headlines this fresh land on the pile: a reload or a late join does not dump old news on it. */
+const FRESH_MS = 4_000;
+const THROW_MS = 520;
+/** A press that moves farther than this is a drag, not a click. */
+const DRAG_PX = 5;
 
 /**
- * Headlines land as newspaper clippings (julien's paper look) on a messy pile at the bottom right, over
- * your cards: each tilted and shifted its own way, the newest on top. A paper never closes or moves by
- * hand; it is buried by later headlines and falls off the pile after PILE newer ones. Clicking a paper
- * opens its stock (or the sector fund, or the index for market-wide news). While the pointer is over
- * the cards the pile slides down out of the way, so the cards can still be played.
+ * Headlines land as newspaper clippings (julien's paper look) on a pile at the bottom right, over your
+ * cards, newest on top, each with its own slight tilt. Click a paper to open its stock (or the sector
+ * fund, or the index for market-wide news); drag it to move it; right-click it to throw it off screen.
+ * Otherwise it stays until PILE newer papers bury it. While the pointer is over the cards the pile
+ * slides down so the cards can be played.
  */
 export function NewsPile({ className }: { className?: string }) {
-  const { headlines } = useGame();
+  const { headlines, config } = useGame();
+  const market = useMarketStore();
   const symbols = useSymbols();
-  const pile = headlines.slice(0, PILE);
+  const [pops, setPops] = useState<Pop[]>([]);
+  const seen = useRef(new Set<string>());
+  const timers = useRef(new Set<number>());
+
+  useEffect(() => {
+    const msPerDay = config.time.tickMs * config.time.ticksPerCandle;
+    const today = market.getLastDay();
+    // No market data yet (a reload replays the news first): wait, or every replayed headline looks new.
+    if (today < 0) return;
+    const fresh: Pop[] = [];
+    // Newest first in state: walk backwards so the pile gets them in publication order.
+    for (const headline of [...headlines].reverse()) {
+      const key = `${headline.id}${headline.early ? '-early' : ''}`;
+      if (seen.current.has(key)) continue;
+      seen.current.add(key);
+      if ((today - headline.ts) * msPerDay > FRESH_MS) continue;
+      fresh.push({ key, headline });
+    }
+    if (fresh.length > 0) setPops((current) => [...current.filter((p) => !p.thrown), ...fresh].slice(-PILE).concat(current.filter((p) => p.thrown)));
+  }, [headlines, config, market]);
+
+  useEffect(() => {
+    const live = timers.current;
+    return () => live.forEach((t) => window.clearTimeout(t));
+  }, []);
+
+  /** Right click: the paper flies off screen in a random direction, then leaves the pile. */
+  const throwOut = useCallback((key: string) => {
+    const angle = Math.random() * 2 * Math.PI;
+    const reach = Math.max(window.innerWidth, window.innerHeight) * 1.3;
+    const thrown = { x: Math.cos(angle) * reach, y: Math.sin(angle) * reach, spin: (Math.random() < 0.5 ? -1 : 1) * (240 + Math.random() * 360) };
+    setPops((current) => current.map((p) => (p.key === key ? { ...p, thrown } : p)));
+    const timer = window.setTimeout(() => {
+      timers.current.delete(timer);
+      setPops((current) => current.filter((p) => p.key !== key));
+    }, THROW_MS);
+    timers.current.add(timer);
+  }, []);
+
+  /** A grabbed paper comes to the top of the pile. */
+  const raise = useCallback((key: string) => {
+    setPops((current) => {
+      const pop = current.find((p) => p.key === key);
+      return pop === undefined || current.at(-1)?.key === key ? current : [...current.filter((p) => p.key !== key), pop];
+    });
+  }, []);
+
+  const resting = pops.filter((p) => !p.thrown);
   return (
     <section className={`news-pile${className ? ` ${className}` : ''}`} aria-live="polite" aria-label="Latest headlines" data-testid="news-pile">
-      {/* Oldest first in the DOM, so the newest paints on top. */}
-      {[...pile].reverse().map((headline) => {
-        const depth = pile.indexOf(headline);
-        return <Paper key={`${headline.id}${headline.early ? '-early' : ''}`} headline={headline} depth={depth} symbols={symbols} />;
-      })}
+      {pops.map((pop) => (
+        <Paper
+          key={pop.key}
+          pop={pop}
+          depth={pop.thrown ? -1 : resting.length - 1 - resting.indexOf(pop)}
+          symbols={symbols}
+          onOpen={(symbol) => market.select(symbol)}
+          onThrow={() => throwOut(pop.key)}
+          onGrab={() => raise(pop.key)}
+        />
+      ))}
     </section>
   );
 }
@@ -40,47 +107,98 @@ function tickerOf(headline: Headline, symbols: readonly SymbolInfo[]): string {
   return symbols.find((s) => s.kind === 'index')?.symbol ?? 'MARKET';
 }
 
-/** A small stable hash: the same headline always lands the same messy way. */
+/** A small stable hash: the same headline always lands at the same angle. */
 function hash(id: string, salt: number): number {
   let h = salt;
   for (const c of id) h = (Math.imul(h ^ c.charCodeAt(0), 2654435761) >>> 0) ^ (h >>> 13);
   return (h >>> 0) / 4294967296;
 }
 
-function Paper({ headline, depth, symbols }: { headline: Headline; depth: number; symbols: readonly SymbolInfo[] }) {
+interface PaperProps {
+  pop: Pop;
+  /** 0 = on top; -1 = being thrown out. */
+  depth: number;
+  symbols: readonly SymbolInfo[];
+  onOpen: (symbol: string) => void;
+  onThrow: () => void;
+  onGrab: () => void;
+}
+
+function Paper({ pop, depth, symbols, onOpen, onThrow, onGrab }: PaperProps) {
   const { config } = useGame();
-  const market = useMarketStore();
+  const { headline, thrown } = pop;
   const ticker = tickerOf(headline, symbols);
   const known = symbols.some((s) => s.symbol === ticker);
   const scope: Sector | 'market' = headline.sector ?? 'market';
   const quarter = dayToQuarter(config, headline.ts);
   const day = dayOfQuarter(config, headline.ts);
   const open = () => {
-    if (known) market.select(ticker);
+    if (known) onOpen(ticker);
+  };
+
+  // Dragging: the offset from where the pile put the paper. A press that barely moves is a click.
+  const [drag, setDrag] = useState({ x: 0, y: 0 });
+  const grab = useRef<{ pointerX: number; pointerY: number; x: number; y: number; moved: boolean } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const onPointerDown = (e: PointerEvent<HTMLElement>) => {
+    if (e.button !== 0 || thrown) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    grab.current = { pointerX: e.clientX, pointerY: e.clientY, x: drag.x, y: drag.y, moved: false };
+    onGrab();
+  };
+  const onPointerMove = (e: PointerEvent<HTMLElement>) => {
+    const g = grab.current;
+    if (g === null) return;
+    const dx = e.clientX - g.pointerX;
+    const dy = e.clientY - g.pointerY;
+    if (!g.moved && Math.hypot(dx, dy) < DRAG_PX) return;
+    if (!g.moved) setDragging(true);
+    g.moved = true;
+    setDrag({ x: g.x + dx, y: g.y + dy });
+  };
+  const onPointerUp = () => {
+    const g = grab.current;
+    grab.current = null;
+    setDragging(false);
+    if (g !== null && !g.moved) open();
+  };
+  const onContextMenu = (e: MouseEvent<HTMLElement>) => {
+    e.preventDefault();
+    if (!thrown) onThrow();
   };
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       open();
+    } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      onThrow();
     }
   };
+
   const style = {
-    // Messy: every paper its own tilt and shift; older ones peek out higher up the pile.
-    '--pop-tilt': `${(hash(headline.id, 1) * 2 - 1) * 7}deg`,
-    '--pop-x': `${-Math.round(hash(headline.id, 2) * 34)}px`,
-    '--pop-y': `${-Math.round(hash(headline.id, 3) * 14)}px`,
-    '--pop-depth': depth,
+    '--pop-tilt': `${(hash(headline.id, 1) * 2 - 1) * 4}deg`,
+    '--drag-x': `${drag.x}px`,
+    '--drag-y': `${drag.y}px`,
     '--sector': sectorColor(scope),
+    ...(thrown ? { '--throw-x': `${thrown.x}px`, '--throw-y': `${thrown.y}px`, '--throw-spin': `${thrown.spin}deg` } : {}),
   } as CSSProperties;
   return (
     <article
-      className={`paper${headline.early ? ' paper--early' : ''}${depth > 0 ? ' paper--behind' : ''}`}
+      className={`paper${headline.early ? ' paper--early' : ''}${depth > 0 ? ' paper--behind' : ''}${dragging ? ' paper--dragging' : ''}${thrown ? ' paper--thrown' : ''}`}
       style={style}
       role="button"
       tabIndex={0}
-      onClick={open}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={() => {
+        grab.current = null;
+        setDragging(false);
+      }}
+      onContextMenu={onContextMenu}
       onKeyDown={onKeyDown}
-      title={known ? `Open ${ticker}` : undefined}
+      title={known ? `Click: open ${ticker} · drag: move · right-click: throw away` : undefined}
       data-testid="headline"
       data-id={headline.id}
       data-depth={depth}
