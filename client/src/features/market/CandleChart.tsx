@@ -11,8 +11,8 @@
  * Scrolling and zooming stay free until the next quarter starts.
  */
 import { useEffect, useRef, useState } from 'react';
-import { AreaSeries, CandlestickSeries, ColorType, createChart } from 'lightweight-charts';
-import type { AreaData, CandlestickData, IChartApi, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts';
+import { CandlestickSeries, ColorType, createChart } from 'lightweight-charts';
+import type { CandlestickData, IChartApi, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts';
 import { CANDLE_FIELDS, candleAt, candleCount, dayToQuarter, quarterFirstDay } from '@tg/shared';
 import type { GameConfig, OHLC, SymbolId } from '@tg/shared';
 import { chartTimeToDay, dayToChartTime, formatAxisDay, formatGameDay } from '../../lib/chartTime.ts';
@@ -30,20 +30,17 @@ interface CandleChartProps {
   symbol: SymbolId | null;
   /** large = projector. */
   size?: keyof typeof FONT_SIZE;
-  /** candles = daily OHLC; line = the closing price as a filled line (Simple mode). */
-  kind?: 'candles' | 'line';
   className?: string;
 }
 
 interface ChartHandle {
   chart: IChartApi;
-  series: ISeriesApi<'Candlestick'> | ISeriesApi<'Area'>;
-  kind: 'candles' | 'line';
+  series: ISeriesApi<'Candlestick'>;
   /** False once the chart is removed: a tick in flight must not touch it ("Object is disposed"). */
   alive: { current: boolean };
 }
 
-export function CandleChart({ symbol, size = 'normal', kind = 'candles', className }: CandleChartProps) {
+export function CandleChart({ symbol, size = 'normal', className }: CandleChartProps) {
   const market = useMarketStore();
   const { config } = useGame();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -84,47 +81,29 @@ export function CandleChart({ symbol, size = 'normal', kind = 'candles', classNa
       },
     });
     const priceFormat = { type: 'price', precision: priceDecimals, minMove: 10 ** -priceDecimals } as const;
-    const series =
-      kind === 'line'
-        ? chart.addSeries(AreaSeries, {
-            lineColor: theme.color.accent,
-            lineWidth: 3,
-            topColor: theme.color.accent,
-            bottomColor: theme.color.bgInset,
-            priceLineColor: theme.color.textDim,
-            priceFormat,
-          })
-        : chart.addSeries(CandlestickSeries, {
-            upColor: theme.color.up,
-            downColor: theme.color.down,
-            wickUpColor: theme.color.up,
-            wickDownColor: theme.color.down,
-            borderVisible: false,
-            priceLineColor: theme.color.textDim,
-            priceFormat,
-          });
+    const series = chart.addSeries(CandlestickSeries, {
+      upColor: theme.color.up,
+      downColor: theme.color.down,
+      wickUpColor: theme.color.up,
+      wickDownColor: theme.color.down,
+      borderVisible: false,
+      priceLineColor: theme.color.textDim,
+      priceFormat,
+    });
     const alive = { current: true };
-    setHandle({ chart, series, kind, alive });
+    setHandle({ chart, series, alive });
     return () => {
       alive.current = false;
       setHandle(null);
       chart.remove();
     };
-  }, [config, size, priceDecimals, kind]);
+  }, [config, size, priceDecimals]);
 
   // The data: full history on (re)select and on every snapshot, then incremental updates.
   useEffect(() => {
     const container = containerRef.current;
     if (!handle || !container) return;
     const { chart, series } = handle;
-    const asLine = handle.kind === 'line';
-    // One setter per series type: a line keeps only the closing price.
-    const setAll = (bars: CandlestickData<Time>[]) =>
-      asLine
-        ? (series as ISeriesApi<'Area'>).setData(bars.map(toPoint))
-        : (series as ISeriesApi<'Candlestick'>).setData(bars);
-    const setOne = (bar: CandlestickData<Time>) =>
-      asLine ? (series as ISeriesApi<'Area'>).update(toPoint(bar)) : (series as ISeriesApi<'Candlestick'>).update(bar);
     let framedQuarter = -1;
 
     const publish = () => {
@@ -149,7 +128,7 @@ export function CandleChart({ symbol, size = 'normal', kind = 'candles', classNa
     };
 
     const redraw = () => {
-      setAll(symbol === null ? [] : buildData(market, config, symbol));
+      series.setData(symbol === null ? [] : buildData(market, config, symbol));
       frame(true);
       publish();
     };
@@ -157,7 +136,7 @@ export function CandleChart({ symbol, size = 'normal', kind = 'candles', classNa
     const update = (day: number, candle: OHLC | undefined) => {
       if (!candle) return;
       try {
-        setOne(toBar(config, day, candle));
+        series.update(toBar(config, day, candle));
       } catch {
         // The library refuses updates older than its last bar; fall back to a full redraw.
         redraw();
@@ -187,10 +166,6 @@ function toBar(config: GameConfig, day: number, candle: OHLC): CandlestickData<T
     low: candle.l,
     close: candle.c,
   };
-}
-
-function toPoint(bar: CandlestickData<Time>): AreaData<Time> {
-  return { time: bar.time, value: bar.close };
 }
 
 function buildData(market: MarketStore, config: GameConfig, symbol: SymbolId): CandlestickData<Time>[] {
