@@ -251,6 +251,10 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     // A player who reconnects mid-game gets cash and positions back at once (none yet in the lobby).
     const portfolio = session.role === 'player' ? sim.getPortfolio(session.id) : undefined;
     if (portfolio !== undefined) send(socket, portfolioMsg(portfolio));
+    if (session.role === 'player') {
+      const { e: _e, playerId: _playerId, ...pending } = sim.getPendingOrder(session.id);
+      send(socket, { t: 'pending_order', ...pending });
+    }
     // What every player holds (the desk shows the others' positions).
     for (const other of playerSessions()) {
       const held = sim.getPortfolio(other.id);
@@ -470,7 +474,15 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
         }
         if (event.intent === 'remove_player') return; // housekeeping, nobody to tell
         send(session?.socket ?? null, { t: 'error', code: 'rejected', message: event.message });
+        if (event.intent === 'order') {
+          const { e: _e, playerId: _playerId, ...pending } = sim.getPendingOrder(event.playerId);
+          send(session?.socket ?? null, { t: 'pending_order', ...pending });
+        }
         return;
+      }
+      case 'pending_order': {
+        const { e: _e, playerId, ...rest } = event;
+        return sendTo(playerId, { t: 'pending_order', ...rest });
       }
       case 'tick':
         return broadcast({ t: 'tick', day: event.day, tickOfDay: event.tickOfDay, prices: roundPrices(config, event.prices) });

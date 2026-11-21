@@ -155,6 +155,19 @@ export class GameClient {
   /** Sends an intent. Returns false (and sends nothing) when not connected and joined. */
   send(msg: GameIntent): boolean {
     if (!this.socket || !this.socketOpen || this.state.join !== 'joined') return false;
+    if (msg.t === 'order') {
+      if (this.state.pendingOrder) return false;
+      const until = this.state.portfolio?.jailedUntil;
+      const jailed = until !== undefined && Math.max(0, this.market.getLastDay()) < until;
+      if (jailed) {
+        this.patch({ pendingOrder: { symbol: msg.symbol, qty: msg.qty, endsAt: this.now() + this.state.config.sec.jailOrderDelayMs, confirmed: false }, orderCancelled: false });
+        if (!this.sendRaw(msg)) {
+          this.patch({ pendingOrder: null });
+          return false;
+        }
+        return true;
+      }
+    }
     return this.sendRaw(msg);
   }
 

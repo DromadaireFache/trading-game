@@ -291,6 +291,12 @@ export interface BetResultMsg {
 }
 
 /** Sent per player (prices scale with the buyer's net worth). */
+export interface PendingOrderMsg {
+  t: 'pending_order';
+  order: { symbol: SymbolId; qty: number; remainingMs: number } | null;
+  cancelled?: boolean;
+}
+
 export interface ShopMsg {
   t: 'shop';
   offers: CardOffer[];
@@ -346,6 +352,7 @@ export interface ErrorMsg {
 }
 
 export type ServerMsg =
+  | PendingOrderMsg
   | WelcomeMsg
   | LobbyMsg
   | PhaseMsg
