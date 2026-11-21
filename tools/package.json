@@ -1,0 +1,15 @@
+{
+  "name": "@tg/tools",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "e2e": "tsx e2e/run.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@tg/server": "^0.1.0",
+    "@tg/shared": "^0.1.0",
+    "playwright-core": "^1.65.1"
+  }
+}

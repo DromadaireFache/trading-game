@@ -1,0 +1,30 @@
+{
+  "name": "trading-game",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "shared",
+    "server",
+    "client",
+    "tools"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c cyan,magenta \"npm run dev -w @tg/server\" \"npm run dev -w @tg/client\"",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "node tools/vitest.mjs run",
+    "test:watch": "node tools/vitest.mjs",
+    "build": "npm run typecheck && npm run build -w @tg/client",
+    "e2e": "npm run e2e -w @tg/tools"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "concurrently": "^10.0.7",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  }
+}

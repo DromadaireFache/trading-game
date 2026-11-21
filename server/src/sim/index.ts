@@ -1,0 +1,133 @@
+/**
+ * Pure sim entry point. The game server and the balance harness both import from here
+ * (`@tg/server/sim` from other workspaces).
+ *
+ * Milestone 1: the phase state machine and the lobby roster.
+ *   LOBBY -> [BRIEFING -> TRADING -> EARNINGS -> RESULTS -> SHOP] x config.time.quarters -> FINAL
+ * Later milestones hang the market, portfolios, headlines, cards and SEC off the same tick().
+ * See ./types.ts for the contract and the purity rules.
+ *
+ * Tick accounting: a phase of N ticks whose `phase` event is returned by tick() call T ends on
+ * call T + N, which returns the next `phase` event. The tick that processes `start` only enters
+ * BRIEFING; it does not consume a BRIEFING tick.
+ */
+import type { GameConfig, Phase } from '@tg/shared';
+import { nextPhase, phaseLength } from './phases.ts';
+import { createRng } from './rng.ts';
+import type { Sim, SimEvent, SimIntent, SimPlayer, SimRejectCode, SimState } from './types.ts';
+
+export * from './types.ts';
+export { createRng } from './rng.ts';
+export type { Rng } from './rng.ts';
+export { isQuarterPhase, nextPhase, phaseLength } from './phases.ts';
+export type { PhasePosition } from './phases.ts';
+
+export function createSim(seed: number, config: GameConfig): Sim {
+  // Not drawn from yet; later subsystems fork their own streams from it.
+  const rng = createRng(seed);
+  void rng;
+
+  const queue: SimIntent[] = [];
+  const players: SimPlayer[] = [];
+  let phase: Phase = 'LOBBY';
+  let quarter = 0;
+  let tick = 0;
+  let phaseTick = 0;
+  let announced = false;
+
+  let events: SimEvent[] = [];
+
+  function enter(next: { phase: Phase; quarter: number }): void {
+    phase = next.phase;
+    quarter = next.quarter;
+    phaseTick = 0;
+    events.push({ e: 'phase', phase, quarter, durationTicks: phaseLength(config, phase) });
+  }
+
+  function reject(intent: SimIntent, code: SimRejectCode, message: string): void {
+    events.push({ e: 'reject', playerId: intent.playerId, intent: intent.kind, code, message });
+  }
+
+  function hasPlayer(id: string): boolean {
+    return players.some((p) => p.id === id);
+  }
+
+  /** Returns true when the intent moved the game into a new phase. */
+  function process(intent: SimIntent): boolean {
+    switch (intent.kind) {
+      case 'add_player': {
+        if (phase !== 'LOBBY') return reject(intent, 'wrong_phase', 'players can only join in the lobby'), false;
+        if (hasPlayer(intent.playerId)) return reject(intent, 'invalid', 'player already joined'), false;
+        if (intent.name.length === 0) return reject(intent, 'invalid', 'name is empty'), false;
+        if (players.length >= config.lobby.maxPlayers) return reject(intent, 'game_full', 'the game is full'), false;
+        players.push({ id: intent.playerId, name: intent.name });
+        return false;
+      }
+      case 'remove_player': {
+        if (phase !== 'LOBBY') return reject(intent, 'wrong_phase', 'players can only leave in the lobby'), false;
+        const index = players.findIndex((p) => p.id === intent.playerId);
+        if (index < 0) return reject(intent, 'unknown_player', 'unknown player'), false;
+        players.splice(index, 1);
+        return false;
+      }
+      case 'start': {
+        if (phase !== 'LOBBY') return reject(intent, 'wrong_phase', 'the game has already started'), false;
+        if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
+        if (players.length < config.lobby.minPlayers) {
+          return reject(intent, 'not_enough_players', `need at least ${config.lobby.minPlayers} player(s) to start`), false;
+        }
+        enter(nextPhase(config, { phase, quarter }));
+        return true;
+      }
+      case 'order':
+      case 'buy_card':
+      case 'play_card': {
+        if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
+        return reject(intent, 'not_implemented', `${intent.kind} is not implemented yet`), false;
+      }
+    }
+  }
+
+  return {
+    seed,
+    config,
+    submit(intent) {
+      queue.push(intent);
+    },
+    tick() {
+      events = [];
+      if (!announced) {
+        announced = true;
+        events.push({ e: 'phase', phase, quarter, durationTicks: phaseLength(config, phase) });
+      }
+
+      // 1. intents, in arrival order
+      let enteredByIntent = false;
+      for (const intent of queue.splice(0)) {
+        if (process(intent)) enteredByIntent = true;
+      }
+
+      // 2. clock (does not run in LOBBY and FINAL)
+      const length = phaseLength(config, phase);
+      if (length !== null && !enteredByIntent) {
+        phaseTick += 1;
+        if (phaseTick >= length) enter(nextPhase(config, { phase, quarter }));
+      }
+
+      tick += 1;
+      return events;
+    },
+    getState(): SimState {
+      const length = phaseLength(config, phase);
+      return {
+        phase,
+        quarter,
+        tick,
+        phaseTick,
+        phaseTicks: length,
+        ticksLeft: length === null ? null : length - phaseTick,
+        players: players.map((p) => ({ ...p })),
+      };
+    },
+  };
+}

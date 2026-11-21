@@ -1,0 +1,671 @@
+/*
+ * Global styles. Colors and fonts come ONLY from theme.ts through var(--tg-color-*) / var(--tg-font-*).
+ * No literal colors in this file: translucent variants are built with color-mix().
+ * Feature-specific styles can live next to their feature (features/<x>/<x>.css) following the same rule.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--tg-color-bg);
+  color: var(--tg-color-text);
+  font-family: var(--tg-font-mono);
+  font-size: 14px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+/* ---------------------------------------------------------------- phase accent colors */
+
+.phase--LOBBY {
+  --phase-color: var(--tg-color-text-dim);
+}
+.phase--BRIEFING {
+  --phase-color: var(--tg-color-info);
+}
+.phase--TRADING {
+  --phase-color: var(--tg-color-up);
+}
+.phase--EARNINGS {
+  --phase-color: var(--tg-color-warn);
+}
+.phase--RESULTS {
+  --phase-color: var(--tg-color-accent);
+}
+.phase--SHOP {
+  --phase-color: var(--tg-color-accent);
+}
+.phase--FINAL {
+  --phase-color: var(--tg-color-text-bright);
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.btn {
+  font: inherit;
+  color: var(--tg-color-text);
+  background: var(--tg-color-panel-raised);
+  border: 1px solid var(--tg-color-border-strong);
+  border-radius: 3px;
+  padding: 8px 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--tg-color-text-dim);
+}
+.btn:focus-visible,
+.input:focus-visible {
+  outline: 2px solid var(--tg-color-accent);
+  outline-offset: 1px;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn--primary {
+  background: var(--tg-color-accent);
+  border-color: var(--tg-color-accent);
+  color: var(--tg-color-on-accent);
+  font-weight: 700;
+}
+.btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tg-color-accent) 85%, var(--tg-color-text-bright));
+  border-color: var(--tg-color-accent);
+}
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--tg-color-text-dim);
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 4px 8px;
+}
+.btn--ghost:hover:not(:disabled) {
+  color: var(--tg-color-text);
+  border-color: var(--tg-color-border);
+}
+.btn--wide {
+  width: 100%;
+  padding: 12px 14px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field__label {
+  color: var(--tg-color-text-dim);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.input {
+  font: inherit;
+  font-size: 18px;
+  color: var(--tg-color-text-bright);
+  background: var(--tg-color-bg-inset);
+  border: 1px solid var(--tg-color-border-strong);
+  border-radius: 3px;
+  padding: 10px 12px;
+}
+.input::placeholder {
+  color: color-mix(in srgb, var(--tg-color-text-dim) 60%, transparent);
+}
+
+/* ---------------------------------------------------------------- connection badge */
+
+.conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--tg-color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.conn__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tg-color-text-dim);
+}
+.conn--open .conn__dot {
+  background: var(--tg-color-up);
+}
+.conn--connecting .conn__dot,
+.conn--reconnecting .conn__dot {
+  background: var(--tg-color-warn);
+  animation: tg-blink 1s steps(2, start) infinite;
+}
+.conn--reconnecting {
+  color: var(--tg-color-warn);
+}
+.conn--closed .conn__dot {
+  background: var(--tg-color-down);
+}
+
+@keyframes tg-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* ---------------------------------------------------------------- error banner */
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  color: var(--tg-color-down);
+  background: color-mix(in srgb, var(--tg-color-down) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tg-color-down) 50%, transparent);
+  border-radius: 3px;
+}
+
+/* ---------------------------------------------------------------- panel */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--tg-color-panel);
+  border: 1px solid var(--tg-color-border);
+  border-radius: 3px;
+}
+.panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  background: var(--tg-color-panel-raised);
+  border-bottom: 1px solid var(--tg-color-border);
+}
+.panel__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tg-color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.panel__aside {
+  font-size: 12px;
+  color: var(--tg-color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.panel__body {
+  flex: 1;
+  min-height: 0;
+  padding: 10px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px;
+  text-align: center;
+  color: var(--tg-color-text-dim);
+  border: 1px dashed var(--tg-color-border);
+  border-radius: 3px;
+  background: var(--tg-color-bg-inset);
+}
+
+/* ---------------------------------------------------------------- roster */
+
+.roster {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.roster__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--tg-color-bg-inset);
+  border: 1px solid var(--tg-color-border);
+  border-radius: 3px;
+}
+.roster__seat {
+  color: var(--tg-color-text-dim);
+  font-size: 0.85em;
+}
+.roster__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tg-color-text-bright);
+  font-weight: 700;
+}
+.roster__tag {
+  font-size: 0.75em;
+  color: var(--tg-color-on-accent);
+  background: var(--tg-color-accent);
+  border-radius: 2px;
+  padding: 0 5px;
+  text-transform: uppercase;
+}
+.roster__state {
+  font-size: 0.8em;
+  color: var(--tg-color-up);
+  text-transform: uppercase;
+}
+.roster__row--me {
+  border-color: color-mix(in srgb, var(--tg-color-accent) 60%, transparent);
+}
+.roster__row--offline .roster__name {
+  color: var(--tg-color-text-dim);
+}
+.roster__row--offline .roster__state {
+  color: var(--tg-color-down);
+}
+.roster__row--empty {
+  border-style: dashed;
+  background: transparent;
+}
+.roster__row--empty .roster__name {
+  color: var(--tg-color-text-dim);
+  font-weight: 400;
+}
+
+/* ---------------------------------------------------------------- join screen */
+
+.center-screen {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.join-card {
+  width: min(420px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
+  background: var(--tg-color-panel);
+  border: 1px solid var(--tg-color-border);
+  border-top: 3px solid var(--tg-color-accent);
+  border-radius: 3px;
+}
+.join-card__brand {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--tg-color-accent);
+}
+.join-card__tagline {
+  color: var(--tg-color-text-dim);
+  margin-top: -10px;
+}
+.seat-taken__text {
+  color: var(--tg-color-text);
+  line-height: 1.5;
+}
+.join-card__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ---------------------------------------------------------------- /play shell + header */
+
+.play {
+  height: 100%;
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+
+.phase-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 14px 10px;
+  background: var(--tg-color-panel);
+  border-bottom: 1px solid var(--tg-color-border);
+}
+.phase-header__brand {
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--tg-color-accent);
+  white-space: nowrap;
+}
+.phase-header__phase {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.phase-header__name {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--phase-color);
+}
+.phase-header__hint {
+  font-size: 12px;
+  color: var(--tg-color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.phase-strip {
+  display: flex;
+  gap: 2px;
+}
+.phase-strip__step {
+  padding: 3px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tg-color-text-dim);
+  background: var(--tg-color-bg-inset);
+  border: 1px solid var(--tg-color-border);
+}
+.phase-strip__step--current {
+  color: var(--tg-color-on-accent);
+  background: var(--phase-color);
+  border-color: var(--phase-color);
+  font-weight: 700;
+}
+.phase-header__quarter {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--tg-color-text-bright);
+  white-space: nowrap;
+}
+.phase-header__countdown {
+  min-width: 4.5ch;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: right;
+  color: var(--tg-color-text-bright);
+}
+.phase-header__countdown--urgent {
+  color: var(--tg-color-down);
+}
+.phase-header__me {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.phase-header__player {
+  font-weight: 700;
+  color: var(--tg-color-text-bright);
+  max-width: 18ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.phase-header__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+}
+.phase-header__progress-bar {
+  height: 100%;
+  background: var(--phase-color);
+  transition: width 0.2s linear;
+}
+
+@media (max-width: 1100px) {
+  .phase-strip {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- lobby */
+
+.lobby {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(320px, 480px) minmax(280px, 420px);
+  justify-content: center;
+  align-content: start;
+  gap: 12px;
+  padding: 32px 16px;
+  overflow: auto;
+}
+.lobby__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.lobby__note {
+  color: var(--tg-color-text-dim);
+  font-size: 12px;
+}
+.rules {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--tg-color-text);
+}
+.rules li {
+  padding-left: 14px;
+  border-left: 2px solid var(--tg-color-border-strong);
+}
+
+@media (max-width: 760px) {
+  .lobby {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------------------------------------------------------------- trading desk grid */
+
+.desk {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-rows: minmax(0, 3fr) minmax(0, 2fr) minmax(0, 2fr) auto;
+  grid-template-areas:
+    'stage     order'
+    'stage     positions'
+    'headlines hand'
+    'headlines players';
+  gap: 8px;
+  padding: 8px;
+}
+/* Server errors (rejected order, ...) float as a toast so the grid never jumps. */
+.desk__errors {
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  z-index: 10;
+  min-width: 320px;
+  max-width: 80vw;
+  background: var(--tg-color-panel);
+  border-radius: 3px;
+}
+.desk__stage {
+  grid-area: stage;
+}
+.desk__headlines {
+  grid-area: headlines;
+}
+.desk__order {
+  grid-area: order;
+}
+.desk__positions {
+  grid-area: positions;
+}
+.desk__hand {
+  grid-area: hand;
+}
+.desk__players {
+  grid-area: players;
+}
+
+/* ---------------------------------------------------------------- /floor (projector) */
+
+.floor {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 26vw);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    'top  top'
+    'main side';
+}
+.floor__top {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 3vw;
+  padding: 1.5vh 2.5vw;
+  background: var(--tg-color-panel);
+  border-bottom: 1px solid var(--tg-color-border);
+}
+.floor__brand {
+  flex: 1;
+  font-size: 2.2vw;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--tg-color-accent);
+}
+.floor__quarter {
+  font-size: 2.6vw;
+  font-weight: 700;
+  color: var(--tg-color-text-bright);
+}
+.floor__main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2vh;
+  padding: 3vh 3vw;
+  min-width: 0;
+}
+.floor__phase {
+  font-size: 7.5vw;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--phase-color);
+}
+.floor__countdown {
+  font-size: 14vw;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--tg-color-text-bright);
+}
+.floor__countdown--urgent {
+  color: var(--tg-color-down);
+}
+/* No timer (LOBBY, FINAL): keep the slot, drop the shouting. */
+.floor__countdown--idle {
+  font-size: 4vw;
+  color: var(--tg-color-border-strong);
+}
+.floor__hint {
+  font-size: 2vw;
+  color: var(--tg-color-text-dim);
+  text-align: center;
+}
+.floor__url {
+  color: var(--tg-color-accent);
+  font-weight: 700;
+}
+.floor__progress {
+  width: 70%;
+  height: 0.8vh;
+  background: var(--tg-color-bg-inset);
+  border: 1px solid var(--tg-color-border);
+}
+.floor__progress-bar {
+  height: 100%;
+  background: var(--phase-color);
+  transition: width 0.2s linear;
+}
+.floor__side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5vh;
+  padding: 3vh 2vw;
+  background: var(--tg-color-panel);
+  border-left: 1px solid var(--tg-color-border);
+  font-size: 1.7vw;
+  min-width: 0;
+}
+.floor__side-title {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.4vw;
+  color: var(--tg-color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.floor__side-count {
+  color: var(--tg-color-text-dim);
+}
+.floor .conn {
+  font-size: 1.1vw;
+}
+.floor .roster {
+  gap: 1vh;
+}
+.floor .roster__row {
+  padding: 1.2vh 1vw;
+}
