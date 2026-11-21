@@ -40,13 +40,13 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 
 - `/floor` has no headline tape yet (M6, julien).
 - The final standings do not include the last quarter's earnings gap: there is no market step after the last EARNINGS. `sim.news.pendingGap()` holds it (M6, julien).
-- Balance: median winner about $631M against $1B-3B, and no bot plays cards yet (M7, julien).
+- Balance (M7, julien): the target holds in the harness (median winner $1.24B at a 4-skilled-player table with cards), but skilled players get eliminated 15-18% of the time, insider tips are weak, and the top tail runs past $3B. See docs/BALANCE.md; next is a playtest with humans.
 - Headline generator: never run against a model, no npm script, README or tests (headline teammate).
 - Not tested by a person: a second laptop on the venue Wi-Fi, a margin call or elimination in a browser, a second game through "Play again" with cards in hand.
 - Counter cards are out on purpose (first in the cut order).
 
 ## Suggested split
 
-- **Sim / balance (julien):** M7 tuning with the harness, now with headlines, earnings, cards and regimes in the sim. Bots could start buying and playing cards (`buy_card` / `play_card` intents).
+- **Sim / balance (julien):** compare a human playtest with the harness (`npm run balance -- --bots news-trader,insider-trader,manipulator,event-player`) and tune from docs/BALANCE.md's open list.
 - **Client / design:** polish of the shop, hand, results and floor screens; sounds and effects.
 - **Design:** headline content and generator runs, card catalog balance, `/floor` layout, sounds and effects, and company/fund names (`server/src/sim/data/names.ts`). Colors and fonts are in `client/src/theme.ts`.
