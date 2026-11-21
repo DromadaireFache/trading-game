@@ -135,8 +135,11 @@ With 4 players, overload isn't a real risk. Two light safeguards:
 
 ### Getting caught: SEC and jail
 - Every illegal act (insider tip, fake headline, trading a target you moved with a card, illegal events) adds
-  **heat** to the player. So does **self-dealing**: any card (legal ones too) that moves a stock or sector you
-  hold, with more heat when it moves your way. Cards are meant to be played on the other players' bets.
+  **heat** to the player. So does **self-dealing**: any card (legal ones too, at a reduced share) that moves a
+  stock or sector you hold, with more heat when it moves your way. Cards are meant to be played on the other
+  players' bets.
+- **Only illegal cards can get you jailed:** the SEC rolls only for players who played an illegal card that
+  quarter. Heat from legal cards just raises the odds for the day you do.
 - At the end of each quarter, `P(caught) = f(heat, net worth rank)`. **Richer players are watched more closely.**
 - **If caught:** a fine, plus **jail** for the next quarter. In jail you can't play or buy cards, and every order
   goes through 3 seconds late. **Your positions stay open** and you can still trade, just slower.

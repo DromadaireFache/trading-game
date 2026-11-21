@@ -54,10 +54,14 @@
   opacity: 0.8;
   filter: saturate(0.8) brightness(0.92);
 }
+/*
+ * The drop: falls in from above with a little extra tilt. No scale-up and only 3 degrees: the pile sits
+ * at the window's right edge, and a bigger swing pushed the paper's corner off screen.
+ */
 @keyframes paper-drop {
   from {
     opacity: 0;
-    transform: translateY(-40px) rotate(calc(var(--pop-tilt) - 8deg)) scale(1.08);
+    transform: translateY(-40px) rotate(calc(var(--pop-tilt) - 3deg));
   }
 }
 
@@ -143,6 +147,8 @@
 
 .paper__foot {
   display: flex;
+  /* Note, stock and Go to wrap onto two lines on a narrow paper instead of spilling out of it. */
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 8px;

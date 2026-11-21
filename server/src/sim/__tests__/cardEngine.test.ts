@@ -70,17 +70,21 @@ function buyAll(g: Game, player: string, quarter = 1) {
 }
 
 describe('shop and hand', () => {
-  it('every player sees the same cards, priced by their own net worth; the last quarter has no shop', () => {
+  it('each player draws their own cards, priced by their own net worth; the last quarter has no shop', () => {
     const g = game(DEFAULT_CATALOG);
     g.to('SHOP', 1);
     g.step();
     const shops = only(g.log, 'shop');
     expect(shops.map((s) => s.playerId).sort()).toEqual(['p1', 'p2']);
-    expect(shops[0]!.offers.map((o) => o.offerId)).toEqual(shops[1]!.offers.map((o) => o.offerId));
     expect(shops[0]!.offers.length).toBe(BASE.cards.offersPerShop);
+    expect(shops[1]!.offers.length).toBe(BASE.cards.offersPerShop);
     for (const o of shops[0]!.offers) expect(o.price).toBeGreaterThanOrEqual(BASE.cards.minPrice);
     expect(g.sim.getShop('p1')?.offers).toEqual(shops.find((s) => s.playerId === 'p1')!.offers);
     g.to('EARNINGS', 3);
+    const all = only(g.log, 'shop');
+    const ids = (playerId: string) => all.filter((s) => s.playerId === playerId).map((s) => s.offers.map((o) => o.card.defId).join(','));
+    expect(ids('p1')).toHaveLength(2);
+    expect(ids('p1')).not.toEqual(ids('p2'));
     expect(g.sim.getShop('p1')).toBeNull();
     expect(g.to('FINAL').some((event) => event.e === 'shop')).toBe(false);
   });
@@ -292,7 +296,7 @@ describe('SEC', () => {
     expect(g.sim.getPortfolio('p1')!.heat).toBe(BASE.sec.heat.fakeHeadline + BASE.sec.heat.tradeManipulatedTarget);
   });
 
-  it('self-dealing: a card on a stock you hold adds heat, more when it moves your way; legal cards too', () => {
+  it('self-dealing: a card on a stock you hold adds heat, more when it moves your way; less for legal cards', () => {
     const heatAfter = (defId: string, held: number, target: (g: Game) => string) => {
       const g = game([card(defId)]);
       const { hand } = buyAll(g, 'p1');
@@ -307,15 +311,36 @@ describe('SEC', () => {
     const stock = (g: Game) => g.sim.getUniverse().companies[3]!.symbol;
     const other = (g: Game) => g.sim.getUniverse().companies[20]!.symbol;
     const { selfDeal, selfDealInFavor } = BASE.sec.heat;
-    // Lucky Strike (legal, up): free on someone else's stock, heat on yours, more if you are long.
+    const legal = BASE.sec.legalHeatShare;
+    expect(legal).toBeLessThan(1);
+    // Lucky Strike (legal, up): free on someone else's stock, some heat on yours, more if you are long.
     expect(heatAfter('lucky_strike', 0, stock)).toBe(0);
     expect(heatAfter('lucky_strike', 100, other)).toBe(0);
-    expect(heatAfter('lucky_strike', -100, stock)).toBe(selfDeal);
-    expect(heatAfter('lucky_strike', 100, stock)).toBe(selfDeal + selfDealInFavor);
+    expect(heatAfter('lucky_strike', -100, stock)).toBeCloseTo(selfDeal * legal, 9);
+    expect(heatAfter('lucky_strike', 100, stock)).toBeCloseTo((selfDeal + selfDealInFavor) * legal, 9);
     // Act of God (legal, down) on a stock you are short.
-    expect(heatAfter('act_of_god', -100, stock)).toBe(selfDeal + selfDealInFavor);
+    expect(heatAfter('act_of_god', -100, stock)).toBeCloseTo((selfDeal + selfDealInFavor) * legal, 9);
     // An illegal card keeps its own heat on top.
     expect(heatAfter('planted_rumor', 100, stock)).toBe(BASE.sec.heat.fakeHeadline + selfDeal + selfDealInFavor);
+  });
+
+  it('legal cards alone never get you caught, however much heat they bring', () => {
+    const g = game([card('lucky_strike')], certain);
+    const { hand } = buyAll(g, 'p1');
+    g.to('TRADING', 2, 5);
+    const symbol = g.sim.getUniverse().companies[3]!.symbol;
+    g.sim.submit({ kind: 'order', playerId: 'p1', symbol, qty: 100 });
+    g.step();
+    g.sim.submit({ kind: 'play_card', playerId: 'p1', cardId: hand[0]!.cardId, target: symbol });
+    g.step();
+    g.sim.submit({ kind: 'order', playerId: 'p1', symbol, qty: 100 });
+    g.step();
+    const heat = g.sim.getPortfolio('p1')!.heat;
+    expect(heat).toBeGreaterThan(0);
+    g.to('RESULTS', 2, 1);
+    expect(only(g.log, 'results').at(-1)!.arrests).toEqual([]);
+    expect(g.sim.getPortfolio('p1')!.jailedUntil).toBeUndefined();
+    expect(g.sim.getPortfolio('p1')!.heat).toBeCloseTo(heat * BASE.sec.heatDecayPerQuarter, 9);
   });
 
   it('a whole game with cards is deterministic', () => {

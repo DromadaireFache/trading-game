@@ -36,7 +36,7 @@ export function HandPanel({ className }: { className?: string }) {
     <Panel
       title="Your cards"
       aside={
-        <span title="Heat comes from illegal cards and from any card played on a stock you hold yourself. The more heat (and the richer you are), the likelier the SEC fines and jails you at the end of the quarter.">
+        <span title="Heat comes from illegal cards and from cards played on a stock you hold yourself (legal cards bring less). Only a quarter in which you play an illegal card can end in jail: then the more heat (and the richer you are), the likelier the SEC fines and jails you.">
           SEC{' '}
           <span className={`hand__heat hand__heat--${heatLevel}`} data-testid="heat">
             heat {Math.round(heat)}

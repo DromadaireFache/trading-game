@@ -29,7 +29,7 @@ export function CardFace({ card, children, testId }: { card: CardDef; children?:
     >
       <header className="card__head">
         <span className="card__tier">{TIER_LABEL[card.tier]}</span>
-        <span className={card.legal ? 'card__legal' : 'card__illegal'} title={card.legal ? 'Legal' : 'Illegal: adds heat; the SEC may catch you'}>
+        <span className={card.legal ? 'card__legal' : 'card__illegal'} title={card.legal ? 'Legal: it can never get you jailed' : 'Illegal: adds heat; the SEC may catch you this quarter'}>
           {card.legal ? 'legal' : 'ILLEGAL'}
         </span>
       </header>

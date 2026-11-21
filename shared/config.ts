@@ -296,6 +296,12 @@ export interface GameConfig {
     jailOrderDelayMs: number;
     /** Heat multiplier applied at the end of each quarter when not caught. */
     heatDecayPerQuarter: number;
+    /**
+     * Share of the self-dealing and traded-a-moved-stock heat that a LEGAL card brings (illegal cards
+     * bring all of it). Heat from legal cards only raises the odds: the SEC rolls only for players who
+     * played an illegal card that quarter, so playing legal cards alone never lands you in jail.
+     */
+    legalHeatShare: number;
   };
   presentation: {
     maxMomentsPerGame: number;
@@ -440,8 +446,8 @@ export const defaultConfig: GameConfig = {
     overshoot: 0.15,
     minGapMs: 6_000,
     // Headlines pop up on every desk; the price starts moving 4-6 s later, time to find the ticker.
-    leadMinMs: 4_000,
-    leadMaxMs: 6_000,
+    leadMinMs: 8_000,
+    leadMaxMs: 11_000,
     // About 3 headlines a quarter: 1 scheduled beat (the rate decision), 1 random, 1 earnings leak.
     scheduledBeatsPerQuarter: 1,
     randomHeadlinesPerQuarter: 1,
@@ -501,6 +507,7 @@ export const defaultConfig: GameConfig = {
     jailQuarters: 1,
     jailOrderDelayMs: 3_000,
     heatDecayPerQuarter: 0.5,
+    legalHeatShare: 0.4,
   },
   presentation: {
     maxMomentsPerGame: 5,

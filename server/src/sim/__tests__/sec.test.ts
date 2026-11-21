@@ -74,6 +74,18 @@ describe('sec', () => {
     expect(caught / runs).toBeCloseTo(catchProbability(defaultConfig, 50, 0), 1);
   });
 
+  it('a player who played no illegal card this quarter is not rolled', () => {
+    const config = mergeConfig(defaultConfig, { sec: { catchProbabilityPerHeat: 1, maxCatchProbability: 1 } });
+    const players = [
+      { playerId: 'a', name: 'A', heat: 100, netWorth: 1, playedIllegal: false },
+      { playerId: 'b', name: 'B', heat: 100, netWorth: 1, playedIllegal: true },
+    ];
+    const { outcomes } = resolveSec(createRng(1), config, players, 90);
+    expect(outcomes.map((o) => o.caught)).toEqual([false, true]);
+    expect(outcomes[0]!.probability).toBe(0);
+    expect(outcomes[0]!.heatAfter).toBe(100 * config.sec.heatDecayPerQuarter);
+  });
+
   it('isJailed is true until the release day', () => {
     expect(isJailed(undefined, 10)).toBe(false);
     expect(isJailed(100, 99.5)).toBe(true);

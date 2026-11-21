@@ -10,6 +10,29 @@
   box-sizing: border-box;
 }
 
+/*
+ * No scrollbars anywhere: lists, panels and the page still scroll with the wheel, touch or keys, but
+ * the bars are hidden so the table looks like a game, not a web page.
+ */
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+/* Text cannot be highlighted (a game, not a document); fields you type in still can. */
+html {
+  user-select: none;
+  -webkit-user-select: none;
+}
+input,
+textarea,
+[contenteditable='true'] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 html,
 body,
 #root {
