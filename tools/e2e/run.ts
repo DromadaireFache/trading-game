@@ -798,9 +798,16 @@ async function main(): Promise<void> {
       // A tries to buy far more than allowed: the order is clipped to the cap, not rejected.
       await a.click(tid('size-usd-500000000'));
       await waitFor('A second fill', async () => fillsOf('A').length >= 2);
-      await sleep(250);
-      const bpA = money(await textOf(a, 'buying-power'));
-      check(bpA < 0.02 * cap * startCash, `the $500M order was clipped to the leverage cap: ${bpA} buying power left`);
+      // Read the server's portfolio sent in the same tick as the fill: the screen keeps revaluing at 10 Hz,
+      // and at 4x leverage a 1% move changes buying power by about 3% of equity.
+      const afterFill = () => {
+        const frames = framesOf('A');
+        const at = frames.lastIndexOf(frames.filter((m) => m.t === 'fill').at(-1)!);
+        return frames.slice(at).find((m) => m.t === 'portfolio') as { buyingPower?: number; equity: number } | undefined;
+      };
+      await waitFor('A portfolio after the second fill', async () => afterFill() !== undefined);
+      const bpA = afterFill()!.buyingPower ?? NaN;
+      check(bpA < 0.01 * cap * afterFill()!.equity, `the $500M order was clipped to the leverage cap: ${Math.round(bpA)} buying power left at the fill`);
       check(!(await a.locator(tid('error')).isVisible().catch(() => false)), 'the clipped order showed no error');
       await shot(a, '19-play-trading-A');
       await checkNoOverflow(a, 'desk with positions at 1366x768');
@@ -811,7 +818,9 @@ async function main(): Promise<void> {
       check(fillsOf('A').at(-1)!.qty < 0, 'closing sold the position');
       const pnl = await textOf(a, 'total-pnl');
       check(/^[+-]?\$[\d,]+ \([+-]?\d+\.\d+%\)$/.test(pnl), `A shows total P&L after closing: ${pnl}`);
-      check(Math.abs(money(await textOf(a, 'equity')) - startCash) < 0.1 * startCash, 'A equity is near the start after a round trip (impact and noise only)');
+      // Flat again: equity is exactly the cash (a 4x round trip can move it by any amount, so no range check).
+      const [eqA, cashA] = [money(await textOf(a, 'equity')), money(await textOf(a, 'cash'))];
+      check(eqA === cashA && eqA > 0, `A is flat: equity ${eqA} = cash ${cashA}`);
     });
 
     await step('reload mid-game resumes the same player; a late joiner is refused', async () => {
