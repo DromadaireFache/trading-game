@@ -7,7 +7,7 @@
  * to raw messages with GameClient.onMessage and keep their own buffers.
  */
 import { defaultConfig } from '@tg/shared';
-import type { ErrorCode, GameConfig, LobbyState, PhaseInfo, PlayerId, Role, ServerMsg } from '@tg/shared';
+import type { ErrorCode, FillMsg, GameConfig, LobbyState, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg } from '@tg/shared';
 
 /**
  * idle: not started. connecting: first attempt. open: socket is up.
@@ -47,7 +47,20 @@ export interface GameState {
   error: GameError | null;
   /** Another tab took over this session; this tab stays disconnected until it is reloaded. */
   replaced: boolean;
+  /** Latest `portfolio` from the server (players only). Live values are recomputed from ticks. */
+  portfolio: Portfolio | null;
+  /** This player's fills, newest first, at most MAX_FILLS. */
+  fills: FillRecord[];
 }
+
+export type Portfolio = Omit<PortfolioMsg, 't'>;
+
+export interface FillRecord extends Omit<FillMsg, 't'> {
+  /** Running number, so the UI can flash a new fill even when it looks like the last one. */
+  seq: number;
+}
+
+export const MAX_FILLS = 20;
 
 export const initialGameState: GameState = {
   connection: 'idle',
@@ -60,14 +73,20 @@ export const initialGameState: GameState = {
   clockOffsetMs: 0,
   error: null,
   replaced: false,
+  portfolio: null,
+  fills: [],
 };
 
 /** Folds one server message into the state. Returns the same object when nothing changed. */
 export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): GameState {
   switch (msg.t) {
-    case 'welcome':
+    case 'welcome': {
+      // Same seat after a reconnect: keep the trading history. Another seat: start clean.
+      const sameSeat = state.me?.playerId === msg.playerId;
       return {
         ...state,
+        portfolio: sameSeat ? state.portfolio : null,
+        fills: sameSeat ? state.fills : [],
         join: 'joined',
         me: { playerId: msg.playerId, name: msg.name, role: msg.role },
         config: msg.config,
@@ -77,6 +96,16 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
         clockOffsetMs: msg.phase.serverTime - now,
         error: null,
       };
+    }
+    case 'portfolio': {
+      const { t: _t, ...portfolio } = msg;
+      return { ...state, portfolio };
+    }
+    case 'fill': {
+      const { t: _t, ...fill } = msg;
+      const seq = (state.fills[0]?.seq ?? 0) + 1;
+      return { ...state, fills: [{ ...fill, seq }, ...state.fills].slice(0, MAX_FILLS) };
+    }
     case 'lobby': {
       const { t: _t, ...lobby } = msg;
       return { ...state, lobby };
@@ -94,8 +123,6 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       return state;
     // Later milestones: fold these into their own slices.
     case 'headline':
-    case 'fill':
-    case 'portfolio':
     case 'shop':
     case 'results':
     case 'moment':

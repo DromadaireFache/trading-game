@@ -176,7 +176,12 @@ describe('lobby intents', () => {
     expect(sim.getState().players.map((p) => p.id)).toEqual(['p1', 'p2']);
 
     sim.submit({ kind: 'start', playerId: 'p2' });
-    expect(sim.tick()).toEqual([{ e: 'phase', phase: 'BRIEFING', quarter: 1, durationTicks: 3 }]);
+    // Milestone 3: the start also hands every player their opening portfolio.
+    expect(sim.tick().map((e) => (e.e === 'portfolio' ? `portfolio:${e.playerId}` : e))).toEqual([
+      { e: 'phase', phase: 'BRIEFING', quarter: 1, durationTicks: 3 },
+      'portfolio:p1',
+      'portfolio:p2',
+    ]);
   });
 
   it('rejects lobby intents after the start, and later-milestone intents for now', () => {
@@ -192,7 +197,7 @@ describe('lobby intents', () => {
       'add_player:wrong_phase',
       'remove_player:wrong_phase',
       'start:wrong_phase',
-      'order:not_implemented',
+      'order:wrong_phase', // milestone 3: orders exist, but only in TRADING
       'buy_card:unknown_player',
     ]);
     expect(sim.getState().players).toEqual([{ id: 'p1', name: 'Ann' }]);

@@ -18,14 +18,14 @@ import type { AddressInfo } from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
-import { WS_CLOSE_REPLACED, roundOhlc, roundPrices, roundSnapshot } from '@tg/shared';
-import type { ClientMsg, ErrorCode, JoinMsg, LobbyState, MarketMsg, PhaseInfo, PlayerId, Role, ServerMsg } from '@tg/shared';
+import { WS_CLOSE_REPLACED, roundOhlc, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
+import type { ClientMsg, ErrorCode, JoinMsg, LobbyState, MarketMsg, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg } from '@tg/shared';
 import type { ServerEnv } from './env.ts';
 import { lanUrls } from './lan.ts';
 import { runTickClock } from './loop.ts';
 import { cleanName, nameKey, parseClientMsg } from './protocol.ts';
 import { createSim } from './sim/index.ts';
-import type { Sim, SimEvent } from './sim/index.ts';
+import type { Sim, SimEvent, SimEventOf } from './sim/index.ts';
 
 /** Close code sent to a socket whose session was taken over by a newer connection (same token). */
 export const CLOSE_REPLACED = WS_CLOSE_REPLACED;
@@ -151,6 +151,24 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     return { t: 'market', ...roundSnapshot(config, sim.getMarketSnapshot()) };
   }
 
+  /** Dollar amounts to cents, average prices like prices. */
+  function portfolioMsg(event: SimEventOf<'portfolio'>): PortfolioMsg {
+    const { e: _e, playerId: _p, cash, equity, buyingPower, positions, ...rest } = event;
+    const cents = (n: number) => Math.round(n * 100) / 100;
+    return {
+      t: 'portfolio',
+      ...rest,
+      cash: cents(cash),
+      equity: cents(equity),
+      ...(buyingPower === undefined ? {} : { buyingPower: cents(buyingPower) }),
+      positions: positions.map((p) => ({
+        ...p,
+        avgPrice: roundPrice(config, p.avgPrice),
+        ...(p.realized === undefined ? {} : { realized: cents(p.realized) }),
+      })),
+    };
+  }
+
   function broadcastLobby(): void {
     broadcast({ t: 'lobby', ...lobbyState() });
   }
@@ -193,6 +211,9 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     });
     // Same synchronous turn as the welcome, so no tick can slip in between.
     send(socket, market);
+    // A player who reconnects mid-game gets cash and positions back at once (none yet in the lobby).
+    const portfolio = session.role === 'player' ? sim.getPortfolio(session.id) : undefined;
+    if (portfolio !== undefined) send(socket, portfolioMsg(portfolio));
     broadcastLobby();
   }
 
@@ -377,13 +398,11 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
         return to === undefined ? broadcast(msg) : sendTo(to, msg);
       }
       case 'fill': {
-        const { e: _e, playerId, ...rest } = event;
-        return sendTo(playerId, { t: 'fill', ...rest });
+        const { e: _e, playerId, price, ...rest } = event;
+        return sendTo(playerId, { t: 'fill', ...rest, price: roundPrice(config, price) });
       }
-      case 'portfolio': {
-        const { e: _e, playerId, ...rest } = event;
-        return sendTo(playerId, { t: 'portfolio', ...rest });
-      }
+      case 'portfolio':
+        return sendTo(event.playerId, portfolioMsg(event));
       case 'shop': {
         const { e: _e, playerId, ...rest } = event;
         return sendTo(playerId, { t: 'shop', ...rest });

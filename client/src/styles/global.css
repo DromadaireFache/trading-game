@@ -518,7 +518,8 @@ ol {
   display: grid;
   /* list: two columns of compact symbol rows; chart: whatever is left; side: orders, positions, hand, players. */
   grid-template-columns: 480px minmax(0, 1fr) 320px;
-  grid-template-rows: minmax(0, 3fr) minmax(0, 2fr) minmax(0, 2fr) auto;
+  /* order entry takes its natural height; positions gets the rest of the chart's height. */
+  grid-template-rows: auto minmax(0, 3fr) minmax(0, 2fr) auto;
   grid-template-areas:
     'list chart     order'
     'list chart     positions'

@@ -717,3 +717,37 @@ describe('hostile input', () => {
     expect((await fetch(`http://127.0.0.1:${s.port}/`)).status).toBe(404);
   });
 });
+
+describe('trading', () => {
+  it('fills an order in TRADING, sends fill + portfolio to that player only, and restores the portfolio on reconnect', async () => {
+    const s = await start({ time: { daysPerQuarter: 40, quarters: 2 } });
+    const ann = await open(s);
+    const welcome = await ann.join('player', 'Ann');
+    const floor = await open(s);
+    await floor.join('spectator');
+    ann.send({ t: 'start' });
+    const opening = await ann.next('portfolio');
+    expect(opening).toMatchObject({ cash: defaultConfig.economy.startingCash, equity: defaultConfig.economy.startingCash, positions: [] });
+
+    ann.send({ t: 'order', symbol: 'TG50', qty: 100 });
+    expect((await ann.next('error')).message).toMatch(/closed/);
+
+    await ann.next('phase', (m) => m.phase === 'TRADING');
+    const symbol = s.sim.getUniverse().companies[0]!.symbol;
+    ann.send({ t: 'order', symbol, qty: 1000.7 });
+    const fill = await ann.next('fill');
+    expect(fill).toMatchObject({ symbol, qty: 1000 });
+    expect(isWirePrice(s.sim.config, fill.price)).toBe(true);
+    const after = await ann.next('portfolio', (m) => m.positions.length === 1);
+    expect(after.positions[0]).toMatchObject({ symbol, qty: 1000 });
+    // Cash is booked at the unrounded fill price; the wire price is rounded to cents.
+    expect(Math.abs(after.cash - (defaultConfig.economy.startingCash - 1000 * fill.price))).toBeLessThanOrEqual(1000 * 0.005 + 0.01);
+    expect(floor.received.some((m) => m.t === 'fill' || m.t === 'portfolio')).toBe(false);
+
+    ann.close();
+    const back = await open(s);
+    await back.join('player', undefined, welcome.token);
+    const restored = await back.next('portfolio');
+    expect(restored.positions).toEqual([expect.objectContaining({ symbol, qty: 1000 })]);
+  });
+});

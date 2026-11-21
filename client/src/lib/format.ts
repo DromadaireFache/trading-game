@@ -42,3 +42,19 @@ export function formatMoneyShort(amount: number): string {
   }
   return `${sign}$${abs.toFixed(0)}`;
 }
+
+const wholeFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+
+/** "$10,234,567" (whole dollars). signed = always show + or - (for P&L). */
+export function formatMoney(amount: number, signed = false): string {
+  const rounded = Math.round(amount);
+  const text = `$${wholeFormat.format(Math.abs(rounded))}`;
+  if (rounded === 0) return text;
+  if (rounded < 0) return `-${text}`;
+  return signed ? `+${text}` : text;
+}
+
+/** "1,000" / "-250" share counts. */
+export function formatShares(qty: number): string {
+  return wholeFormat.format(qty);
+}

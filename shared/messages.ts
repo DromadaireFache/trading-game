@@ -14,6 +14,7 @@ import type {
   Card,
   CardDirection,
   CardOffer,
+  ForcedFillReason,
   LeaderboardEntry,
   LobbyPlayer,
   MarketSnapshot,
@@ -178,8 +179,14 @@ export interface HeadlineMsg {
 export interface FillMsg {
   t: 'fill';
   symbol: SymbolId;
+  /** Signed shares: > 0 bought, < 0 sold. */
   qty: number;
+  /** Fill price including slippage. */
   price: number;
+  /** Set when the server traded on the player's behalf (margin call, elimination). */
+  reason?: ForcedFillReason;
+  /** Game day (fractional) of the fill. */
+  ts?: number;
 }
 
 /** Sent per player. */
@@ -191,7 +198,10 @@ export interface PortfolioMsg {
   heat: number;
   /** Game day until which the player is in jail. */
   jailedUntil?: number;
-  /** Additions to the draft, filled in by later milestones. */
+  /**
+   * Additions to the draft. buyingPower = max(0, leverageCap * equity - gross exposure) at the
+   * prices of the moment it was sent; clients recompute it live from ticks with the same formula.
+   */
   buyingPower?: number;
   hand?: Card[];
   eliminated?: boolean;

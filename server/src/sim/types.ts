@@ -14,6 +14,7 @@ import type {
   Card,
   CardDirection,
   CardOffer,
+  ForcedFillReason,
   GameConfig,
   LeaderboardEntry,
   MarketSnapshot,
@@ -40,8 +41,9 @@ export type SimIntent =
   | { kind: 'remove_player'; playerId: PlayerId }
   /** LOBBY only; needs config.lobby.minPlayers players. */
   | { kind: 'start'; playerId: PlayerId }
-  // --- later milestones (the stub rejects them) ---
+  /** TRADING only. qty in shares, < 0 = sell/short; truncated to whole shares. */
   | { kind: 'order'; playerId: PlayerId; symbol: SymbolId; qty: number }
+  // --- later milestones (the stub rejects them) ---
   | { kind: 'buy_card'; playerId: PlayerId; offerId: string }
   | { kind: 'play_card'; playerId: PlayerId; cardId: string; target?: string; direction?: CardDirection };
 
@@ -57,6 +59,9 @@ export type SimRejectCode =
   | 'not_enough_players'
   | 'game_full'
   | 'invalid'
+  | 'unknown_symbol'
+  | 'insufficient_buying_power'
+  | 'eliminated'
   | 'not_implemented';
 
 export type SimEvent =
@@ -75,7 +80,8 @@ export type SimEvent =
   // --- later milestones: shapes mirror the wire messages in @tg/shared ---
   /** `to` set = private (insider preview with early: true); unset = broadcast. */
   | { e: 'headline'; to?: PlayerId; id: string; text: string; symbol?: SymbolId; sector?: Sector; ts: number; early?: boolean }
-  | { e: 'fill'; playerId: PlayerId; symbol: SymbolId; qty: number; price: number }
+  /** Milestone 3: a market order (or a forced close) was filled. Price unrounded. */
+  | { e: 'fill'; playerId: PlayerId; symbol: SymbolId; qty: number; price: number; ts: number; reason?: ForcedFillReason }
   | {
       e: 'portfolio';
       playerId: PlayerId;
@@ -158,6 +164,11 @@ export interface Sim {
    * it, rounded, as the `market` message after each `welcome`. Returns fresh objects.
    */
   getMarketSnapshot(): MarketSnapshot;
+  /**
+   * A player's portfolio at current prices (unrounded), or undefined for an unknown player.
+   * The shell sends it after `welcome` so a reconnect restores cash and positions at once.
+   */
+  getPortfolio(playerId: PlayerId): SimEventOf<'portfolio'> | undefined;
 }
 
 export type CreateSim = (seed: number, config: GameConfig) => Sim;

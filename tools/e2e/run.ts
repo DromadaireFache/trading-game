@@ -763,6 +763,57 @@ async function main(): Promise<void> {
       }
     });
 
+    await step('trading: orders fill, positions and P&L show, the leverage cap clips, close works', async () => {
+      const money = (text: string) => Number(text.replace(/[^0-9.-]/g, ''));
+      const startCash = defaultConfig.economy.startingCash;
+      const cap = defaultConfig.trading.leverageCap;
+      const fillsOf = (label: string) => framesOf(label).filter((m) => m.t === 'fill') as Array<{ symbol: string; qty: number; price: number }>;
+      const positionRow = (symbol: string) => `${tid('position-row')}[data-symbol="${symbol}"]`;
+      check((await phaseOf(a)) === 'TRADING', 'still in TRADING for the trading checks');
+      check(money(await textOf(a, 'equity')) === startCash, `A starts with ${startCash} equity`);
+      check(money(await textOf(a, 'buying-power')) === cap * startCash, `A starts with ${cap}x buying power`);
+
+      // A buys $1M of stockA (Buy is the default side).
+      await a.click(tid('size-usd-1000000'));
+      await a.waitForSelector(positionRow(stockA));
+      const qtyA = money(await a.locator(`${positionRow(stockA)} ${tid('position-qty')}`).textContent() ?? '');
+      const fillA = fillsOf('A').at(-1)!;
+      check(fillA?.symbol === stockA && fillA.qty === qtyA && qtyA > 0, `A bought ${qtyA} ${stockA} @ ${fillA?.price}`);
+      check(Math.abs(qtyA * fillA.price - 1e6) < 0.02 * 1e6, `about $1M worth (${Math.round(qtyA * fillA.price)})`);
+      check((await textOf(a, 'last-fill')).startsWith('Bought'), `A sees the fill: "${await textOf(a, 'last-fill')}"`);
+      check(!framesOf('B').some((m) => m.t === 'fill') && !framesOf('floor').some((m) => m.t === 'fill' || m.t === 'portfolio'),
+        "B and the floor do not see A's fill or portfolio");
+
+      // B shorts 25% of its buying power in stockB.
+      await b.click(tid('side-sell'));
+      await b.click(tid('size-pct-25'));
+      await b.waitForSelector(positionRow(stockB));
+      const qtyB = money(await b.locator(`${positionRow(stockB)} ${tid('position-qty')}`).textContent() ?? '');
+      check(qtyB < 0, `B is short ${qtyB} ${stockB}`);
+      await sleep(150);
+      const bpB = money(await textOf(b, 'buying-power'));
+      check(bpB > 0.7 * cap * startCash && bpB < 0.8 * cap * startCash, `B has about 75% of its buying power left (${bpB})`);
+      await shot(b, '19-play-trading-B');
+
+      // A tries to buy far more than allowed: the order is clipped to the cap, not rejected.
+      await a.click(tid('size-usd-500000000'));
+      await waitFor('A second fill', async () => fillsOf('A').length >= 2);
+      await sleep(250);
+      const bpA = money(await textOf(a, 'buying-power'));
+      check(bpA < 0.02 * cap * startCash, `the $500M order was clipped to the leverage cap: ${bpA} buying power left`);
+      check(!(await a.locator(tid('error')).isVisible().catch(() => false)), 'the clipped order showed no error');
+      await shot(a, '19-play-trading-A');
+      await checkNoOverflow(a, 'desk with positions at 1366x768');
+
+      // Close the whole position from the positions table.
+      await a.click(`${positionRow(stockA)} ${tid('position-close')}`);
+      await a.waitForSelector(positionRow(stockA), { state: 'detached' });
+      check(fillsOf('A').at(-1)!.qty < 0, 'closing sold the position');
+      const pnl = await textOf(a, 'total-pnl');
+      check(/^[+-]?\$[\d,]+ \([+-]?\d+\.\d+%\)$/.test(pnl), `A shows total P&L after closing: ${pnl}`);
+      check(Math.abs(money(await textOf(a, 'equity')) - startCash) < 0.1 * startCash, 'A equity is near the start after a round trip (impact and noise only)');
+    });
+
     await step('reload mid-game resumes the same player; a late joiner is refused', async () => {
       await b.reload();
       await b.waitForSelector(`${tid('phase')}[data-phase=TRADING]`);
@@ -771,6 +822,8 @@ async function main(): Promise<void> {
       const board = await boardOf(b);
       check(board.length === SYMBOL_COUNT && board.every((r) => shownPrice(r.price) > 0), `the reloaded tab lists ${SYMBOL_COUNT} symbols with prices`);
       check((await b.getAttribute(tid('selected-symbol'), 'data-symbol')) === stockB, `the reloaded tab still has ${stockB} selected`);
+      await b.waitForSelector(`${tid('position-row')}[data-symbol="${stockB}"]`);
+      check(true, `the reloaded tab still shows B's short in ${stockB}`);
       const snapshot = snapshotsOf('B').at(-1)!;
       check(snapshot.day >= 5 && (snapshot.candles[stockB]?.length ?? 0) === snapshot.day * 4,
         `the reload got a snapshot with ${snapshot.day} closed candles of history`);
@@ -802,6 +855,7 @@ async function main(): Promise<void> {
         await waitForPhase(a, phase);
         await shot(a, `14-play-${phase}`);
         await checkNoOverflow(a, `desk in ${phase} at 1366x768`);
+        check(await a.locator(tid('size-usd-1000000')).isDisabled(), `order buttons are disabled in ${phase}`);
       }
 
       // Frozen between quarters: the last tick of Q1 stays on screen until Q2 trades.

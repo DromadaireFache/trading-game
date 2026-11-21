@@ -23,6 +23,7 @@ import type { GameConfig, Phase } from '@tg/shared';
 import { createMarket } from './market.ts';
 import { nextPhase, phaseLength } from './phases.ts';
 import { createRng } from './rng.ts';
+import { createTrading } from './trading.ts';
 import type { Sim, SimEvent, SimIntent, SimPlayer, SimRejectCode, SimState } from './types.ts';
 import { generateUniverse } from './universe.ts';
 
@@ -35,12 +36,24 @@ export { generateUniverse, toUniverseInfo } from './universe.ts';
 export type { GenerateUniverse, Universe } from './universe.ts';
 export { createMarket } from './market.ts';
 export type { CreateMarket, Market, MarketEvent, MarketStepInput } from './market.ts';
+export { createTrading } from './trading.ts';
+export type { Account, Holding, OrderResult, Trading, TradingDeps, TradingEvent } from './trading.ts';
 
 export function createSim(seed: number, config: GameConfig): Sim {
   // One child stream per subsystem, forked in a fixed order. Append new forks at the END.
   const rng = createRng(seed);
   const universe = generateUniverse(rng.fork(), config);
   const market = createMarket(universe, rng.fork(), config);
+  const advBySymbol = new Map<string, number>([
+    ...universe.companies.map((c) => [c.symbol, c.adv] as const),
+    ...universe.funds.map((f) => [f.symbol, f.adv] as const),
+  ]);
+  const trading = createTrading({
+    config,
+    priceOf: (symbol) => market.getPrice(symbol),
+    advOf: (symbol) => advBySymbol.get(symbol),
+    now: () => market.getDay() + market.getTickOfDay() / config.time.ticksPerCandle,
+  });
 
   const queue: SimIntent[] = [];
   const players: SimPlayer[] = [];
@@ -76,6 +89,7 @@ export function createSim(seed: number, config: GameConfig): Sim {
         if (intent.name.length === 0) return reject(intent, 'invalid', 'name is empty'), false;
         if (players.length >= config.lobby.maxPlayers) return reject(intent, 'game_full', 'the game is full'), false;
         players.push({ id: intent.playerId, name: intent.name });
+        trading.addAccount(intent.playerId);
         return false;
       }
       case 'remove_player': {
@@ -83,6 +97,7 @@ export function createSim(seed: number, config: GameConfig): Sim {
         const index = players.findIndex((p) => p.id === intent.playerId);
         if (index < 0) return reject(intent, 'unknown_player', 'unknown player'), false;
         players.splice(index, 1);
+        trading.removeAccount(intent.playerId);
         return false;
       }
       case 'start': {
@@ -92,9 +107,18 @@ export function createSim(seed: number, config: GameConfig): Sim {
           return reject(intent, 'not_enough_players', `need at least ${config.lobby.minPlayers} player(s) to start`), false;
         }
         enter(nextPhase(config, { phase, quarter }));
+        // Everybody learns their starting cash right away.
+        for (const p of players) events.push(trading.portfolio(p.id)!);
         return true;
       }
-      case 'order':
+      case 'order': {
+        if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
+        if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'the market is closed'), false;
+        const result = trading.order(intent.playerId, intent.symbol, intent.qty);
+        if (!result.ok) return reject(intent, result.code, result.message), false;
+        for (const event of result.events) events.push(event);
+        return false;
+      }
       case 'buy_card':
       case 'play_card': {
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
@@ -126,9 +150,15 @@ export function createSim(seed: number, config: GameConfig): Sim {
       const length = phaseLength(config, phase);
       if (length !== null && !enteredByIntent) {
         // Prices move only in TRADING: one market step per tick of the phase.
-        // Later milestones pass regimes / news / impact as the step input.
+        // Later milestones add regimes / news to the step input next to the price impact.
         if (phase === 'TRADING') {
-          for (const event of market.step()) events.push(event);
+          const symbolReturn = trading.stepInput();
+          let dayClosed = false;
+          for (const event of market.step(symbolReturn === undefined ? undefined : { symbolReturn })) {
+            if (event.e === 'candle') dayClosed = true;
+            events.push(event);
+          }
+          for (const event of trading.afterStep(dayClosed)) events.push(event);
         }
         phaseTick += 1;
         if (phaseTick >= length) enter(nextPhase(config, { phase, quarter }));
@@ -151,5 +181,6 @@ export function createSim(seed: number, config: GameConfig): Sim {
     },
     getUniverse: () => universe,
     getMarketSnapshot: () => market.getSnapshot(),
+    getPortfolio: (playerId) => trading.portfolio(playerId),
   };
 }

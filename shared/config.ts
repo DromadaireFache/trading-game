@@ -68,6 +68,8 @@ export interface GameConfig {
     quickSizePct: number[];
     /** Quick-size buttons: fixed dollar amounts. */
     quickSizeUsd: number[];
+    /** At most this many margin-call liquidations per player per tick (the largest position goes first). */
+    liquidationsPerTick: number;
   };
   market: {
     /** Must equal SECTORS.length (10): sector ids are fixed in shared/types.ts. */
@@ -146,6 +148,13 @@ export interface GameConfig {
     /** temporary = kTemporary * notional / adv, decaying. */
     kTemporary: number;
     temporaryHalfLifeMs: number;
+    /**
+     * Caps on each impact term (fractions / log-returns) so a whale order into a small cap cannot
+     * produce absurd prices. notional / adv itself is not capped.
+     */
+    maxSlippage: number;
+    maxPermanent: number;
+    maxTemporary: number;
   };
   news: {
     /** Log-return applied by a headline of each magnitude. */
@@ -265,6 +274,7 @@ export const defaultConfig: GameConfig = {
     shortBorrowFeePerDay: 0.0002,
     quickSizePct: [0.1, 0.25, 0.5, 1],
     quickSizeUsd: [1_000_000, 10_000_000, 100_000_000, 500_000_000],
+    liquidationsPerTick: 1,
   },
   market: {
     sectors: 10,
@@ -319,6 +329,9 @@ export const defaultConfig: GameConfig = {
     kPermanent: 0.02,
     kTemporary: 0.05,
     temporaryHalfLifeMs: 5_000,
+    maxSlippage: 0.15,
+    maxPermanent: 0.15,
+    maxTemporary: 0.25,
   },
   news: {
     shock: { small: 0.02, medium: 0.05, large: 0.12, huge: 0.25 },
@@ -465,6 +478,12 @@ export function validateConfig(config: GameConfig): GameConfig {
     positiveInt('net.maxCatchUpTicks', config.net.maxCatchUpTicks);
     positiveInt('net.reconnectMinMs', config.net.reconnectMinMs);
     positiveInt('presentation.countdownRefreshMs', config.presentation.countdownRefreshMs);
+    positiveInt('trading.liquidationsPerTick', config.trading.liquidationsPerTick);
+    if (config.trading.leverageCap <= 0) problems.push('config.trading.leverageCap must be > 0');
+    if (config.trading.maintenanceMargin * config.trading.leverageCap >= 1) {
+      problems.push('config.trading.maintenanceMargin * leverageCap must be < 1, or a fully levered position is margin-called at once');
+    }
+    if (config.impact.temporaryHalfLifeMs <= 0) problems.push('config.impact.temporaryHalfLifeMs must be > 0');
     for (const [phase, ms] of Object.entries(config.phaseMs)) {
       if (ms <= 0) problems.push(`config.phaseMs.${phase} must be > 0, got ${ms}`);
     }

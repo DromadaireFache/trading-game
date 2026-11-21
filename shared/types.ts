@@ -192,7 +192,12 @@ export interface Position {
   qty: number;
   /** Volume-weighted average entry price. */
   avgPrice: number;
+  /** P&L already banked on this symbol this game (partial closes, flips, borrow fees excluded). */
+  realized?: number;
 }
+
+/** Why a fill happened when the player did not ask for it. */
+export type ForcedFillReason = 'margin_call' | 'elimination';
 
 // ---------------------------------------------------------------------------
 // Headlines (DESIGN.md section 7)
