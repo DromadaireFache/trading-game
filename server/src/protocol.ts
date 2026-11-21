@@ -42,6 +42,8 @@ export function parseClientMsg(text: string): ParseResult {
     }
     case 'start':
       return { ok: true, msg: { t: 'start' } };
+    case 'new_game':
+      return { ok: true, msg: { t: 'new_game' } };
     case 'order': {
       if (!isNonEmptyString(raw.symbol)) return bad('order.symbol must be a non-empty string');
       if (typeof raw.qty !== 'number' || !Number.isFinite(raw.qty) || raw.qty === 0) {

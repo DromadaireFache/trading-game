@@ -56,6 +56,11 @@ export interface StartMsg {
   t: 'start';
 }
 
+/** FINAL only, any player: a fresh game (next seed) with the connected players back in the lobby. */
+export interface NewGameMsg {
+  t: 'new_game';
+}
+
 /** Market order. qty < 0 = sell/short. */
 export interface OrderMsg {
   t: 'order';
@@ -76,7 +81,7 @@ export interface PlayCardMsg {
   direction?: CardDirection;
 }
 
-export type ClientMsg = JoinMsg | StartMsg | OrderMsg | BuyCardMsg | PlayCardMsg;
+export type ClientMsg = JoinMsg | StartMsg | OrderMsg | BuyCardMsg | PlayCardMsg | NewGameMsg;
 export type ClientMsgType = ClientMsg['t'];
 
 // ---------------------------------------------------------------------------
@@ -112,6 +117,11 @@ export interface WelcomeMsg {
    * the first one when it was itself opened through localhost, where its own address is useless to others.
    */
   joinUrls?: string[];
+  /**
+   * Which game of this server run (1, 2, ...). A `welcome` with another number than the client had
+   * means "play again" started a new game: drop everything from the old one.
+   */
+  game?: number;
 }
 
 export interface LobbyState {

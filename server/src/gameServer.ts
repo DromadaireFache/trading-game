@@ -76,7 +76,10 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
   const now = options.now ?? Date.now;
   const log = options.log ?? ((line: string) => console.log(line));
 
-  const sim = createSim(env.seed, config);
+  /** Replaced by "play again" (handleNewGame); everything below reads the current one. */
+  let sim = createSim(env.seed, config);
+  /** 1 for the first game of this server run, +1 per "play again". Game n uses seed env.seed + n - 1. */
+  let gameNumber = 1;
 
   /** token -> session. */
   const sessions = new Map<string, Session>();
@@ -226,6 +229,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       lobby: lobbyState(),
       config,
       joinUrls: lanUrls(env.clientPort).map((u) => u.play),
+      game: gameNumber,
     });
     // Same synchronous turn as the welcome, so no tick can slip in between.
     send(socket, market);
@@ -327,12 +331,32 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     if (ghosts.length > 0) broadcastLobby();
   }
 
+  /**
+   * "Play again" from FINAL: a fresh sim on the next seed. Connected players keep their seat, name and
+   * token and are back in the lobby; players who are gone lose their seat (they can join again by name).
+   * Every client gets a new welcome + market, as after a join, with the next game number.
+   */
+  function handleNewGame(socket: WebSocket, session: Session): void {
+    if (session.role !== 'player') return sendError(socket, 'not_allowed', 'only players can start a new game');
+    if (sim.getState().phase !== 'FINAL') return sendError(socket, 'not_allowed', 'a new game can only start after the final results');
+    gameNumber += 1;
+    sim = createSim(env.seed + gameNumber - 1, config);
+    starting = false;
+    for (const s of playerSessions()) {
+      if (s.socket === null) dropSession(s);
+      else sim.submit({ kind: 'add_player', playerId: s.id, name: s.name });
+    }
+    log(`[server] game ${gameNumber} (seed ${env.seed + gameNumber - 1}) started by ${session.name}`);
+    for (const [clientSocket, clientSession] of [...bySocket]) attach(clientSession, clientSocket);
+  }
+
   function handleMessage(socket: WebSocket, msg: ClientMsg): void {
     if (msg.t === 'join') return handleJoin(socket, msg);
 
     const session = bySocket.get(socket);
     if (session === undefined) return sendError(socket, 'not_joined', 'send a join message first');
     if (msg.t === 'start') return handleStart(socket, session);
+    if (msg.t === 'new_game') return handleNewGame(socket, session);
 
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'spectators cannot do that');
     switch (msg.t) {
@@ -479,7 +503,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     if (req.url === HEALTH_PATH) {
       const state = sim.getState();
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, phase: state.phase, quarter: state.quarter, players: playerSessions().length }));
+      res.end(JSON.stringify({ ok: true, phase: state.phase, quarter: state.quarter, players: playerSessions().length, game: gameNumber }));
       return;
     }
     res.writeHead(404, { 'content-type': 'text/plain' });
@@ -522,7 +546,14 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       reject(error);
     });
     http.listen(env.port, options.host, () => {
-      resolve({ port: (http.address() as AddressInfo).port, sim, close });
+      resolve({
+        port: (http.address() as AddressInfo).port,
+        // A getter: "play again" swaps the sim.
+        get sim() {
+          return sim;
+        },
+        close,
+      });
     });
   });
 }
