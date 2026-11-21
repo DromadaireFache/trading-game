@@ -5,7 +5,7 @@
  *
  * Built on the teammates' modules, which it does not change:
  *   shared/cards.ts + shared/data/cards.json   the catalog (what each card does, price, heat)
- *   ./shop.ts      one shared selection per quarter, priced per buyer
+ *   ./shop.ts      a selection drawn per player each quarter, priced per buyer
  *   ./sec.ts       heat, catch roll, fines, jail
  *   ./regimes.ts   regime state, market input, quarter countdown, lobbying bills
  * and on ./news.ts for every headline a card makes (one global queue, minimum gap).
@@ -24,7 +24,8 @@
  * aimed at a stock or sector the player holds adds sec.heat.selfDeal, plus selfDealInFavor when it
  * moves it the player's way, legal cards included: cards are meant to be played on the others' bets.
  * Trading a stock you moved with a card this quarter (on it or its sector) adds tradeManipulatedTarget
- * heat once per stock per quarter.
+ * heat once per stock per quarter. A legal card brings only sec.legalHeatShare of those two, and the
+ * SEC only rolls for players who played an illegal card that quarter (see sec.ts).
  */
 import { msToTicks } from '@tg/shared';
 import type { Arrest, Card, CardDirection, CardReveal, GameConfig, PlayerId, Sector, SymbolId } from '@tg/shared';
@@ -35,7 +36,7 @@ import type { News, NewsItem } from './news.ts';
 import { emptyRegimeState, endQuarter, marketInputFor, startRegime } from './regimes.ts';
 import type { RegimeState } from './regimes.ts';
 import type { Rng } from './rng.ts';
-import { addHeat, isJailed, resolveSec } from './sec.ts';
+import { isJailed, resolveSec } from './sec.ts';
 import type { HeatSources } from './sec.ts';
 import { drawShopSelection, priceShopOffers } from './shop.ts';
 import { shockSize } from './shocks.ts';
@@ -85,9 +86,14 @@ interface PlayerCards {
   /** This quarter's offers: offerId -> entry, price, bought. */
   offers: Map<string, { entry: CardCatalogEntry; price: number; bought: boolean }>;
   offerList: SimEventOf<'shop'>['offers'];
-  /** Stocks this player manipulated this quarter, and those already heated for trading them. */
-  manipulated: Set<SymbolId>;
+  /**
+   * Stocks this player moved with a card this quarter (true = only with legal cards), and those
+   * already heated for trading them.
+   */
+  manipulated: Map<SymbolId, boolean>;
   heated: Set<SymbolId>;
+  /** An illegal card was played this quarter: the SEC rolls for this player at RESULTS. */
+  playedIllegal: boolean;
 }
 
 export interface QuarterClose {
@@ -109,7 +115,7 @@ export interface CardEngine {
   isJailed(id: PlayerId, day: number): boolean;
   /** An order on `symbol` went through (manipulated-target heat). */
   onOrder(id: PlayerId, symbol: SymbolId): void;
-  /** SHOP starts: one shared selection, priced per player. Empty in the last quarter. */
+  /** SHOP starts: each player draws their own selection, priced for them. Empty in the last quarter. */
   openShop(quarter: number): SimEventOf<'shop'>[];
   /** The offers a player was shown this SHOP (reconnect). */
   offersOf(id: PlayerId): SimEventOf<'shop'> | null;
@@ -164,10 +170,11 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
     if (entry.heat !== null) addHeatTo(p, entry.heat);
   }
 
-  function addHeatTo(p: PlayerCards, key: HeatKey): void {
-    const next = addHeat(config, p.heat, p.sources, key);
-    p.heat = next.heat;
-    p.sources = next.sources;
+  /** `legal`: the act came from a legal card, which brings only sec.legalHeatShare of the heat. */
+  function addHeatTo(p: PlayerCards, key: HeatKey, legal = false): void {
+    const amount = config.sec.heat[key] * (legal ? config.sec.legalHeatShare : 1);
+    p.heat += amount;
+    p.sources = { ...p.sources, [key]: (p.sources[key] ?? 0) + amount };
   }
 
   /** Does `symbol` move with `target`? (the stock itself or its sector fund; any stock or fund of a sector) */
@@ -182,12 +189,12 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
    * Self-dealing: a price-moving card on something the player holds. Heat for holding it (not for a
    * market-wide card), more when the move goes the player's way (net long and up, net short and down).
    */
-  function selfDealHeat(p: PlayerCards, target: ShockTarget, direction: CardDirection): void {
+  function selfDealHeat(p: PlayerCards, target: ShockTarget, direction: CardDirection, legal: boolean): void {
     const held = (trading.portfolio(p.id)?.positions ?? []).filter((pos) => pos.qty !== 0 && exposedTo(pos.symbol, target));
     if (held.length === 0) return;
-    if (target.scope !== 'market') addHeatTo(p, 'selfDeal');
+    if (target.scope !== 'market') addHeatTo(p, 'selfDeal', legal);
     const net = held.reduce((sum, pos) => sum + pos.qty * pos.avgPrice, 0);
-    if ((direction === 'up' && net > 0) || (direction === 'down' && net < 0)) addHeatTo(p, 'selfDealInFavor');
+    if ((direction === 'up' && net > 0) || (direction === 'down' && net < 0)) addHeatTo(p, 'selfDealInFavor', legal);
   }
 
   function sectorOf(target: string | undefined): Sector | undefined {
@@ -196,11 +203,13 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
     return companyBySymbol.get(target)?.sector ?? sectorFund.get(target);
   }
 
-  function manipulate(p: PlayerCards, target: ShockTarget): void {
-    if (target.scope === 'stock') p.manipulated.add(target.symbol);
+  function manipulate(p: PlayerCards, target: ShockTarget, legal: boolean): void {
+    // An illegal card on a stock outweighs any legal one on it.
+    const mark = (symbol: SymbolId) => p.manipulated.set(symbol, legal && p.manipulated.get(symbol) !== false);
+    if (target.scope === 'stock') mark(target.symbol);
     if (target.scope === 'sector') {
-      for (const c of universe.companies) if (c.sector === target.sector) p.manipulated.add(c.symbol);
-      for (const [fund, sector] of sectorFund) if (sector === target.sector) p.manipulated.add(fund);
+      for (const c of universe.companies) if (c.sector === target.sector) mark(c.symbol);
+      for (const [fund, sector] of sectorFund) if (sector === target.sector) mark(fund);
     }
   }
 
@@ -226,7 +235,21 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
   return {
     addPlayer(id, name) {
       if (players.has(id)) return;
-      players.set(id, { id, name, hand: [], heat: 0, sources: {}, spend: 0, fines: 0, jailDays: 0, offers: new Map(), offerList: [], manipulated: new Set(), heated: new Set() });
+      players.set(id, {
+        id,
+        name,
+        hand: [],
+        heat: 0,
+        sources: {},
+        spend: 0,
+        fines: 0,
+        jailDays: 0,
+        offers: new Map(),
+        offerList: [],
+        manipulated: new Map(),
+        heated: new Set(),
+        playedIllegal: false,
+      });
     },
     removePlayer: (id) => void players.delete(id),
     decorate,
@@ -239,21 +262,20 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
       const p = players.get(id);
       if (p === undefined || !p.manipulated.has(symbol) || p.heated.has(symbol)) return;
       p.heated.add(symbol);
-      const next = addHeat(config, p.heat, p.sources, 'tradeManipulatedTarget');
-      p.heat = next.heat;
-      p.sources = next.sources;
+      addHeatTo(p, 'tradeManipulatedTarget', p.manipulated.get(symbol));
     },
 
     openShop(quarter) {
       const last = quarter >= config.time.quarters;
-      const selection = last ? null : drawShopSelection(deps.shopRng, catalog, config, { quarter, activeRegimes: regimes.active.length });
       const out: SimEventOf<'shop'>[] = [];
+      // Every player gets their own draw (in join order, from the one shop stream): shops differ.
       for (const p of players.values()) {
         p.offers = new Map();
         const portfolio = trading.portfolio(p.id);
-        if (selection === null || portfolio === undefined || portfolio.eliminated) {
+        if (last || portfolio === undefined || portfolio.eliminated) {
           p.offerList = [];
         } else {
+          const selection = drawShopSelection(deps.shopRng, catalog, config, { quarter, activeRegimes: regimes.active.length });
           p.offerList = priceShopOffers(selection, config, portfolio.equity);
           p.offerList.forEach((offer, i) => p.offers.set(offer.offerId, { entry: selection.entries[i]!, price: offer.price, bought: false }));
         }
@@ -351,8 +373,8 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
             fake: true,
             ...owner,
           });
-          selfDealHeat(p, shockTarget, d);
-          manipulate(p, shockTarget);
+          selfDealHeat(p, shockTarget, d, entry.legal);
+          manipulate(p, shockTarget, entry.legal);
           break;
         }
         case 'event_shock': {
@@ -364,8 +386,8 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
             logReturn: shockSize(config, fx.magnitude, fx.direction),
             ...owner,
           });
-          selfDealHeat(p, shockTarget, fx.direction);
-          manipulate(p, shockTarget);
+          selfDealHeat(p, shockTarget, fx.direction, entry.legal);
+          manipulate(p, shockTarget, entry.legal);
           revealed = `${entry.name}${shockTarget.scope === 'market' ? '' : ` on ${targetLabel(shockTarget)}`}`;
           break;
         }
@@ -387,7 +409,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           regimes = started.state;
           pendingDRate += started.dRate;
           // A bill lifts its sector if it passes: lobbying for your own bets is self-dealing too.
-          if (fx.kind === 'lobbying') selfDealHeat(p, shockTarget, 'up');
+          if (fx.kind === 'lobbying') selfDealHeat(p, shockTarget, 'up', entry.legal);
           // Only the start headline carries the author (one reveal per card); the rest are its follow-ups.
           const headline = (templateId: string, tick: number, first = false): NewsItem => ({
             tick,
@@ -412,6 +434,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
       }
 
       heat(p, entry);
+      if (!entry.legal) p.playedIllegal = true;
       p.hand.splice(index, 1);
       if (fx.kind === 'insider_tip' || fx.kind === 'earnings_peek') reveals.push({ playerId: id, name: p.name, cardName: entry.name, text: revealed });
       events.push(...portfolioOf(id));
@@ -465,6 +488,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           sources: p.sources,
           ...(p.jailedUntil === undefined ? {} : { jailedUntil: p.jailedUntil }),
           eliminated: portfolio?.eliminated === true,
+          playedIllegal: p.playedIllegal,
         };
       });
       const sec = resolveSec(deps.secRng, config, list, nextTradingDay);
@@ -483,8 +507,9 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
       }
       for (const p of players.values()) {
         p.sources = {};
-        p.manipulated = new Set();
+        p.manipulated = new Map();
         p.heated = new Set();
+        p.playedIllegal = false;
       }
       const quarterReveals = reveals;
       reveals = [];

@@ -1,7 +1,7 @@
 /**
- * SHOP phase offers (DESIGN.md section 5). Pure and seeded: the sim calls drawShopSelection once
- * per quarter with its own RNG stream, then priceShopOffers once per player, so every player sees
- * the SAME cards, each priced for their own net worth.
+ * SHOP phase offers (DESIGN.md section 5). Pure and seeded: each quarter the sim calls
+ * drawShopSelection once per player (in join order, from its one shop RNG stream), then
+ * priceShopOffers for that player, so every player sees their own cards, priced for their net worth.
  *
  * Rules:
  * - Weighted draw by `shopWeight`, without replacement: no card type appears twice in one shop.
@@ -9,8 +9,6 @@
  *   holds at most `maxRegimesPerShop` of them.
  * - Counter cards are a stretch goal: left out unless `includeCounters` is set.
  * - If too few cards are eligible the shop is simply smaller than `cards.offersPerShop`.
- *
- * Not wired into createSim yet (M5): fork a new RNG stream for it at the END of createSim's forks.
  */
 import type { CardOffer, GameConfig } from '@tg/shared';
 import { cardPrice, toCardDef } from '@tg/shared/cards';
@@ -68,7 +66,7 @@ export function drawShopSelection(
   return { quarter: context.quarter, entries: picked };
 }
 
-/** The selection as one player's offers. Offer ids are stable per quarter and slot, the same for every player. */
+/** The selection as one player's offers. Offer ids are stable per quarter, slot and card. */
 export function priceShopOffers(selection: ShopSelection, config: GameConfig, netWorth: number): CardOffer[] {
   return selection.entries.map((entry, slot) => ({
     offerId: `q${selection.quarter}_${slot}_${entry.defId}`,

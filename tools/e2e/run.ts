@@ -207,7 +207,23 @@ async function checkNoOverflow(page: Page, label: string): Promise<void> {
   const d = (await page.evaluate(
     '({ sw: document.documentElement.scrollWidth, sh: document.documentElement.scrollHeight, iw: window.innerWidth, ih: window.innerHeight })',
   )) as { sw: number; sh: number; iw: number; ih: number };
-  check(d.sw <= d.iw && d.sh <= d.ih, `${label} fits the viewport (${d.sw}x${d.sh} in ${d.iw}x${d.ih})`);
+  const wide =
+    d.sw <= d.iw
+      ? ''
+      : ((await page.evaluate(
+          `[...document.querySelectorAll('body *')].filter((el) => el.getBoundingClientRect().right > window.innerWidth + 0.5)
+            .slice(0, 5).map((el) => (el.className || el.tagName) + '@' + Math.round(el.getBoundingClientRect().right)).join(', ')`,
+        )) as string);
+  check(d.sw <= d.iw && d.sh <= d.ih, `${label} fits the viewport (${d.sw}x${d.sh} in ${d.iw}x${d.ih})${wide ? `; too wide: ${wide}` : ''}`);
+  // No element shows a scrollbar: every scroll box hides its bar (it still scrolls).
+  const bars = (await page.evaluate(
+    `[...document.querySelectorAll('*')].filter((el) => {
+      const s = getComputedStyle(el);
+      const scrolls = /auto|scroll/.test(s.overflowX + s.overflowY);
+      return scrolls && s.scrollbarWidth !== 'none';
+    }).length`,
+  )) as number;
+  check(bars === 0, `${label} shows no scrollbars (${bars} scroll boxes with a visible bar)`);
 }
 
 /**
@@ -1091,10 +1107,12 @@ async function main(): Promise<void> {
           await waitFor('cards in A hand', async () => (await a.locator(tid('hand-card')).count()) === want);
           check(true, `A bought ${want} cards and holds them`);
           check(await a.locator(tid('buy')).nth(want).isDisabled(), 'with a full hand the last offer cannot be bought');
+          // Each player draws their own shop (the sim test checks they differ over a game).
           const shopB = framesOf('B').filter((m) => m.t === 'shop').at(-1) as { offers: Array<{ offerId: string }> } | undefined;
           const shopA = framesOf('A').filter((m) => m.t === 'shop').at(-1) as { offers: Array<{ offerId: string }> } | undefined;
-          check(shopA !== undefined && shopB !== undefined && shopA.offers.map((o) => o.offerId).join() === shopB.offers.map((o) => o.offerId).join(),
-            'A and B were offered the same cards');
+          check(shopA?.offers.length === defaultConfig.cards.offersPerShop && shopB?.offers.length === defaultConfig.cards.offersPerShop,
+            'A and B each got a full shop of their own');
+          check((await a.evaluate('getComputedStyle(document.body).userSelect')) === 'none', 'text on the desk cannot be highlighted');
           check(!framesOf('floor').some((m) => m.t === 'shop'), 'the floor gets no shop');
         }
         await shot(a, `14-play-${phase}`);

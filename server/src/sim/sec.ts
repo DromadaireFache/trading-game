@@ -3,7 +3,8 @@
  *
  * - Every illegal act adds config.sec.heat[key] to the player (addHeat). The sim keeps per-player
  *   heat plus, for the arrest line, how much of it came from each kind of act this quarter.
- * - At the end of each quarter resolveSec rolls once per free player:
+ * - At the end of each quarter resolveSec rolls once per free player who played an illegal card that
+ *   quarter (`playedIllegal`; legal cards alone never get you caught, their heat only raises the odds):
  *     P(caught) = min(maxCatchProbability, heat * catchProbabilityPerHeat * rankMultiplier[rank])
  *   rank 0 = richest by net worth (ties keep input order); ranks past the end of rankMultiplier use
  *   its last value.
@@ -63,6 +64,8 @@ export interface SecPlayer {
   jailedUntil?: number;
   /** Eliminated players are skipped entirely (no roll, no decay). */
   eliminated?: boolean;
+  /** False: no illegal card this quarter, so no roll (heat still decays). Undefined counts as true. */
+  playedIllegal?: boolean;
 }
 
 export interface SecOutcome {
@@ -109,7 +112,7 @@ export function resolveSec(rng: Rng, config: GameConfig, players: readonly SecPl
     if (p.eliminated) continue;
     const rank = rankOf.get(p.playerId)!;
     const inJail = p.jailedUntil !== undefined && p.jailedUntil > nextTradingDay;
-    const probability = inJail ? 0 : catchProbability(config, p.heat, rank);
+    const probability = inJail || p.playedIllegal === false ? 0 : catchProbability(config, p.heat, rank);
     const caught = !inJail && p.heat > 0 && rng.next() < probability;
     if (!caught) {
       outcomes.push({ playerId: p.playerId, rank, probability, caught, heatAfter: p.heat * config.sec.heatDecayPerQuarter, fine: 0, jailDays: 0 });

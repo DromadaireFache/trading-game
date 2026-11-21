@@ -36,7 +36,8 @@ export function ShopPanel({ className }: { className?: string }) {
         <>
         <p className="shop__intro">
           Cards let you make the news. Buy now, play them next quarter while the market is open. Prices grow with your
-          money. <strong>Illegal</strong> cards add heat: the SEC may fine you and put you in jail.
+          money. Everyone gets a different shop. <strong>Illegal</strong> cards add heat: the SEC may fine you and put you in
+          jail. Legal cards never land you in jail.
         </p>
         <div className="shop__grid" data-testid="shop">
           {shop.map((offer) => {

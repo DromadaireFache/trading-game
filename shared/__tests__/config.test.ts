@@ -14,11 +14,12 @@ describe('config', () => {
   });
 
   it('keeps the news sparse (about 3 headlines a quarter) with time to react', () => {
+    // 8 to 11 s between a headline and its move: time to read it, find the stock and act.
     expect(defaultConfig.news.randomHeadlinesPerQuarter).toBe(1);
     expect(defaultConfig.news.scheduledBeatsPerQuarter).toBe(1);
     expect(defaultConfig.news.minGapMs).toBe(6_000);
-    expect(defaultConfig.news.leadMinMs).toBe(4_000);
-    expect(defaultConfig.news.leadMaxMs).toBe(6_000);
+    expect(defaultConfig.news.leadMinMs).toBe(8_000);
+    expect(defaultConfig.news.leadMaxMs).toBe(11_000);
     expect(defaultConfig.earnings.leaksPerQuarter).toBe(1);
   });
 
