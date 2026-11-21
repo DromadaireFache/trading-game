@@ -632,25 +632,17 @@ ol {
   min-height: 0;
   display: grid;
   /*
-   * Top: list | chart | side (bets, money, cards, and the headline slot at the bottom right). Bottom: the
-   * others' positions (left to middle) | yours (middle to right).
+   * Top: list | chart | side (bets, money, cards). Bottom, one row whose top lines up with the bottom of
+   * the cards: the others' positions | yours | the headline tray (bottom right, where papers land).
    */
   grid-template-columns: 480px minmax(0, 1fr) minmax(0, 1fr) 380px;
-  /* The bottom only needs a handful of rows; the top keeps the whole stock list in view. */
-  grid-template-rows: minmax(0, 1fr) minmax(150px, 22vh);
+  /* The bottom row is tall enough for several positions without scrolling. */
+  grid-template-rows: minmax(0, 1fr) minmax(220px, 31vh);
   grid-template-areas:
-    'list   chart  chart     side'
-    'rivals rivals positions positions';
+    'list   chart     chart     side'
+    'rivals positions positions news';
   gap: 8px;
   padding: 8px;
-}
-/* Short screens (a 768 px laptop): the side column runs the full height so the three cards still fit. */
-@media (max-height: 860px) {
-  .desk {
-    grid-template-areas:
-      'list   chart     chart     side'
-      'rivals positions positions side';
-  }
 }
 /* RESULTS / SHOP / FINAL: one stage panel takes the place of everything but the side column. */
 .desk--stage {
@@ -693,9 +685,12 @@ ol {
 .desk__chart {
   grid-area: chart;
 }
-/* The headline papers pile up over the cards at the bottom of this column (news/news.css). */
-.desk__side {
+/* The headline tray: papers land here, at the bottom right under the cards (news/news.css). */
+.desk__news {
+  grid-area: news;
   position: relative;
+  min-width: 0;
+  min-height: 0;
 }
 /* The earnings report (BRIEFING, EARNINGS, FINAL): over the chart, or under the final standings. */
 .desk__earnings {

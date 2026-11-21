@@ -5,20 +5,31 @@
  * The pile ignores the mouse; a paper can be moved (drag) or removed (its x, or a right click, throws
  * it off screen), and its ticker opens the stock.
  */
+/* The tray fills the bottom-right cell; papers rest at its bottom, a dashed outline shows where they land. */
 .news-pile {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 10px;
-  height: 210px;
+  inset: 0;
   z-index: 5;
   pointer-events: none;
+  border: 2px dashed color-mix(in srgb, var(--tg-color-card-face) 22%, transparent);
+  border-radius: 6px;
+}
+.news-pile::before {
+  content: 'Headlines land here';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--tg-font-paper);
+  font-size: 14px;
+  font-style: italic;
+  color: color-mix(in srgb, var(--tg-color-card-face) 35%, transparent);
 }
 
 .paper {
   position: absolute;
-  bottom: 0;
-  /* Inset so a tilted paper stays inside the side column. */
+  bottom: 12px;
+  /* Inset so a tilted paper stays inside its column. */
   left: 14px;
   right: 14px;
   display: flex;

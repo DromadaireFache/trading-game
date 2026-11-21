@@ -141,3 +141,9 @@ One line per choice that DESIGN.md and the milestone briefs left open. Append, d
     - Phase starts get a banner (MARKET OPEN!, CLOSING BELL, SHOP OPEN, GAME OVER).
     - Headlines drop a puff of paper dust and their ticker pops in. The countdown pulses in its last seconds, and illegal cards smolder.
     - Reduced motion turns all of it off.
+- Layout on `ui/repo-balatro` (2026-11-21):
+  - **Bottom row.** It is taller (31% of the height, at least 220 px; 22% before) and its top lines up with the bottom of the cards. It holds the other players, your positions, and a headline tray at bottom right (dashed outline, "Headlines land here") where the papers rest, so they no longer cover the cards.
+  - **Right column.** It stops where the bottom row starts, so the bet buttons, cash-out button and fill line got a little slimmer. Hand cards show the name, one line of text, the target and the button.
+  - **Margins.** Every panel has the same inner margins: 12 px at the sides and bottom, title 8 px from the top. Panel titles share one size per font (Teko 21 px, Bergoom 16 px, others 15 px).
+  - **Positions.** Rows are tighter, so about five fit without scrolling.
+  - **Tests.** The e2e checks that the row lines up and that papers rest in the tray.

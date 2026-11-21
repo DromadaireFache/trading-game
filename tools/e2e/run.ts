@@ -1044,17 +1044,22 @@ async function main(): Promise<void> {
       const tickerBg = await style(`${top} ${tid('headline-ticker')}`, 'backgroundColor');
       const paperBg = await style(top, 'backgroundColor');
       check(tickerBg !== paperBg && !/rgba\(0, 0, 0, 0\)/.test(tickerBg), `the ticker wears a color of its own (${tickerBg})`);
-      // Over the cards, angled (measured after the 380 ms drop-in).
+      // In the tray at the bottom right, under the cards, angled (measured after the 380 ms drop-in).
       await sleep(450);
-      const [paperBox, handBox] = [await a.locator(top).boundingBox(), await a.locator('.desk__hand').boundingBox()];
-      check(paperBox !== null && handBox !== null && paperBox.x < handBox.x + handBox.width && paperBox.x + paperBox.width > handBox.x &&
-        paperBox.y < handBox.y + handBox.height && paperBox.y + paperBox.height > handBox.y,
-        `the paper lies over the cards (paper ${JSON.stringify(paperBox)}, cards ${JSON.stringify(handBox)})`);
+      const [paperBox, handBox, trayBox] = [await a.locator(top).boundingBox(), await a.locator('.desk__hand').boundingBox(), await a.locator('.desk__news').boundingBox()];
+      check(paperBox !== null && handBox !== null && trayBox !== null && paperBox.y >= handBox.y + handBox.height - 1 &&
+        paperBox.y + paperBox.height <= trayBox.y + trayBox.height + 1,
+        `the paper lies in the tray under the cards (paper ${JSON.stringify(paperBox)}, cards ${JSON.stringify(handBox)}, tray ${JSON.stringify(trayBox)})`);
+      // The bottom row starts where the cards end.
+      const [positionsBox, rivalsBox] = [await a.locator('.desk__positions').boundingBox(), await a.locator('.desk__rivals').boundingBox()];
+      check(positionsBox !== null && rivalsBox !== null && Math.abs(positionsBox.y - trayBox!.y) < 1 && Math.abs(rivalsBox.y - trayBox!.y) < 1 &&
+        Math.abs(handBox!.y + handBox!.height + 8 - trayBox!.y) < 1.5,
+        `the bottom row lines up with the bottom of the cards (cards end ${Math.round(handBox!.y + handBox!.height)}, row starts ${Math.round(trayBox!.y)})`);
       check((await style(top, 'transform')) !== 'none', 'the paper is angled');
-      // Inside the side column: never over the positions or the chart.
-      const sideBox = (await a.locator('.desk__side').boundingBox())!;
+      // Inside its column: never over the positions or the chart.
+      const sideBox = trayBox!;
       check(paperBox!.x >= sideBox.x - 1 && paperBox!.x + paperBox!.width <= sideBox.x + sideBox.width + 1,
-        `the paper stays inside the side column (paper x ${Math.round(paperBox!.x)}..${Math.round(paperBox!.x + paperBox!.width)}, column ${Math.round(sideBox.x)}..${Math.round(sideBox.x + sideBox.width)})`);
+        `the paper stays inside its column (paper x ${Math.round(paperBox!.x)}..${Math.round(paperBox!.x + paperBox!.width)}, column ${Math.round(sideBox.x)}..${Math.round(sideBox.x + sideBox.width)})`);
       check((await a.locator(`${top} button`).count()) === 2 && (await a.locator(`${top} ${tid('headline-close')}`).count()) === 1 &&
         (await a.locator(`${top} button${tid('headline-ticker')}`).count()) === 1,
         'a paper has two buttons: its x and its ticker');

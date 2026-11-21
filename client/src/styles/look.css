@@ -453,6 +453,83 @@ span.fx-hot {
   }
 }
 
+/* ------------------------------------------------------------------ sizes and margins */
+
+/* Every panel: the same inner margin on all four sides. */
+.panel__head {
+  padding: 8px 12px 6px;
+}
+.panel__body,
+.order .panel__body,
+.hand .panel__body {
+  padding: 0 12px 12px;
+}
+.phase-header {
+  padding: 4px 12px;
+}
+/* One title size everywhere; the industrial face runs small, so it gets a few more pixels. */
+.panel__title {
+  font-size: 15px;
+}
+.market-list .panel__title,
+.market-chart .panel__title,
+.order .panel__title,
+.money .panel__title,
+.positions .panel__title,
+.rivals .panel__title {
+  font-size: 21px;
+}
+.hand .panel__title,
+.shop .panel__title {
+  font-size: 16px;
+}
+.phase-header__name {
+  font-size: 24px;
+}
+.phase-header__countdown {
+  font-size: 28px;
+}
+.money-score {
+  font-size: 34px;
+}
+
+/* The side column is shorter now (it ends where the bottom row starts): compact bets and money. */
+.order .panel__body {
+  gap: 6px;
+}
+.bet-btn {
+  min-height: 32px;
+}
+.order .order__cash--primary {
+  min-height: 30px;
+  padding: 2px 12px;
+}
+.order__fill {
+  padding: 2px 8px;
+}
+.money .panel__body {
+  gap: 2px;
+}
+/* Hand cards: name, a short text, target and button; the full text is in the tooltip. */
+.hand .card__text {
+  flex: none;
+  -webkit-line-clamp: 1;
+}
+.hand .card,
+.hand__slot {
+  max-height: 200px;
+}
+
+/* Positions: tighter rows so more fit without scrolling. */
+.positions__table {
+  border-spacing: 0 4px;
+  line-height: 30px;
+}
+.positions__close {
+  min-height: 28px;
+  padding: 2px 10px;
+}
+
 /* ------------------------------------------------------------------ comfort */
 
 @media (prefers-reduced-motion: reduce) {
