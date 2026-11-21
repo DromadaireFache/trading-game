@@ -177,6 +177,11 @@ export class GameClient {
     return this.send(debugMode ? { t: 'start', debugMode } : { t: 'start' });
   }
 
+  /** LOBBY only: change the game's length for everyone in the lobby. */
+  setSettings(settings: { quarters?: number; quarterSeconds?: number }): boolean {
+    return this.send({ t: 'set_settings', ...settings });
+  }
+
   /** FINAL only: everyone back to the lobby for a fresh game. */
   newGame(): boolean {
     return this.send({ t: 'new_game' });

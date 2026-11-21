@@ -40,3 +40,19 @@ describe('quarter progression', () => {
     expect(full[0]!.discount).toBeUndefined();
   });
 });
+
+describe('game length', () => {
+  it('keeps the days of a quarter and stretches the day, with the tick near the base', async () => {
+    const { withGameLength, quarterSeconds } = await import('@tg/shared');
+    expect(quarterSeconds(defaultConfig)).toBe(90);
+    expect(withGameLength(defaultConfig, 4, 90).time).toEqual(defaultConfig.time);
+    for (const seconds of [30, 60, 180]) {
+      const t = withGameLength(defaultConfig, 8, seconds).time;
+      expect(t.quarters).toBe(8);
+      expect(t.daysPerQuarter).toBe(90);
+      expect(t.daysPerQuarter * t.ticksPerCandle * t.tickMs).toBeCloseTo(seconds * 1000, 6);
+      expect(t.tickMs).toBeGreaterThan(80);
+      expect(t.tickMs).toBeLessThan(125);
+    }
+  });
+});

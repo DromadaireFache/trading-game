@@ -654,7 +654,8 @@ export function validateConfig(config: GameConfig): GameConfig {
     const positiveInt = (path: string, n: number) => {
       if (!Number.isInteger(n) || n < 1) problems.push(`config.${path} must be an integer >= 1, got ${n}`);
     };
-    positiveInt('time.tickMs', config.time.tickMs);
+    // Not always whole: the lobby's game length tunes it so a day lands exactly (withGameLength).
+    if (!(Number.isFinite(config.time.tickMs) && config.time.tickMs >= 1)) problems.push(`config.time.tickMs must be >= 1, got ${config.time.tickMs}`);
     positiveInt('time.ticksPerCandle', config.time.ticksPerCandle);
     positiveInt('time.daysPerQuarter', config.time.daysPerQuarter);
     positiveInt('time.quarters', config.time.quarters);
@@ -814,4 +815,22 @@ export function quarterRamp(config: GameConfig, quarter: number, last: number): 
   if (n <= 1) return 1;
   const t = Math.min(1, Math.max(0, (quarter - 1) / (n - 1)));
   return 1 + (last - 1) * t;
+}
+
+/** Real-time length of a quarter's trading, in seconds. */
+export function quarterSeconds(config: GameConfig): number {
+  return Math.round((config.time.daysPerQuarter * config.time.ticksPerCandle * config.time.tickMs) / 1000);
+}
+
+/**
+ * `base` with a game length from the lobby: `quarters` quarters whose trading lasts `seconds` each.
+ * A quarter keeps its days; a day gets longer or shorter. The tick stays close to base.time.tickMs
+ * (a whole number of ticks per day, tickMs adjusted to land the day exactly), so the server's load
+ * and the price path's smoothness barely change. Volatilities are per day, so the market is the same.
+ */
+export function withGameLength(base: GameConfig, quarters: number, seconds: number): GameConfig {
+  if (seconds === quarterSeconds(base)) return mergeConfig(base, { time: { quarters } });
+  const dayMs = (seconds * 1000) / base.time.daysPerQuarter;
+  const ticksPerCandle = Math.max(1, Math.round(dayMs / base.time.tickMs));
+  return mergeConfig(base, { time: { quarters, ticksPerCandle, tickMs: dayMs / ticksPerCandle } });
 }

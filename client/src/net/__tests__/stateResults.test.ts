@@ -34,7 +34,7 @@ describe('play again', () => {
       role: 'player',
       name: 'Ada',
       phase: { phase: 'LOBBY', endsAt: null, quarter: 0, totalQuarters: 8, serverTime: 0 },
-      lobby: { players: [], spectators: 0, minPlayers: 1, maxPlayers: 4 },
+      lobby: { players: [], spectators: 0, minPlayers: 1, maxPlayers: 4, settings: { quarters: 4, quarterSeconds: 90 } },
       config: initialGameState.config,
       game,
     }) as ServerMsg;

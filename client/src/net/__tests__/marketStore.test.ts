@@ -255,7 +255,7 @@ describe('GameClient market wiring', () => {
       role: 'spectator',
       name: 'Spectator',
       phase: { phase: 'TRADING', endsAt: 1000, quarter: 1, totalQuarters: 8, serverTime: 0 },
-      lobby: { players: [], spectators: 1, minPlayers: 1, maxPlayers: 4 },
+      lobby: { players: [], spectators: 1, minPlayers: 1, maxPlayers: 4, settings: { quarters: 4, quarterSeconds: 90 } },
       config,
     });
     expect(client.market.getConfig()).toEqual(config);

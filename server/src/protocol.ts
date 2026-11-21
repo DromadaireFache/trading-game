@@ -44,6 +44,19 @@ export function parseClientMsg(text: string): ParseResult {
       if (raw.debugMode !== undefined && typeof raw.debugMode !== 'boolean') return bad('start.debugMode must be a boolean');
       return { ok: true, msg: { t: 'start', ...(raw.debugMode === undefined ? {} : { debugMode: raw.debugMode }) } };
     }
+    case 'set_settings': {
+      const whole = (v: unknown) => v === undefined || (typeof v === 'number' && Number.isSafeInteger(v) && v >= 1);
+      if (!whole(raw.quarters)) return bad('set_settings.quarters must be a positive whole number');
+      if (!whole(raw.quarterSeconds)) return bad('set_settings.quarterSeconds must be a positive whole number');
+      return {
+        ok: true,
+        msg: {
+          t: 'set_settings',
+          ...(raw.quarters === undefined ? {} : { quarters: raw.quarters as number }),
+          ...(raw.quarterSeconds === undefined ? {} : { quarterSeconds: raw.quarterSeconds as number }),
+        },
+      };
+    }
     case 'new_game':
       return { ok: true, msg: { t: 'new_game' } };
     case 'end_game':
