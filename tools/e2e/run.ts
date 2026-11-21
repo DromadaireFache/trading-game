@@ -1029,10 +1029,13 @@ async function main(): Promise<void> {
       check(true, 'Escape dismisses the front paper');
       await shot(a, '20-play-headlines');
 
-      // Detail modes: Simple hides funds, tickers and the extra rows; Pro shows the raw numbers.
+      // Funds remain available in every mode; Simple uses quick bets and Pro shows raw numbers.
       await a.click(tid('mode-simple'));
-      await a.waitForSelector(`${tid('symbol-group')}[data-group=funds]`, { state: 'hidden' });
-      check(true, 'Simple mode hides the funds group');
+      const funds = a.locator(`${tid('symbol-group')}[data-group=funds]`);
+      check(await funds.isVisible(), 'Simple mode shows the funds group');
+      check((await funds.locator(`${tid('symbol-row')}[data-kind=index]`).count()) === 1 &&
+        (await funds.locator(`${tid('symbol-row')}[data-kind=sector]`).count()) === SECTORS.length,
+        'Simple mode includes the total market and every sector fund');
       await checkChartDrawn(a, 'Simple mode', (await a.getAttribute(tid('selected-symbol'), 'data-symbol'))!, 2);
       check((await a.locator('[data-testid^=size-]').count()) === 0, 'Simple mode replaces the order buttons with quick bets');
       check((await a.locator('[data-testid^=stake-]').count()) === 3, 'Simple mode offers three stakes');
@@ -1044,6 +1047,7 @@ async function main(): Promise<void> {
       await shot(a, '20-play-simple');
       await checkNoOverflow(a, 'desk in Simple mode');
       await a.click(tid('mode-pro'));
+      check(await funds.isVisible(), 'Pro mode shows the funds group');
       await waitFor('Pro risk numbers', async () => (await textOf(a, 'risk-word')).includes('×'));
       check(true, `Pro mode shows leverage as a number: "${await textOf(a, 'risk-word')}"`);
       await shot(a, '20-play-pro');

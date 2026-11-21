@@ -898,7 +898,6 @@ ol {
 
 /* Simple mode (on /play only; the projector keeps its own look). */
 [data-mode='simple'] .play .phase-strip,
-[data-mode='simple'] .play .sym-head__facts,
-[data-mode='simple'] .play .sym-group[data-group='funds'] {
+[data-mode='simple'] .play .sym-head__facts {
   display: none;
 }
