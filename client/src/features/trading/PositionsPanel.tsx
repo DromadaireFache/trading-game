@@ -107,14 +107,14 @@ export function PositionsPanel({ className }: { className?: string }) {
 function PositionRow({ position, decimals, canTrade, mode }: { position: Position; decimals: number; canTrade: boolean; mode: UiMode }) {
   const client = useGameClient();
   const market = useMarketStore();
-  const { phase } = useGame();
+  const { phase, pendingOrder } = useGame();
   const selected = useSelectedSymbol() === position.symbol;
   const quote = useQuote(position.symbol);
   const last = quote?.price ?? position.avgPrice;
   const pnl = unrealizedPnl(position, last);
   const cost = Math.abs(position.qty) * position.avgPrice;
   const pnlFraction = cost > 0 ? pnl / cost : 0;
-  const open = phase?.phase === 'TRADING' && canTrade;
+  const open = phase?.phase === 'TRADING' && canTrade && pendingOrder === null;
   const up = position.qty > 0;
 
   return (

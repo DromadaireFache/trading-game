@@ -5,6 +5,7 @@ import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
 import { LastFill } from './OrderPanel.tsx';
+import { JailOrderNotice } from './JailOrderNotice.tsx';
 import './trading.css';
 
 /**
@@ -12,7 +13,7 @@ import './trading.css';
  * until you cash it out (or a margin call does).
  */
 export function QuickBetPanel({ className }: { className?: string }) {
-  const { phase, config, fills } = useGame();
+  const { phase, config, fills, pendingOrder } = useGame();
   const client = useGameClient();
   const market = useMarketStore();
   const symbol = useSelectedSymbol();
@@ -32,10 +33,11 @@ export function QuickBetPanel({ className }: { className?: string }) {
   const open = phase?.phase === 'TRADING' && !live.portfolio.eliminated && (quote?.price ?? 0) > 0;
   const name = market.getInfo(symbol)?.name ?? symbol;
   const held = live.portfolio.positions.find((p) => p.symbol === symbol)?.qty ?? 0;
-  const canBet = open && live.buyingPower > 0;
+  const canBet = open && live.buyingPower > 0 && pendingOrder === null;
 
   return (
     <Panel title="Quick bet" aside={<span className="order__on">{name}</span>} className={`order quick${className ? ` ${className}` : ''}`}>
+      <JailOrderNotice />
       <div className="quick__stakes" role="radiogroup" aria-label="How big">
         {STAKE_LABELS.map((label, i) => (
           <button
@@ -73,7 +75,7 @@ export function QuickBetPanel({ className }: { className?: string }) {
             {held > 0 ? '▲ UP' : '▼ DOWN'} · {formatMoneyShort(Math.abs(held) * (quote?.price ?? 0))}
           </span>
           <span />
-          <button type="button" className="order__cash" disabled={!open} onClick={() => client.send({ t: 'order', symbol, qty: -held })} data-testid="order-close">
+          <button type="button" className="order__cash" disabled={!open || pendingOrder !== null} onClick={() => client.send({ t: 'order', symbol, qty: -held })} data-testid="order-close">
             Cash out now
           </button>
         </div>

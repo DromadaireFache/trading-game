@@ -8,6 +8,7 @@ import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHoo
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
 import { useUiMode } from '../../lib/uiMode.ts';
 import { QuickBetPanel } from './QuickBetPanel.tsx';
+import { JailOrderNotice } from './JailOrderNotice.tsx';
 import './trading.css';
 
 type Side = 'buy' | 'sell';
@@ -25,7 +26,7 @@ function shareLabel(pct: number): string {
  * arrival order and clips an order to the leverage cap rather than refusing it.
  */
 export function OrderPanel({ className }: { className?: string }) {
-  const { phase, config, fills } = useGame();
+  const { phase, config, fills, pendingOrder } = useGame();
   const client = useGameClient();
   const market = useMarketStore();
   const symbol = useSelectedSymbol();
@@ -49,7 +50,7 @@ export function OrderPanel({ className }: { className?: string }) {
   const eliminated = live.portfolio.eliminated === true;
   const open = phase?.phase === 'TRADING';
   const price = quote?.price ?? 0;
-  const disabled = !open || eliminated || price <= 0;
+  const disabled = !open || eliminated || price <= 0 || pendingOrder !== null;
   const held = live.portfolio.positions.find((p) => p.symbol === symbol)?.qty ?? 0;
   const sign = side === 'buy' ? 1 : -1;
   const info = market.getInfo(symbol);
@@ -77,6 +78,7 @@ export function OrderPanel({ className }: { className?: string }) {
       }
       className={`order${className ? ` ${className}` : ''}`}
     >
+      <JailOrderNotice />
       <div className="order__sides" role="radiogroup" aria-label="Which way">
         <button
           type="button"

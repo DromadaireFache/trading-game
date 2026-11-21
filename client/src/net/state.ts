@@ -69,6 +69,8 @@ export interface GameState {
   replaced: boolean;
   /** Latest `portfolio` from the server (players only). Live values are recomputed from ticks. */
   portfolio: Portfolio | null;
+  pendingOrder: { symbol: string; qty: number; endsAt: number; confirmed: boolean } | null;
+  orderCancelled: boolean;
   /** What every player holds (from `holdings`), by player id. */
   holdings: Record<PlayerId, Holdings>;
   /** This player's fills, newest first, at most MAX_FILLS. */
@@ -121,6 +123,8 @@ export const initialGameState: GameState = {
   error: null,
   replaced: false,
   portfolio: null,
+  pendingOrder: null,
+  orderCancelled: false,
   holdings: {},
   fills: [],
   headlines: [],
@@ -165,6 +169,8 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       const { t: _t, ...portfolio } = msg;
       return { ...state, portfolio };
     }
+    case 'pending_order':
+      return { ...state, pendingOrder: msg.order ? { symbol: msg.order.symbol, qty: msg.order.qty, endsAt: now + msg.order.remainingMs, confirmed: true } : null, orderCancelled: msg.cancelled === true };
     case 'holdings': {
       const { t: _t, playerId, ...held } = msg;
       return { ...state, holdings: { ...state.holdings, [playerId]: held } };
@@ -190,7 +196,7 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       };
     }
     case 'error':
-      return { ...state, error: { code: msg.code, message: msg.message, at: now } };
+      return { ...state, pendingOrder: state.pendingOrder?.confirmed ? state.pendingOrder : null, error: { code: msg.code, message: msg.message, at: now } };
     // Market data lives in MarketStore (net/marketStore.ts), fed by GameClient: it must not touch this state.
     case 'market':
     case 'tick':
