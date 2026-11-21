@@ -98,9 +98,22 @@ function finiteOr(value: number | undefined, fallback: number): number {
   return value !== undefined && Number.isFinite(value) ? value : fallback;
 }
 
-export type CreateMarket =(universe: Universe, rng: Rng, config: GameConfig) => Market;
+/**
+ * dynamicsRng (optional): turns on config.market.dynamics, the realistic layer on top of the factor
+ * model, drawn from its own stream so the base noise path of a seed is unchanged:
+ *   - volatility clustering: the market and each sector carry a log-volatility x that follows
+ *       x += -volReversionPerDay * x * dt + volOfVolPerDay * sqrt(dt) * z            (mean-reverting)
+ *     and the market's also rises after down moves (volLeverage, the "leverage effect"). The multiplier
+ *     exp(x - var) (var = its long-run variance) keeps the long-run variance at the configured daily vol;
+ *     capped at volMultMax. Market storms scale the market factor, sector storms the sector factor and
+ *     that sector's idiosyncratic noise.
+ *   - jumps: each stock, each tick, jumps with probability jumpsPerDay * dt by N(0, jumpSize) in log,
+ *     with no headline: fat tails, and moves nobody can call in advance.
+ * Each step draws the same count from dynamicsRng (1 + sectors + companies normals, companies uniforms).
+ */
+export type CreateMarket = (universe: Universe, rng: Rng, config: GameConfig, dynamicsRng?: Rng) => Market;
 
-export const createMarket: CreateMarket = (universe, rng, config) => {
+export const createMarket: CreateMarket = (universe, rng, config, dynamicsRng) => {
   const { ticksPerCandle } = config.time;
   const floor = config.market.priceFloor;
   const dt = 1 / ticksPerCandle;
@@ -140,6 +153,25 @@ export const createMarket: CreateMarket = (universe, rng, config) => {
   const epsOffset = 1 + sectorCount;
   /** Log-premium of each fund over its basket; see the file header. */
   const fundPremium = new Float64Array(universe.funds.length);
+
+  // Dynamics (see CreateMarket). Per tick: reversion, vol-of-vol and leverage in sqrt-time units.
+  const dyn = config.market.dynamics;
+  const dynNoise = new Float64Array(1 + sectorCount + companyCount);
+  const jumpOffset = 1 + sectorCount;
+  let logVolMarket = 0;
+  const logVolSector = new Float64Array(sectorCount);
+  const sectorVol = new Float64Array(sectorCount).fill(1);
+  const reversion = dyn.volReversionPerDay * dt;
+  const volShock = dyn.volOfVolPerDay * sqrtDt;
+  const leverage = dyn.volLeverage * sqrtDt;
+  /** E[max(0, -z)] for a standard normal: keeps the leverage term unbiased. */
+  const HALF_NORMAL_MEAN = 0.3989422804014327;
+  /** Long-run variance of x; exp(x - var) has a long-run mean square of about 1. */
+  const logVolVar = (dyn.volOfVolPerDay * dyn.volOfVolPerDay) / (2 * dyn.volReversionPerDay);
+  const volCap = dyn.volMultMax;
+  const jumpChance = dyn.jumpsPerDay * dt;
+  const volOf = (x: number) => Math.min(volCap, Math.exp(x - logVolVar));
+  const clampLog = (x: number) => (x > 3 ? 3 : x < -3 ? -3 : x);
 
   const price = new Float64Array(count);
   universe.companies.forEach((c, k) => (price[companyIndex[k]!] = Math.max(floor, c.startPrice)));
@@ -192,11 +224,23 @@ export const createMarket: CreateMarket = (universe, rng, config) => {
 
       // Common factors. Always drawn, in a fixed order (see "Noise stream" in the file header).
       rng.fillNormal(noise);
-      const marketShock = noise[0]! * commonMult;
+      const marketVol = dynamicsRng === undefined ? 1 : volOf(logVolMarket);
+      const marketShock = noise[0]! * commonMult * marketVol;
       const drift = input?.sectorDriftPerDay;
       for (let s = 0; s < sectorCount; s++) {
-        sectorShock[s] = noise[1 + s]! * commonMult;
+        sectorVol[s] = dynamicsRng === undefined ? 1 : volOf(logVolSector[s]!);
+        sectorShock[s] = noise[1 + s]! * commonMult * sectorVol[s]!;
         sectorDrift[s] = drift === undefined ? 0 : finiteOr(drift[SECTORS[s]!], 0) * dt;
+      }
+      if (dynamicsRng !== undefined) {
+        dynamicsRng.fillNormal(dynNoise);
+        // Next tick's volatility: pulled back to normal, shaken, and pushed up by a market drop.
+        logVolMarket = clampLog(
+          logVolMarket - reversion * logVolMarket + volShock * dynNoise[0]! + leverage * (Math.max(0, -noise[0]!) - HALF_NORMAL_MEAN),
+        );
+        for (let s = 0; s < sectorCount; s++) {
+          logVolSector[s] = clampLog(logVolSector[s]! - reversion * logVolSector[s]! + volShock * dynNoise[1 + s]!);
+        }
       }
 
       // Per-symbol extras: on a company they move the company, on a fund only the fund's premium.
@@ -219,10 +263,14 @@ export const createMarket: CreateMarket = (universe, rng, config) => {
 
       for (let k = 0; k < companyCount; k++) {
         const s = sectorOf[k]!;
+        // A rare jump with no headline (always draw the uniform: fixed stream).
+        let jump = 0;
+        if (dynamicsRng !== undefined && dynamicsRng.next() < jumpChance) jump = dyn.jumpSize * dynNoise[jumpOffset + k]!;
         const r =
           loadMarket[k]! * marketShock +
           loadSector[k]! * sectorShock[s]! +
-          loadIdio[k]! * volMult * noise[epsOffset + k]! +
+          loadIdio[k]! * volMult * sectorVol[s]! * noise[epsOffset + k]! +
+          jump +
           rateSensitivity[k]! * dRate +
           sectorDrift[s]! +
           extraReturn[k]!;

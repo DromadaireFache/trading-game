@@ -134,6 +134,22 @@ export interface GameConfig {
     marketVolPerDay: number;
     /** Per-day volatility of each sector factor S. */
     sectorVolPerDay: number;
+    /**
+     * Realism of the price process (used when createSim runs the market; a bare createMarket without a
+     * dynamics stream is the plain factor model). Volatility clusters: the market and each sector carry
+     * a log-volatility that wanders (volOfVolPerDay), is pulled back to normal (volReversionPerDay),
+     * jumps up after market drops (volLeverage) and never exceeds volMultMax x. Stocks also take rare
+     * jumps with no headline: jumpsPerDay per stock, log size ~ N(0, jumpSize). Scaled so the long-run
+     * variance still matches the configured daily volatilities.
+     */
+    dynamics: {
+      volOfVolPerDay: number;
+      volReversionPerDay: number;
+      volLeverage: number;
+      volMultMax: number;
+      jumpsPerDay: number;
+      jumpSize: number;
+    };
     /** No price ever goes below this, $. */
     priceFloor: number;
     /** Decimals of prices on the wire (the sim keeps full precision). */
@@ -194,6 +210,32 @@ export interface GameConfig {
     beatTitles: string[];
     /** How many recent headlines a (re)joining client gets. */
     replayHeadlines: number;
+    /**
+     * How the market reacts to the engine's own headlines (cards keep their exact effect), so the
+     * same headline never moves a price the same way twice:
+     *   size        x exp(N(0, sizeSigma)) (median 1)
+     *   reversal    with reverseChance the market shrugs the other way ("sell the news"), x reverseScale
+     *   shape       overshoot drawn in [overshootMin, overshootMax], ramp time x [rampMultMin, rampMultMax]
+     *   aftermath   with driftChance a slow follow-through (> 0) or fade (< 0) of driftShare x the move over
+     *               driftDays days
+     *   leaks       an earnings leak points the right way with leakAccuracy, else it misleads (the gap at
+     *               the report corrects it)
+     */
+    reaction: {
+      sizeSigma: number;
+      reverseChance: number;
+      reverseScale: number;
+      overshootMin: number;
+      overshootMax: number;
+      rampMultMin: number;
+      rampMultMax: number;
+      driftChance: number;
+      driftShareMin: number;
+      driftShareMax: number;
+      driftDaysMin: number;
+      driftDaysMax: number;
+      leakAccuracy: number;
+    };
   };
   earnings: {
     /** Std-dev of true_surprise drawn at BRIEFING. */
@@ -323,8 +365,8 @@ export const defaultConfig: GameConfig = {
     betaMarketMax: 1.6,
     betaSectorMin: 0.5,
     betaSectorMax: 1.5,
-    idioVolPerDayMin: 0.0025,
-    idioVolPerDayMax: 0.0075,
+    idioVolPerDayMin: 0.005,
+    idioVolPerDayMax: 0.015,
     rateSensitivityMin: 2,
     rateSensitivityMax: 12,
     startPriceMin: 20,
@@ -352,8 +394,18 @@ export const defaultConfig: GameConfig = {
     rateLovingSectors: ['finance'],
     fundWeighting: 'cap',
     fundStartPrice: 100,
-    marketVolPerDay: 0.0025,
-    sectorVolPerDay: 0.002,
+    // Between the first guess (1% / 0.8%) and the calm pass (0.25% / 0.2%): calm days stay calm, the
+    // dynamics below add storms.
+    marketVolPerDay: 0.005,
+    sectorVolPerDay: 0.004,
+    dynamics: {
+      volOfVolPerDay: 0.12,
+      volReversionPerDay: 0.08,
+      volLeverage: 0.15,
+      volMultMax: 3.5,
+      jumpsPerDay: 0.012,
+      jumpSize: 0.05,
+    },
     priceFloor: 1,
     priceDecimals: 2,
     startRate: 0.03,
@@ -390,6 +442,21 @@ export const defaultConfig: GameConfig = {
     quietDays: 2,
     beatTitles: ['Central bank rate decision', 'Jobs report', 'GDP flash estimate', 'Inflation print'],
     replayHeadlines: 30,
+    reaction: {
+      sizeSigma: 0.35,
+      reverseChance: 0.08,
+      reverseScale: 0.5,
+      overshootMin: -0.2,
+      overshootMax: 0.6,
+      rampMultMin: 0.5,
+      rampMultMax: 1.8,
+      driftChance: 0.5,
+      driftShareMin: -0.4,
+      driftShareMax: 0.5,
+      driftDaysMin: 3,
+      driftDaysMax: 10,
+      leakAccuracy: 0.75,
+    },
   },
   earnings: {
     surpriseSigma: 0.08,
@@ -480,6 +547,9 @@ function describeType(v: unknown): string {
   return typeof v;
 }
 
+/** The only numbers that may be negative (an undershoot, a fade after the news). */
+const SIGNED_PATHS = new Set(['config.news.reaction.overshootMin', 'config.news.reaction.driftShareMin']);
+
 /** Collects every place where `value` does not have the shape of `reference` (the default config). */
 function shapeProblems(reference: unknown, value: unknown, path: string, out: string[]): void {
   if (isPlainObject(reference)) {
@@ -499,8 +569,9 @@ function shapeProblems(reference: unknown, value: unknown, path: string, out: st
     return;
   }
   if (typeof reference === 'number') {
-    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
-      out.push(`${path} must be a finite number >= 0, got ${typeof value === 'number' ? String(value) : describeType(value)}`);
+    const signed = SIGNED_PATHS.has(path);
+    if (typeof value !== 'number' || !Number.isFinite(value) || (!signed && value < 0)) {
+      out.push(`${path} must be a finite number${signed ? '' : ' >= 0'}, got ${typeof value === 'number' ? String(value) : describeType(value)}`);
     }
     return;
   }
@@ -583,6 +654,16 @@ export function validateConfig(config: GameConfig): GameConfig {
     if (m.rateMin > m.rateMax || m.startRate < m.rateMin || m.startRate > m.rateMax) {
       problems.push('config.market.rateMin <= startRate <= rateMax must hold');
     }
+    const d = m.dynamics;
+    if (d.volReversionPerDay <= 0) problems.push('config.market.dynamics.volReversionPerDay must be > 0');
+    if (d.volMultMax < 1) problems.push('config.market.dynamics.volMultMax must be >= 1');
+    if (d.jumpsPerDay > config.time.ticksPerCandle) problems.push('config.market.dynamics.jumpsPerDay is a rate per day: at most ticksPerCandle');
+    const rc = config.news.reaction;
+    if (rc.reverseChance > 1 || rc.driftChance > 1 || rc.leakAccuracy > 1) problems.push('config.news.reaction chances must be <= 1');
+    if (rc.overshootMin > rc.overshootMax || rc.rampMultMin > rc.rampMultMax || rc.driftShareMin > rc.driftShareMax || rc.driftDaysMin > rc.driftDaysMax) {
+      problems.push('config.news.reaction: every Min must be <= its Max');
+    }
+    if (rc.rampMultMin <= 0 || rc.driftDaysMin < 1) problems.push('config.news.reaction: rampMultMin must be > 0 and driftDaysMin >= 1');
     const n = config.news;
     if (n.leadMinMs <= 0 || n.leadMinMs > n.leadMaxMs) problems.push('config.news.leadMinMs must be > 0 and <= leadMaxMs');
     if (n.shockJitter > 1) problems.push('config.news.shockJitter must be <= 1');

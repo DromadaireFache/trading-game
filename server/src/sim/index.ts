@@ -60,7 +60,9 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   // One child stream per subsystem, forked in a fixed order. Append new forks at the END.
   const rng = createRng(seed);
   const universe = generateUniverse(rng.fork(), config);
-  const market = createMarket(universe, rng.fork(), config);
+  // The market's own stream keeps its place; the market is built below, once the dynamics stream
+  // (forked last, so older streams are unchanged) exists.
+  const marketRng = rng.fork();
   const advBySymbol = new Map<string, number>([
     ...universe.companies.map((c) => [c.symbol, c.adv] as const),
     ...universe.funds.map((f) => [f.symbol, f.adv] as const),
@@ -86,6 +88,10 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   const regimeRng = rng.fork();
   const earningsLeadRng = rng.fork();
   const earningsOrderRng = rng.fork();
+  // Market realism (volatility clustering, jumps) and the market's reaction to news.
+  const dynamicsRng = rng.fork();
+  const reactionRng = rng.fork();
+  const market = createMarket(universe, marketRng, config, dynamicsRng);
   const news = createNews({
     config,
     universe,
@@ -95,6 +101,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     earningsRng,
     earningsLeadRng,
     earningsOrderRng,
+    reactionRng,
   });
   // Milestone 6: leaderboard, statements, recap, awards, projector moments. No randomness.
   const results = createResults({

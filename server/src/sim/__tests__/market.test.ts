@@ -91,7 +91,9 @@ function playToFinal(sim: Sim, onEvents?: (events: SimEvent[]) => void): void {
 }
 
 describe('market: determinism', () => {
-  it('reduces quiet-market daily fluctuations to a quarter of the previous defaults', () => {
+  // The calm pass cut the base vols to a quarter of the first guess; the realism pass set them back to
+  // half (the dynamics in createSim add the storms on top).
+  it('keeps the base daily fluctuations at half of the first defaults', () => {
     const previous = mergeConfig(defaultConfig, { market: {
       marketVolPerDay: 0.01, sectorVolPerDay: 0.008, idioVolPerDayMin: 0.01, idioVolPerDayMax: 0.03,
     } });
@@ -102,7 +104,7 @@ describe('market: determinism', () => {
       const oldReturns = dailyReturns(old, 90, previous);
       const calmVol = mean(calm.universe.companies.map((c) => std(calmReturns.get(c.symbol)!)));
       const oldVol = mean(old.universe.companies.map((c) => std(oldReturns.get(c.symbol)!)));
-      expect(calmVol / oldVol).toBeCloseTo(0.25, 5);
+      expect(calmVol / oldVol).toBeCloseTo(0.5, 5);
     }
   });
 
