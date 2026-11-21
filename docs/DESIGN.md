@@ -55,8 +55,8 @@ The player who starts the game can enable **Debug mode** in the lobby. When ever
 ## 3. Market model
 
 ### Universe
-- **10 sectors × 5 companies = 50 fake stocks**
-- **11 funds:** 1 index fund + 10 sector funds. A fund's price is the weighted basket of its
+- **6 sectors × 5 companies = 30 fake stocks** (tech, energy, defense, airlines, finance, health)
+- **7 funds:** 1 index fund + 6 sector funds. A fund's price is the weighted basket of its
   members. For the MVP, trading a fund has its own price impact and does **not** move its members.
 - Each company has: `beta_m`, `beta_s`, `sigma_i`, `rate_sensitivity`, `marketCap`, `adv` (daily dollar
   volume), and fundamentals (`revenue`, `margin`, `debt`, `shares`).
@@ -134,11 +134,12 @@ With 4 players, overload isn't a real risk. Two light safeguards:
 - **At most 2 active regimes** at once.
 
 ### Getting caught: SEC and jail
-- Every illegal act (insider tip, fake headline, trading a target you manipulated, illegal events) adds
-  **heat** to the player.
+- Every illegal act (insider tip, fake headline, trading a target you moved with a card, illegal events) adds
+  **heat** to the player. So does **self-dealing**: any card (legal ones too) that moves a stock or sector you
+  hold, with more heat when it moves your way. Cards are meant to be played on the other players' bets.
 - At the end of each quarter, `P(caught) = f(heat, net worth rank)`. **Richer players are watched more closely.**
-- **If caught:** a fine, plus **jail** for half a quarter or a full quarter (scaled by heat). In jail you can't trade
-  or play cards. **Your positions stay open**, so you're stuck with whatever you were holding.
+- **If caught:** a fine, plus **jail** for the next quarter. In jail you can't play or buy cards, and every order
+  goes through 3 seconds late. **Your positions stay open** and you can still trade, just slower.
 - The arrest is announced at RESULTS ("Player 7 arrested for insider trading. 45 days.").
 
 ### Counter-cards (stretch goal)

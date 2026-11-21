@@ -47,6 +47,8 @@ export const theme = {
     sans: '"Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif',
     /** Chunky headings and big numbers. */
     display: '"Trebuchet MS", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif',
+    /** Newsprint: the headline popups. */
+    serif: 'Georgia, "Times New Roman", Times, serif',
   },
 } as const;
 

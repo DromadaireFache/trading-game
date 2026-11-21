@@ -13,11 +13,13 @@ describe('config', () => {
     expect(quarterTicks(defaultConfig)).toBe(1500);
   });
 
-  it('keeps scheduled news and leaks while reducing random headlines', () => {
-    expect(defaultConfig.news.randomHeadlinesPerQuarter).toBe(3);
-    expect(defaultConfig.news.scheduledBeatsPerQuarter).toBe(3);
-    expect(defaultConfig.news.minGapMs).toBe(2_000);
-    expect(defaultConfig.earnings.leaksPerQuarter).toBe(4);
+  it('keeps the news sparse (about 5 headlines a quarter) with time to react', () => {
+    expect(defaultConfig.news.randomHeadlinesPerQuarter).toBe(2);
+    expect(defaultConfig.news.scheduledBeatsPerQuarter).toBe(1);
+    expect(defaultConfig.news.minGapMs).toBe(6_000);
+    expect(defaultConfig.news.leadMinMs).toBe(4_000);
+    expect(defaultConfig.news.leadMaxMs).toBe(6_000);
+    expect(defaultConfig.earnings.leaksPerQuarter).toBe(2);
   });
 
   it('mergeConfig deep-merges without mutating the base and drops unknown keys', () => {

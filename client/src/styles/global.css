@@ -578,28 +578,43 @@ ol {
   flex: 1;
   min-height: 0;
   display: grid;
-  /* list: two columns of compact symbol rows; chart: whatever is left; side: orders, positions, hand, players. */
-  grid-template-columns: 480px minmax(0, 1fr) 320px;
-  /* order entry takes its natural height; positions gets the rest of the chart's height. */
-  grid-template-rows: auto minmax(0, 5fr) minmax(0, 4fr) auto;
+  /* Top: list | chart | side. Bottom: the others' positions (left to middle) | yours (middle to right). */
+  grid-template-columns: 480px minmax(0, 1fr) minmax(0, 1fr) 380px;
+  /* The bottom half only needs a handful of rows; the top keeps room for three full-size cards. */
+  grid-template-rows: minmax(0, 1fr) minmax(180px, 30vh);
   grid-template-areas:
-    'list chart     order'
-    'list chart     positions'
-    'list headlines hand'
-    'list headlines players';
+    'list   chart  chart     side'
+    'rivals rivals positions positions';
   gap: 8px;
   padding: 8px;
 }
-/* RESULTS / SHOP / FINAL: one stage panel takes the place of list + chart. */
+/* Short screens (a 768 px laptop): the side column runs the full height so the three cards still fit. */
+@media (max-height: 860px) {
+  .desk {
+    grid-template-areas:
+      'list   chart     chart     side'
+      'rivals positions positions side';
+  }
+}
+/* RESULTS / SHOP / FINAL: one stage panel takes the place of everything but the side column. */
 .desk--stage {
   grid-template-areas:
-    'stage     stage     order'
-    'stage     stage     positions'
-    'headlines headlines hand'
-    'headlines headlines players';
+    'stage stage stage side'
+    'stage stage stage side';
 }
-.desk--final {
-  grid-template-rows: auto minmax(0, 1fr) minmax(0, 2fr) auto;
+.desk__side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.desk__side > .panel {
+  flex: none;
+}
+.desk__side > .desk__hand {
+  flex: 1;
+  min-height: 0;
 }
 /* Server errors (rejected order, ...) float as a toast so the grid never jumps. */
 .desk__errors {
@@ -622,37 +637,33 @@ ol {
 .desk__chart {
   grid-area: chart;
 }
-.desk__updates {
-  grid-area: headlines;
+.desk__pops {
+  grid-area: chart;
+}
+/* The earnings report (BRIEFING, EARNINGS, FINAL): over the chart, or under the final standings. */
+.desk__earnings {
+  grid-area: chart;
+  z-index: 4;
   display: grid;
   min-width: 0;
   min-height: 0;
-  gap: 8px;
-  grid-template-rows: minmax(0, 1fr);
 }
-.desk__updates:has(> .earnings) {
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+.desk__earnings:empty {
+  display: none;
 }
-.desk:not(.desk--stage):has(.desk__updates > .earnings) {
-  grid-template-rows: auto minmax(0, 3fr) minmax(0, 6fr) auto;
+.desk--final:has(.desk__earnings > .earnings) {
+  grid-template-areas:
+    'stage    stage    stage    side'
+    'earnings earnings earnings side';
 }
-@media (min-width: 1140px) {
-  .desk--final .desk__updates:has(> .earnings) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
-    grid-template-rows: minmax(0, 1fr);
-  }
+.desk--final .desk__earnings {
+  grid-area: earnings;
 }
-.desk__order {
-  grid-area: order;
+.desk__rivals {
+  grid-area: rivals;
 }
 .desk__positions {
   grid-area: positions;
-}
-.desk__hand {
-  grid-area: hand;
-}
-.desk__players {
-  grid-area: players;
 }
 
 /* ---------------------------------------------------------------- /floor (projector) */
@@ -888,15 +899,6 @@ ol {
 /* Simple mode (on /play only; the projector keeps its own look). */
 [data-mode='simple'] .play .phase-strip,
 [data-mode='simple'] .play .sym-head__facts,
-[data-mode='simple'] .play .sym-group[data-group='funds'],
-[data-mode='simple'] .play .sym-row__ticker {
+[data-mode='simple'] .play .sym-group[data-group='funds'] {
   display: none;
-}
-[data-mode='simple'] .play .sym-row {
-  grid-template-columns: minmax(0, 1fr) auto 7ch;
-}
-[data-mode='simple'] .play .sym-row__name {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--tg-color-text-bright);
 }

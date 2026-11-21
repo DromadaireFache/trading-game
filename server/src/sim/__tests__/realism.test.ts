@@ -64,8 +64,9 @@ describe('price dynamics', () => {
       real += clustering(daily(m.real).get(index)!);
       plain += clustering(daily(m.plain).get(index)!);
     }
-    expect(real / 4).toBeGreaterThan(0.08);
-    expect(real).toBeGreaterThan(plain + 0.2);
+    // Measured on the index: with 30 companies (6 sectors) single-company noise dilutes it more.
+    expect(real / 4).toBeGreaterThan(0.03);
+    expect(real).toBeGreaterThan(plain + 0.12);
   });
 
   it('returns have fat tails (jumps with no headline), and the long-run volatility stays near the configured one', () => {

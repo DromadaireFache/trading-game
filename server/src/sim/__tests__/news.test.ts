@@ -129,6 +129,9 @@ describe('slot filling', () => {
 const CONFIG: GameConfig = mergeConfig(defaultConfig, {
   time: { daysPerQuarter: 30, quarters: 3 },
   phaseMs: { BRIEFING: 200, EARNINGS: 200, RESULTS: 200, SHOP: 200 },
+  // Short quarters: the old, busier news pace so every quarter has plenty of headlines.
+  news: { minGapMs: 2_000, scheduledBeatsPerQuarter: 3, randomHeadlinesPerQuarter: 3 },
+  earnings: { leaksPerQuarter: 4 },
 });
 
 function playGame(seed: number, config: GameConfig = CONFIG): { sim: Sim; events: SimEvent[] } {
@@ -161,7 +164,7 @@ function testNews(config: GameConfig, seed: number, earningsSeed = seed) {
 }
 
 describe('news through the sim', () => {
-  it('draws seeded headline lead times between one and five seconds', () => {
+  it('draws seeded headline lead times between news.leadMinMs and leadMaxMs', () => {
     const config = mergeConfig(CONFIG, { news: { randomHeadlinesPerQuarter: 0, scheduledBeatsPerQuarter: 0 }, earnings: { leaksPerQuarter: 0 } });
     const delays = new Set<number>();
     for (let seed = 1; seed <= 12; seed++) {
@@ -170,11 +173,13 @@ describe('news through the sim', () => {
       news.enqueue({ tick: 0, source: 'random', query: { kind: 'real', scope: 'stock', direction: 'up' }, target: { scope: 'stock', symbol: universe.companies[0]!.symbol }, logReturn: 0.05 });
       expect(news.beforeStep(0, config.market.startRate).events).toHaveLength(1);
       let firstMove = -1;
-      for (let tick = 1; tick <= 50; tick++) {
+      const minTicks = config.news.leadMinMs / config.time.tickMs;
+      const maxTicks = config.news.leadMaxMs / config.time.tickMs;
+      for (let tick = 1; tick <= maxTicks + 10; tick++) {
         if (news.beforeStep(tick, config.market.startRate).symbolReturn) { firstMove = tick; break; }
       }
-      expect(firstMove).toBeGreaterThanOrEqual(10);
-      expect(firstMove).toBeLessThanOrEqual(50);
+      expect(firstMove).toBeGreaterThanOrEqual(minTicks);
+      expect(firstMove).toBeLessThanOrEqual(maxTicks);
       delays.add(firstMove);
     }
     expect(delays.size).toBeGreaterThan(1);
@@ -307,14 +312,16 @@ describe('news through the sim', () => {
       news.startQuarter(1, 0, rate);
       news.closeQuarter();
       news.startQuarter(2, open, rate);
-      for (let tick = open; tick < open + 50; tick++) {
+      for (let tick = open; tick < open + maxTicks; tick++) {
         if (news.beforeStep(tick, rate).symbolReturn !== undefined) return tick - open + 1;
       }
       throw new Error('no earnings move within the configured delay');
     }
+    const minTicks = config.news.leadMinMs / config.time.tickMs;
+    const maxTicks = config.news.leadMaxMs / config.time.tickMs;
     const delays = Array.from({ length: 12 }, (_, seed) => delay(seed));
-    expect(Math.min(...delays)).toBeGreaterThanOrEqual(10);
-    expect(Math.max(...delays)).toBeLessThanOrEqual(50);
+    expect(Math.min(...delays)).toBeGreaterThanOrEqual(minTicks);
+    expect(Math.max(...delays)).toBeLessThanOrEqual(maxTicks);
     expect(new Set(delays).size).toBeGreaterThan(1);
     expect(delay(3)).toBe(delays[3]);
   });

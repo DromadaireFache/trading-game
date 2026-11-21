@@ -3,7 +3,7 @@ import { defaultConfig, mergeConfig, SECTORS } from '@tg/shared';
 import type { SymbolInfo } from '@tg/shared';
 import { chartTimeToDay, dayToChartTime, formatAxisDay, formatGameDay } from '../chartTime.ts';
 import { changeDirection, formatMoneyShort, formatPercent, formatPrice } from '../format.ts';
-import { groupSymbols, splitIntoColumns } from '../symbolGroups.ts';
+import { groupSymbols } from '../symbolGroups.ts';
 
 describe('chartTime', () => {
   const configs = [
@@ -68,7 +68,7 @@ describe('format', () => {
 
 describe('symbol groups', () => {
   const universe: SymbolInfo[] = [
-    { symbol: 'TG50', name: 'Index', kind: 'index', marketCap: 1 },
+    { symbol: 'TG30', name: 'Index', kind: 'index', marketCap: 1 },
     ...SECTORS.map((sector): SymbolInfo => ({ symbol: `X${sector}`, name: `${sector} fund`, kind: 'sector', sector, marketCap: 1 })),
     ...SECTORS.flatMap((sector) =>
       Array.from({ length: 5 }, (_, i): SymbolInfo => ({ symbol: `${sector}${i}`, name: `${sector} ${i}`, kind: 'stock', sector, marketCap: 1 })),
@@ -78,21 +78,13 @@ describe('symbol groups', () => {
   it('puts the funds first, then the sectors in server order', () => {
     const groups = groupSymbols(universe);
     expect(groups.map((g) => g.key)).toEqual(['funds', ...SECTORS]);
-    expect(groups[0]!.symbols).toHaveLength(11);
-    expect(groups[0]!.symbols[0]!.symbol).toBe('TG50');
+    expect(groups[0]!.symbols).toHaveLength(SECTORS.length + 1);
+    expect(groups[0]!.symbols[0]!.symbol).toBe('TG30');
     expect(groups.slice(1).every((g) => g.symbols.length === 5)).toBe(true);
     expect(groups[1]!.label).toBe('Technology');
   });
 
-  it('splits 61 symbols into two equally tall columns without losing any', () => {
-    const columns = splitIntoColumns(groupSymbols(universe), 2);
-    const rows = columns.map((c) => c.reduce((n, g) => n + g.symbols.length + 1, 0));
-    expect(rows).toEqual([36, 36]);
-    expect(columns.flat().flatMap((g) => g.symbols.map((s) => s.symbol))).toEqual(universe.map((s) => s.symbol));
-  });
-
   it('copes with an empty universe', () => {
     expect(groupSymbols([])).toEqual([]);
-    expect(splitIntoColumns([], 2)).toEqual([[], []]);
   });
 });

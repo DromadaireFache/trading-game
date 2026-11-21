@@ -19,7 +19,7 @@
  * RNG streams: forked from the root in a FIXED order (universe, market, then later subsystems at
  * the end), so adding a subsystem never changes the universe or the price path of a seed.
  */
-import { canReadyUp } from '@tg/shared';
+import { canReadyUp, msToTicks } from '@tg/shared';
 import type { GameConfig, Phase, PlayerId } from '@tg/shared';
 import { createMarket } from './market.ts';
 import { nextPhase, phaseLength } from './phases.ts';
@@ -134,6 +134,8 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   };
 
   const queue: SimIntent[] = [];
+  /** Orders of jailed players, released at tick `due`. */
+  const delayed: { due: number; intent: Extract<SimIntent, { kind: 'order' }> }[] = [];
   const players: SimPlayer[] = [];
   const readyPlayers = new Set<PlayerId>();
   let debugMode = false;
@@ -239,7 +241,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   }
 
   /** Returns true when the intent moved the game into a new phase. */
-  function process(intent: SimIntent): boolean {
+  function process(intent: SimIntent, released = false): boolean {
     switch (intent.kind) {
       case 'add_player': {
         if (phase !== 'LOBBY') return reject(intent, 'wrong_phase', 'players can only join in the lobby'), false;
@@ -275,7 +277,11 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       case 'order': {
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
         if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'the market is closed'), false;
-        if (cards.isJailed(intent.playerId, market.getDay())) return reject(intent, 'jailed', 'you are in jail: no trading until you are out'), false;
+        // Jail: the order goes through, but only sec.jailOrderDelayMs later (at that moment's price).
+        if (!released && cards.isJailed(intent.playerId, market.getDay())) {
+          delayed.push({ due: tick + msToTicks(config, config.sec.jailOrderDelayMs), intent });
+          return false;
+        }
         // Quick bet: the day in progress counts as its first day; it never outlives the quarter.
         const closeAtDay =
           intent.holdDays === undefined
@@ -293,6 +299,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       case 'buy_card': {
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
         if (phase !== 'SHOP') return reject(intent, 'wrong_phase', 'cards can only be bought in the SHOP phase'), false;
+        if (cards.isJailed(intent.playerId, market.getDay())) return reject(intent, 'jailed', 'you are in jail: no cards until you are out'), false;
         const result = cards.buy(intent.playerId, intent.offerId);
         if (!result.ok) return reject(intent, result.code, result.message), false;
         for (const event of result.events) events.push(event);
@@ -365,8 +372,15 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         events.push({ e: 'phase', phase, quarter, durationTicks: phaseLength(config, phase) });
       }
 
-      // 1. intents, in arrival order
+      // 1. jailed players' orders that are due, then intents in arrival order
       let enteredByIntent = false;
+      for (let i = 0; i < delayed.length; ) {
+        if (delayed[i]!.due > tick) {
+          i++;
+          continue;
+        }
+        process(delayed.splice(i, 1)[0]!.intent, true);
+      }
       for (const intent of queue.splice(0)) {
         if (process(intent)) enteredByIntent = true;
       }

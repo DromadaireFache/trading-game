@@ -7,12 +7,13 @@
  *     P(caught) = min(maxCatchProbability, heat * catchProbabilityPerHeat * rankMultiplier[rank])
  *   rank 0 = richest by net worth (ties keep input order); ranks past the end of rankMultiplier use
  *   its last value.
- * - Caught: fine = fineShareOfNetWorth * net worth; jail = jailDaysLong at or above longJailHeat,
- *   else jailDaysShort; heat goes back to 0 (the player has paid for it).
+ * - Caught: fine = fineShareOfNetWorth * net worth; jail = jailQuarters quarters of trading days;
+ *   heat goes back to 0 (the player has paid for it).
  * - Not caught (or already in jail, who is not rolled again): heat *= heatDecayPerQuarter.
  * - Jail is in trading days. `jailedUntil` = `nextTradingDay + jailDays`, the game day (see
- *   shared/messages.ts) the player may trade again; the RESULTS phase passes the first day of the
- *   next quarter. Positions stay open; the sim only blocks orders and card plays while jailed.
+ *   shared/messages.ts) the player is free again; the RESULTS phase passes the first day of the
+ *   next quarter. Positions stay open and the player keeps trading, but every order is delayed by
+ *   sec.jailOrderDelayMs, and cards can be neither played nor bought.
  *
  * Not wired into createSim yet (M5): fork a new RNG stream for it at the END of createSim's forks.
  */
@@ -29,6 +30,8 @@ export const CRIME_BY_HEAT: Record<HeatKey, string> = {
   tradeManipulatedTarget: 'market manipulation',
   illegalEvent: 'sabotage',
   tipOff: 'securities fraud',
+  selfDeal: 'self-dealing',
+  selfDealInFavor: 'self-dealing',
 };
 
 /** Returns the new heat and heat sources after one illegal act. Inputs are not mutated. */
@@ -44,8 +47,9 @@ export function catchProbability(config: GameConfig, heat: number, rank: number)
   return Math.min(config.sec.maxCatchProbability, p);
 }
 
-export function jailDaysFor(config: GameConfig, heat: number): number {
-  return heat >= config.sec.longJailHeat ? config.sec.jailDaysLong : config.sec.jailDaysShort;
+/** Jail length in trading days (follows time.daysPerQuarter, so a scaled-down game scales it too). */
+export function jailDaysFor(config: GameConfig): number {
+  return Math.max(1, Math.round(config.sec.jailQuarters * config.time.daysPerQuarter));
 }
 
 export interface SecPlayer {
@@ -112,7 +116,7 @@ export function resolveSec(rng: Rng, config: GameConfig, players: readonly SecPl
       continue;
     }
     const fine = config.sec.fineShareOfNetWorth * Math.max(0, p.netWorth);
-    const jailDays = jailDaysFor(config, p.heat);
+    const jailDays = jailDaysFor(config);
     const reason = reasonFor(p.sources);
     const arrest: Arrest = {
       playerId: p.playerId,
@@ -128,7 +132,7 @@ export function resolveSec(rng: Rng, config: GameConfig, players: readonly SecPl
   return { outcomes, arrests };
 }
 
-/** True while the player may not trade or play cards. */
+/** True while the player may not play cards (and their orders are delayed). */
 export function isJailed(jailedUntil: number | undefined, gameDay: number): boolean {
   return jailedUntil !== undefined && gameDay < jailedUntil;
 }

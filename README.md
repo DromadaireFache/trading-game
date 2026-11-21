@@ -6,7 +6,7 @@ Choices made along the way: [docs/DECISIONS.md](docs/DECISIONS.md).
 
 **Status: milestone 2 (market).** Join by name, lobby, Start, and the phase loop
 LOBBY -> [BRIEFING -> TRADING -> EARNINGS -> RESULTS -> SHOP] x N -> FINAL with a live countdown on
-`/play` and `/floor`. A seeded market of 50 fake companies in 10 sectors, 10 sector funds and one index fund
+`/play` and `/floor`. A seeded market of 30 fake companies in 6 sectors, 6 sector funds and one index fund
 moves at 10 ticks per second during TRADING (1 second = 1 trading day = 1 candle, 90 days per quarter).
 `/play` shows the sector-grouped symbol list with live prices and a candle chart of the clicked symbol;
 `/floor` shows the index fund chart. No orders, news or cards yet; those panels are placeholders.

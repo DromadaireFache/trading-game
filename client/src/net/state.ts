@@ -16,6 +16,7 @@ import type {
   FillMsg,
   GameConfig,
   HeadlineMsg,
+  HoldingsMsg,
   LobbyState,
   MomentMsg,
   PhaseInfo,
@@ -68,6 +69,8 @@ export interface GameState {
   replaced: boolean;
   /** Latest `portfolio` from the server (players only). Live values are recomputed from ticks. */
   portfolio: Portfolio | null;
+  /** What every player holds (from `holdings`), by player id. */
+  holdings: Record<PlayerId, Holdings>;
   /** This player's fills, newest first, at most MAX_FILLS. */
   fills: FillRecord[];
   /** Public headlines, newest first, at most MAX_HEADLINES, unique by id. */
@@ -96,6 +99,7 @@ export interface BetResult extends Omit<BetResultMsg, 't'> {
 }
 
 export type Portfolio = Omit<PortfolioMsg, 't'>;
+export type Holdings = Omit<HoldingsMsg, 't' | 'playerId'>;
 
 export interface FillRecord extends Omit<FillMsg, 't'> {
   /** Running number, so the UI can flash a new fill even when it looks like the last one. */
@@ -117,6 +121,7 @@ export const initialGameState: GameState = {
   error: null,
   replaced: false,
   portfolio: null,
+  holdings: {},
   fills: [],
   headlines: [],
   briefing: null,
@@ -135,7 +140,7 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       const game = msg.game ?? 1;
       // "Play again" started another game: nothing of the old one stays on screen.
       if (state.game !== 0 && game !== state.game) {
-        state = { ...state, portfolio: null, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null, betResults: [] };
+        state = { ...state, portfolio: null, holdings: {}, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null, betResults: [] };
       }
       // Same seat after a reconnect: keep the trading history. Another seat: start clean.
       const sameSeat = state.me?.playerId === msg.playerId;
@@ -159,6 +164,10 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
     case 'portfolio': {
       const { t: _t, ...portfolio } = msg;
       return { ...state, portfolio };
+    }
+    case 'holdings': {
+      const { t: _t, playerId, ...held } = msg;
+      return { ...state, holdings: { ...state.holdings, [playerId]: held } };
     }
     case 'fill': {
       const { t: _t, ...fill } = msg;

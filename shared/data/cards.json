@@ -198,7 +198,7 @@
     "defId": "war",
     "tier": "regime",
     "name": "Start a War",
-    "description": "Two fictional nations go to war for 2 quarters. Defense and energy rise, airlines and tourism fall, and everything gets jumpier.",
+    "description": "Two fictional nations go to war for 2 quarters. Defense and energy rise, airlines fall, and everything gets jumpier.",
     "legal": true,
     "targetKind": "none",
     "needsDirection": false,
@@ -208,7 +208,7 @@
     "effect": {
       "kind": "regime",
       "quarters": 2,
-      "sectorDrift": { "defense": 0.003, "energy": 0.002, "materials": 0.001, "airlines": -0.003, "tourism": -0.0025 },
+      "sectorDrift": { "defense": 0.003, "energy": 0.002, "airlines": -0.004 },
       "volMult": 1.4,
       "corrMult": 1.3,
       "headlines": {
@@ -222,7 +222,7 @@
     "defId": "pandemic",
     "tier": "regime",
     "name": "Pandemic",
-    "description": "A new virus spreads for 2 quarters. Health and tech rise, airlines and tourism collapse.",
+    "description": "A new virus spreads for 2 quarters. Health and tech rise, airlines collapse.",
     "legal": true,
     "targetKind": "none",
     "needsDirection": false,
@@ -232,7 +232,7 @@
     "effect": {
       "kind": "regime",
       "quarters": 2,
-      "sectorDrift": { "health": 0.003, "tech": 0.0015, "consumer": 0.0005, "airlines": -0.004, "tourism": -0.004 },
+      "sectorDrift": { "health": 0.003, "tech": 0.0015, "airlines": -0.005 },
       "volMult": 1.3,
       "corrMult": 1.2,
       "headlines": {
@@ -256,7 +256,7 @@
     "effect": {
       "kind": "regime",
       "quarters": 1,
-      "sectorDrift": { "tourism": -0.0015, "airlines": -0.001, "defense": 0.001 },
+      "sectorDrift": { "airlines": -0.002, "defense": 0.001 },
       "volMult": 1.8,
       "corrMult": 1.4,
       "rateDelta": 0.005,

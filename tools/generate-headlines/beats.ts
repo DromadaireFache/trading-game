@@ -27,11 +27,6 @@ export const beats: Record<Sector, Industry> = {
     operation: ['ground handling', 'baggage sorting', 'engine overhaul', 'crew scheduling', 'cargo terminal'],
     rule: ['landing rights', 'crew rest', 'passenger refunds', 'baggage fees', 'runway noise'],
   },
-  tourism: {
-    product: ['resort packages', 'cruise cabins', 'ski passes', 'campground bookings', 'guided tours', 'convention bookings'],
-    operation: ['cruise terminal', 'hotel renovation', 'ski lift', 'water park', 'theme park'],
-    rule: ['visitor permits', 'resort fees', 'short-term rentals', 'shore access', 'park capacity'],
-  },
   finance: {
     product: ['payment services', 'mortgages', 'crop insurance', 'small business loans', 'prepaid cards', 'retirement accounts'],
     operation: ['clearing network', 'branch network', 'mortgage servicing', 'claims processing', 'card settlement'],
@@ -41,20 +36,5 @@ export const beats: Record<Sector, Industry> = {
     product: ['diagnostic devices', 'infusion pumps', 'generic drugs', 'home testing kits', 'surgical implants', 'telehealth subscriptions'],
     operation: ['device assembly', 'clinical trial', 'sterile packaging', 'sample processing', 'patient support'],
     rule: ['clinical approval', 'patient privacy', 'hospital reimbursement', 'drug labeling', 'device inspections'],
-  },
-  consumer: {
-    product: ['snack bars', 'running shoes', 'smart kettles', 'frozen dinners', 'baby monitors', 'laundry detergent'],
-    operation: ['distribution warehouse', 'packaging line', 'store network', 'fulfillment center', 'cold storage'],
-    rule: ['product labeling', 'warranty claims', 'food safety', 'coupon disclosures', 'packaging waste'],
-  },
-  industrials: {
-    product: ['factory robots', 'rail signals', 'forklifts', 'industrial pumps', 'elevator controls', 'cargo cranes'],
-    operation: ['machine assembly', 'rail depot', 'foundry', 'equipment servicing', 'freight hub'],
-    rule: ['equipment safety', 'factory emissions', 'rail certification', 'worksite inspections', 'noise limits'],
-  },
-  materials: {
-    product: ['refined alloys', 'recycled steel', 'cement', 'battery graphite', 'copper foil', 'industrial ceramics'],
-    operation: ['smelter', 'quarry', 'rolling mill', 'ore processing', 'recycling plant'],
-    rule: ['mining permits', 'tailings storage', 'water discharge', 'quarry restoration', 'scrap tariffs'],
   },
 };

@@ -1,58 +1,7 @@
 /*
- * News and earnings panels.
+ * Earnings report panel (BRIEFING, EARNINGS, FINAL).
  * Colors and fonts only through var(--tg-...) from theme.ts.
  */
-
-.news .panel__body {
-  gap: 6px;
-  padding: 8px;
-}
-.news__time {
-  color: var(--tg-color-text-dim);
-  font-size: 11px;
-}
-.news__beats-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 0 0 4px;
-  border-bottom: 2px solid var(--tg-color-border);
-}
-.news__beats-label {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--tg-color-text-dim);
-  white-space: nowrap;
-}
-.news__beats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 12px;
-}
-.news__tip {
-  font-size: 12px;
-  color: var(--tg-color-text-dim);
-}
-.news__beat {
-  font-weight: 700;
-  color: var(--tg-color-info);
-  white-space: nowrap;
-}
-.news__beat--past {
-  color: var(--tg-color-text-dim);
-  text-decoration: line-through;
-}
-
-.news__regimes {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--tg-color-accent);
-}
-
 .earnings .panel__body {
   padding: 4px 10px 8px;
 }
@@ -86,42 +35,6 @@
   white-space: nowrap;
   padding-block: 2px;
 }
-.news__feed {
-  flex: 1;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  overflow-y: auto;
-}
-.news__item {
-  display: grid;
-  grid-template-columns: 4ch auto minmax(0, 1fr);
-  gap: 8px;
-  align-items: baseline;
-  padding: 4px 2px;
-  font-size: 14px;
-  border-bottom: 1px solid var(--tg-color-border);
-}
-/* Only a NEW row animates (rows are keyed by id), so this is not a per-tick animation. */
-.news__item:first-child {
-  animation: tg-news-in 1.2s ease-out;
-}
-@keyframes tg-news-in {
-  from {
-    background: color-mix(in srgb, var(--tg-color-accent) 30%, transparent);
-  }
-}
-.news__item--early {
-  background: color-mix(in srgb, var(--tg-color-warn) 12%, transparent);
-}
-.news__early {
-  color: var(--tg-color-warn);
-}
-.news__text {
-  font-family: var(--tg-font-sans);
-  color: var(--tg-color-text-bright);
-}
 .ticker-tag {
   font: inherit;
   font-family: var(--tg-font-mono);
@@ -140,41 +53,4 @@
 }
 .ticker-tag:disabled {
   cursor: default;
-}
-
-/* Simple mode: one-tap quick bets on a headline. */
-.news__item--bet {
-  grid-template-columns: 4ch auto minmax(0, 1fr) auto;
-}
-.news__bet {
-  display: flex;
-  gap: 4px;
-}
-.news__bet-btn {
-  width: 28px;
-  height: 24px;
-  padding: 0;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 900;
-  border: 2px solid var(--tg-color-shadow);
-  border-radius: 7px;
-  box-shadow: 0 2px 0 var(--tg-color-shadow);
-  cursor: pointer;
-}
-.news__bet-btn--up {
-  color: var(--tg-color-on-up);
-  background: var(--tg-color-up);
-}
-.news__bet-btn--down {
-  color: var(--tg-color-on-down);
-  background: var(--tg-color-down);
-}
-.news__bet-btn:active:not(:disabled) {
-  transform: translateY(2px);
-  box-shadow: none;
-}
-.news__bet-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
 }

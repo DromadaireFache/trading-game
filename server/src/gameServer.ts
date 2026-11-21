@@ -20,7 +20,7 @@ import { randomUUID } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
 import { WS_CLOSE_REPLACED, roundOhlc, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
-import type { ClientMsg, ErrorCode, JoinMsg, LobbyState, MarketMsg, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg } from '@tg/shared';
+import type { ClientMsg, ErrorCode, HoldingsMsg, JoinMsg, LobbyState, MarketMsg, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg } from '@tg/shared';
 import type { ServerEnv } from './env.ts';
 import { lanUrls } from './lan.ts';
 import { runTickClock } from './loop.ts';
@@ -175,6 +175,18 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     };
   }
 
+  /** The public part of a portfolio (no cash, heat or hand), for everybody's desk. */
+  function holdingsMsg(playerId: PlayerId, p: PortfolioMsg): HoldingsMsg {
+    return {
+      t: 'holdings',
+      playerId,
+      positions: p.positions,
+      equity: p.equity,
+      ...(p.eliminated === undefined ? {} : { eliminated: p.eliminated }),
+      ...(p.jailedUntil === undefined ? {} : { jailedUntil: p.jailedUntil }),
+    };
+  }
+
   function newsMsg(event: SimEventOf<'briefing'> | SimEventOf<'earnings'>): ServerMsg {
     if (event.e === 'briefing') {
       const { e: _e, ...rest } = event;
@@ -239,6 +251,11 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     // A player who reconnects mid-game gets cash and positions back at once (none yet in the lobby).
     const portfolio = session.role === 'player' ? sim.getPortfolio(session.id) : undefined;
     if (portfolio !== undefined) send(socket, portfolioMsg(portfolio));
+    // What every player holds (the desk shows the others' positions).
+    for (const other of playerSessions()) {
+      const held = sim.getPortfolio(other.id);
+      if (held !== undefined) send(socket, holdingsMsg(other.id, portfolioMsg(held)));
+    }
     // In SHOP, the offers this player was shown.
     const shop = session.role === 'player' ? sim.getShop(session.id) : null;
     if (shop !== null) send(socket, { t: 'shop', offers: shop.offers });
@@ -469,8 +486,11 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
         const { e: _e, playerId, price, ...rest } = event;
         return sendTo(playerId, { t: 'fill', ...rest, price: roundPrice(config, price) });
       }
-      case 'portfolio':
-        return sendTo(event.playerId, portfolioMsg(event));
+      case 'portfolio': {
+        const msg = portfolioMsg(event);
+        sendTo(event.playerId, msg);
+        return broadcast(holdingsMsg(event.playerId, msg));
+      }
       case 'bet_result': {
         const { e: _e, playerId, entryPrice, exitPrice, pnl, ...rest } = event;
         return sendTo(playerId, {

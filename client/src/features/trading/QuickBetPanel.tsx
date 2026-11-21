@@ -8,8 +8,8 @@ import { LastFill } from './OrderPanel.tsx';
 import './trading.css';
 
 /**
- * Simple mode's way to bet: choose how big, then UP or DOWN on the selected company. The bet cashes
- * out by itself after config.trading.quickBetDays days, so every bet ends in a clear win or loss.
+ * Simple mode's way to bet: choose how big, then UP or DOWN on the selected company. The bet stays open
+ * until you cash it out (or a margin call does).
  */
 export function QuickBetPanel({ className }: { className?: string }) {
   const { phase, config, fills } = useGame();
@@ -19,7 +19,7 @@ export function QuickBetPanel({ className }: { className?: string }) {
   const quote = useQuote(symbol);
   const live = useLivePortfolio();
   const stake = useStake();
-  const { bet, days } = useQuickBet();
+  const { bet } = useQuickBet();
 
   if (live === null || symbol === null) {
     return (
@@ -62,7 +62,7 @@ export function QuickBetPanel({ className }: { className?: string }) {
       </div>
       <div className="quick__note">
         {open
-          ? `Ends by itself in ${days} days. Or tap ▲ / ▼ on any news.`
+          ? 'Your bet stays open until you cash it out.'
           : live.portfolio.eliminated
             ? 'You are out of the game.'
             : 'Betting opens when the market opens.'}

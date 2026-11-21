@@ -1,12 +1,9 @@
 import type { Phase } from '@tg/shared';
 import { ErrorBanner } from '../components/ErrorBanner.tsx';
-import { Panel } from '../components/Panel.tsx';
 import { PhaseHeader } from '../components/PhaseHeader.tsx';
-import { Roster } from '../components/Roster.tsx';
 import { SeatTaken } from '../components/SeatTaken.tsx';
 import { EarningsPanel } from '../features/headlines/EarningsPanel.tsx';
 import { HandPanel } from '../features/cards/HandPanel.tsx';
-import { HeadlinesPanel } from '../features/headlines/HeadlinesPanel.tsx';
 import { JoinForm } from '../features/lobby/JoinForm.tsx';
 import { LobbyView } from '../features/lobby/LobbyView.tsx';
 import { MarketPanel } from '../features/market/MarketPanel.tsx';
@@ -14,7 +11,9 @@ import { FinalPanel } from '../features/results/FinalPanel.tsx';
 import { ResultsPanel } from '../features/results/ResultsPanel.tsx';
 import { ShopPanel } from '../features/shop/ShopPanel.tsx';
 import { OrderPanel } from '../features/trading/OrderPanel.tsx';
-import { PositionsPanel } from '../features/trading/PositionsPanel.tsx';
+import { MoneyPanel, PositionsPanel } from '../features/trading/PositionsPanel.tsx';
+import { NewsPopups } from '../features/news/NewsPopups.tsx';
+import { RivalsPanel } from '../features/rivals/RivalsPanel.tsx';
 import { FxRoot } from '../features/fx/FxLayer.tsx';
 import { GameFx } from '../features/fx/GameFx.tsx';
 import { GameProvider, useGame } from '../net/GameProvider.tsx';
@@ -53,28 +52,30 @@ function PlayScreen() {
 const STAGE_PHASES: readonly Phase[] = ['RESULTS', 'SHOP', 'FINAL'];
 
 /**
- * The trading desk grid. The big left area follows the phase: market (symbol list + chart) during
- * the quarter, one "stage" panel (results / shop / final) between and after quarters.
- * The side panels stay put.
+ * The trading desk grid. Top half: the stock list, the chart (where headlines pop up as newspapers)
+ * and on the right your order entry, your money and your cards. Bottom half: the other players'
+ * positions, then yours. Between and after quarters one "stage" panel (results / shop / final)
+ * takes the place of everything but the right column.
  */
 function Desk({ phase }: { phase: Phase }) {
-  const { lobby, me } = useGame();
+  const stage = STAGE_PHASES.includes(phase);
   return (
-    <main className={`desk${STAGE_PHASES.includes(phase) ? ' desk--stage' : ''}${phase === 'FINAL' ? ' desk--final' : ''}`}>
+    <main className={`desk${stage ? ' desk--stage' : ''}${phase === 'FINAL' ? ' desk--final' : ''}`}>
       <div className="desk__errors">
         <ErrorBanner />
       </div>
       <Stage phase={phase} />
-      <div className="desk__updates">
+      {phase === 'TRADING' && <NewsPopups className="desk__pops" />}
+      <div className="desk__earnings">
         <EarningsPanel />
-        <HeadlinesPanel className="desk__headlines" />
       </div>
-      <OrderPanel className="desk__order" />
-      <PositionsPanel className="desk__positions" />
-      <HandPanel className="desk__hand" />
-      <Panel title="Players" className="desk__players">
-        <Roster lobby={lobby} meId={me?.playerId} />
-      </Panel>
+      <div className="desk__side">
+        <OrderPanel className="desk__order" />
+        <MoneyPanel className="desk__money" />
+        <HandPanel className="desk__hand" />
+      </div>
+      {!stage && <RivalsPanel className="desk__rivals" />}
+      {!stage && <PositionsPanel className="desk__positions" />}
     </main>
   );
 }

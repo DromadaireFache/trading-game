@@ -1,8 +1,7 @@
 /**
  * Quick bets (Simple mode): one tap = a bet UP or DOWN on a company with a fixed stake (Small /
- * Medium / Big = config.trading.quickBetStakes of the money you can bet). The server cashes it out by
- * itself after config.trading.quickBetDays trading days (or at the quarter's close), and sends a
- * `bet_result` with the profit and the win streak.
+ * Medium / Big = config.trading.quickBetStakes of the money you can bet). It is a plain order: the
+ * position stays open until the player sells it or a margin call closes it.
  */
 import { useCallback, useSyncExternalStore } from 'react';
 import { sharesForNotional, valuePortfolio } from '@tg/shared';
@@ -50,22 +49,21 @@ export function useStake(): number {
  * when it cannot (no money to bet, no price). The stake is computed at the moment of the click, so this
  * hook does not follow the 10 Hz prices (one per panel, never one per row).
  */
-export function useQuickBet(): { bet: (symbol: SymbolId, up: boolean) => boolean; days: number; ready: boolean } {
+export function useQuickBet(): { bet: (symbol: SymbolId, up: boolean) => boolean; ready: boolean } {
   const client = useGameClient();
   const market = useMarketStore();
   const { config, portfolio } = useGame();
   const index = useStake();
   const share = config.trading.quickBetStakes[index] ?? config.trading.quickBetStakes[0] ?? 0.1;
-  const days = config.trading.quickBetDays;
   const bet = useCallback(
     (symbol: SymbolId, up: boolean) => {
       if (portfolio === null) return false;
       const { buyingPower } = valuePortfolio(config, portfolio.cash, portfolio.positions, (s) => market.getQuote(s)?.price);
       const qty = sharesForNotional(buyingPower * share, market.getQuote(symbol)?.price ?? 0);
       if (qty <= 0) return false;
-      return client.send({ t: 'order', symbol, qty: up ? qty : -qty, holdDays: days });
+      return client.send({ t: 'order', symbol, qty: up ? qty : -qty });
     },
-    [client, market, config, portfolio, share, days],
+    [client, market, config, portfolio, share],
   );
-  return { bet, days, ready: portfolio !== null && portfolio.eliminated !== true };
+  return { bet, ready: portfolio !== null && portfolio.eliminated !== true };
 }

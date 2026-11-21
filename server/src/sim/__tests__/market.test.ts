@@ -187,10 +187,10 @@ describe('market: volatility', () => {
     }
     expect(mean(ratios)).toBeGreaterThan(0.96);
     expect(mean(ratios)).toBeLessThan(1.04);
-    // A typical stock has a quiet but measurable daily move.
+    // A typical stock has a measurable daily move, livelier since the realism pass (about 1.3%).
     const typical = mean(market.universe.companies.map((c) => std(returns.get(c.symbol)!)));
     expect(typical).toBeGreaterThan(0.0025);
-    expect(typical).toBeLessThan(0.0125);
+    expect(typical).toBeLessThan(0.02);
   });
 
   it('daily vol does not depend on the tick rate (sqrt-of-time scaling)', () => {

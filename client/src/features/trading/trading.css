@@ -195,11 +195,22 @@
   border-color: var(--tg-color-warn);
 }
 
-/* ---------------------------------------------------------------- your money */
+/* ---------------------------------------------------------------- your money, your positions */
 
+.money .panel__body,
 .positions .panel__body {
-  gap: 6px;
-  padding: 0 10px 10px;
+  gap: 4px;
+  padding: 0 10px 8px;
+}
+.positions__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.positions__legend {
+  display: inline-flex;
+  gap: 8px;
+  font-weight: 700;
 }
 .positions__score {
   display: flex;
@@ -245,9 +256,9 @@
 .positions__table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 3px;
-  font-size: 12px;
-  line-height: 20px;
+  border-spacing: 0 5px;
+  font-size: 15px;
+  line-height: 38px;
 }
 .positions__table th {
   font-size: 10px;
@@ -263,11 +274,18 @@
 .positions__table td {
   text-align: right;
   white-space: nowrap;
-  padding: 0 3px;
+  padding: 0 8px;
   background: var(--tg-color-bg-inset);
 }
 .positions__table td:first-child {
   border-radius: 6px 0 0 6px;
+  border-left: 4px solid transparent;
+}
+.positions__row--up td:first-child {
+  border-left-color: var(--tg-color-up);
+}
+.positions__row--down td:first-child {
+  border-left-color: var(--tg-color-down);
 }
 .positions__table td:last-child {
   border-radius: 0 6px 6px 0;
@@ -283,7 +301,8 @@
 }
 .positions__sym {
   font-family: var(--tg-font-mono);
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
   color: var(--tg-color-text-bright);
 }
 .positions__dir {
@@ -300,10 +319,12 @@
 }
 .positions__close {
   font: inherit;
-  width: 20px;
-  height: 18px;
+  width: 28px;
+  height: 26px;
   padding: 0;
-  line-height: 14px;
+  font-size: 16px;
+  line-height: 20px;
+  vertical-align: middle;
   color: var(--tg-color-text-dim);
   background: transparent;
   border: 2px solid var(--tg-color-border);
@@ -330,13 +351,6 @@
   font-weight: 900;
   color: var(--risk-color);
   white-space: nowrap;
-}
-.positions__name {
-  font-weight: 700;
-  color: var(--tg-color-text-bright);
-  max-width: 14ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ---------------------------------------------------------------- quick bets (Simple mode) */
@@ -414,57 +428,3 @@
   color: var(--tg-color-text-dim);
 }
 
-/* Results and streak in Your money. */
-.bets {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.bets__hint {
-  font-size: 12px;
-  color: var(--tg-color-text-dim);
-}
-.bets__streak {
-  align-self: flex-start;
-  padding: 1px 8px;
-  font-family: var(--tg-font-display);
-  font-size: 12px;
-  font-weight: 900;
-  color: var(--tg-color-text-dim);
-  background: var(--tg-color-bg-inset);
-  border: 2px solid var(--tg-color-border);
-  border-radius: 999px;
-}
-.bets__streak--hot {
-  color: var(--tg-color-on-accent);
-  background: var(--tg-color-accent);
-  border-color: var(--tg-color-accent);
-}
-.bets__list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.bets__item {
-  display: grid;
-  grid-template-columns: 1.4em minmax(0, 1fr) auto;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-}
-.bets__item--win {
-  color: var(--tg-color-up);
-}
-.bets__item--loss {
-  color: var(--tg-color-down);
-}
-.bets__name {
-  color: var(--tg-color-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.positions__ends {
-  color: var(--tg-color-info);
-  font-weight: 700;
-}
