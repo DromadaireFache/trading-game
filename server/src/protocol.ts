@@ -46,6 +46,11 @@ export function parseClientMsg(text: string): ParseResult {
     }
     case 'new_game':
       return { ok: true, msg: { t: 'new_game' } };
+    case 'end_game':
+      if (typeof raw.game !== 'number' || !Number.isSafeInteger(raw.game) || raw.game < 1) {
+        return bad('end_game.game must be a positive whole number');
+      }
+      return { ok: true, msg: { t: 'end_game', game: raw.game } };
     case 'order': {
       if (!isNonEmptyString(raw.symbol)) return bad('order.symbol must be a non-empty string');
       if (typeof raw.qty !== 'number' || !Number.isFinite(raw.qty) || raw.qty === 0) {

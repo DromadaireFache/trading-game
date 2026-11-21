@@ -144,8 +144,8 @@ describe('state snapshot', () => {
   });
 });
 
-describe('Trading Ready Up', () => {
-  it('requires debug mode and every player, then settles the full quarter as if it ran at normal speed', () => {
+describe('Debug mode skips', () => {
+  it('lets one player skip Trading, Results and Shop, and settles the quarter as if it ran at normal speed', () => {
     const play = (debugMode: boolean) => {
       const sim = createSim(1, fast);
       sim.submit({ kind: 'add_player', playerId: 'p1', name: 'Ann' });
@@ -154,17 +154,17 @@ describe('Trading Ready Up', () => {
       run(sim, [], 1 + phaseTicks(fast, 'BRIEFING'));
       const symbol = sim.getUniverse().companies[0]!.symbol;
       sim.submit({ kind: 'order', playerId: 'p1', symbol, qty: 10, holdDays: fast.time.daysPerQuarter });
-      sim.submit({ kind: 'ready_up', playerId: 'p1', quarter: 1, phase: 'TRADING' });
-      const events = sim.tick();
-      expect(sim.getState()).toMatchObject({ phase: 'TRADING', phaseTick: 1 });
-      expect(events.map((event) => event.e)).toContain(debugMode ? 'phase_ready' : 'reject');
       return sim;
     };
 
     const normal = play(false);
+    normal.submit({ kind: 'ready_up', playerId: 'p2', quarter: 1, phase: 'TRADING' });
+    expect(normal.tick()).toContainEqual(expect.objectContaining({ e: 'reject', code: 'wrong_phase' }));
+    expect(normal.getState()).toMatchObject({ phase: 'TRADING', phaseTick: 1 });
     run(normal, [], phaseTicks(fast, 'TRADING') - 1);
 
     const debug = play(true);
+    debug.tick();
     debug.submit({ kind: 'ready_up', playerId: 'p2', quarter: 1, phase: 'TRADING' });
     const events = debug.tick();
     expect(debug.getState()).toMatchObject({ phase: 'EARNINGS', phaseTick: 0 });
@@ -178,6 +178,15 @@ describe('Trading Ready Up', () => {
     for (const sim of [debug, normal]) run(sim, [], phaseTicks(fast, 'EARNINGS'));
     expect(debug.getResults()).toEqual(normal.getResults());
     expect(debug.getPhaseReady()?.readyPlayerIds).toEqual([]);
+
+    debug.submit({ kind: 'ready_up', playerId: 'p2', quarter: 1, phase: 'RESULTS' });
+    debug.tick();
+    expect(debug.getState()).toMatchObject({ phase: 'SHOP', quarter: 1, phaseTick: 0 });
+    expect(debug.getPhaseReady()?.readyPlayerIds).toEqual([]);
+
+    debug.submit({ kind: 'ready_up', playerId: 'p2', quarter: 1, phase: 'SHOP' });
+    debug.tick();
+    expect(debug.getState()).toMatchObject({ phase: 'BRIEFING', quarter: 2, phaseTick: 0 });
   });
 });
 

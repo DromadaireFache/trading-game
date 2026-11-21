@@ -23,7 +23,7 @@ export function EarningsPanel() {
     <Panel title="Earnings" aside={`Q${quarter} results vs. expectations`} className="earnings" key={quarter}>
       <div className="earnings__report" data-testid="earnings">
         <p className="earnings__tip" data-testid="earnings-tip">
-          {quarter < config.time.quarters
+          {phase?.phase !== 'FINAL' && quarter < config.time.quarters
             ? <>Find a big beat to bet <strong>UP</strong> or a big miss to bet <strong>DOWN</strong>. Click a ticker and trade as soon as Q{quarter + 1} opens.</>
             : 'The final earnings report counts toward the standings.'}
         </p>

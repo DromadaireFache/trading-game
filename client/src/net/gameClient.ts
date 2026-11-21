@@ -14,6 +14,7 @@
 import { defaultConfig, WS_CLOSE_REPLACED } from '@tg/shared';
 import type { ClientMsg, JoinMsg, Role, ServerMsg } from '@tg/shared';
 import { MarketStore } from './marketStore.ts';
+import { NetWorthStore } from './netWorthStore.ts';
 import { browserSessionStorage, clearSession, loadSession, saveSession } from './session.ts';
 import type { SessionStorageLike } from './session.ts';
 import { applyServerMsg, initialGameState, parseServerMsg } from './state.ts';
@@ -59,6 +60,7 @@ export class GameClient {
   private readonly now: () => number;
   /** Universe, prices and candles; fed by `market`, `tick` and `candle` messages. */
   readonly market: MarketStore;
+  readonly netWorth = new NetWorthStore();
 
   private state: GameState = initialGameState;
   private readonly stateListeners = new Set<() => void>();
@@ -291,6 +293,8 @@ export class GameClient {
       this.market.setConfig(msg.config);
     } else if (msg.t === 'market' || msg.t === 'tick' || msg.t === 'candle') {
       this.market.apply(msg);
+    } else if (msg.t === 'net_worth') {
+      this.netWorth.apply(msg);
     }
 
     let next = applyServerMsg(this.state, msg, this.now());

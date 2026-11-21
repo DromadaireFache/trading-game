@@ -56,13 +56,20 @@ export interface JoinMsg {
 /** Any joined player may start the game while in LOBBY. */
 export interface StartMsg {
   t: 'start';
-  /** Enable Ready Up during Trading for this game. */
+  /** Let a single player skip Trading, Results or Shop for this game. */
   debugMode?: boolean;
 }
 
 /** FINAL only, any player: a fresh game (next seed) with the connected players back in the lobby. */
 export interface NewGameMsg {
   t: 'new_game';
+}
+
+/** Ends the current game for everyone and opens the final standings. */
+export interface EndGameMsg {
+  t: 'end_game';
+  /** Game number from welcome, so a late request cannot end a different game. */
+  game: number;
 }
 
 /** Market order. qty < 0 = sell/short. */
@@ -99,7 +106,7 @@ export interface PlayCardMsg {
   direction?: CardDirection;
 }
 
-export type ClientMsg = JoinMsg | StartMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg;
+export type ClientMsg = JoinMsg | StartMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg | EndGameMsg;
 export type ClientMsgType = ClientMsg['t'];
 
 // ---------------------------------------------------------------------------
@@ -111,7 +118,7 @@ export interface PhaseInfo {
   phase: Phase;
   /** Wall-clock ms when the phase ends. null for LOBBY and FINAL (no timer). */
   endsAt: number | null;
-  /** 0 in LOBBY, then 1..totalQuarters. Stays at totalQuarters in FINAL. */
+  /** 0 in LOBBY, then the current quarter. FINAL keeps the quarter where the game ended. */
   quarter: number;
   totalQuarters: number;
   /** Set when the game was started in debug mode. */
@@ -278,6 +285,19 @@ export interface HoldingsMsg {
   jailedUntil?: number;
 }
 
+export interface NetWorthSample {
+  /** Market ticks elapsed since the game opened. Each day has time.ticksPerCandle ticks. */
+  readonly tick: number;
+  readonly equity: Readonly<Record<PlayerId, number>>;
+}
+
+/** Projector-only standings history on join and subsequent live samples. */
+export interface NetWorthMsg {
+  t: 'net_worth';
+  samples: NetWorthSample[];
+  reset?: boolean;
+}
+
 /** A quick bet settled (sent to its player only). */
 export interface BetResultMsg {
   t: 'bet_result';
@@ -366,6 +386,7 @@ export type ServerMsg =
   | BetResultMsg
   | PortfolioMsg
   | HoldingsMsg
+  | NetWorthMsg
   | ShopMsg
   | PhaseReadyMsg
   | ResultsMsg

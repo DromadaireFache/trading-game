@@ -20,7 +20,7 @@
  * the end), so adding a subsystem never changes the universe or the price path of a seed.
  */
 import { canReadyUp, msToTicks } from '@tg/shared';
-import type { GameConfig, Phase, PlayerId } from '@tg/shared';
+import type { GameConfig, NetWorthSample, Phase, PlayerId } from '@tg/shared';
 import { createMarket } from './market.ts';
 import { nextPhase, phaseLength } from './phases.ts';
 import { createCardEngine } from './cardEngine.ts';
@@ -137,6 +137,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   /** Orders of jailed players, released at tick `due`. */
   const delayed: { due: number; intent: Extract<SimIntent, { kind: 'order' }> }[] = [];
   const players: SimPlayer[] = [];
+  const netWorthHistory: NetWorthSample[] = [];
   const readyPlayers = new Set<PlayerId>();
   let debugMode = false;
   let phase: Phase = 'LOBBY';
@@ -147,6 +148,14 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
 
   let events: SimEvent[] = [];
 
+  function recordNetWorth(): void {
+    const tick = marketTick();
+    const equity = Object.fromEntries(players.map(({ id }) => [id, trading.portfolio(id)!.equity]));
+    const existing = netWorthHistory[tick];
+    if (existing && players.every(({ id }) => existing.equity[id] === equity[id])) return;
+    netWorthHistory[tick] = { tick, equity };
+  }
+
   function pendingOrder(playerId: PlayerId): SimEventOf<'pending_order'> {
     const pending = delayed.find((entry) => entry.intent.playerId === playerId);
     return { e: 'pending_order', playerId, order: pending ? {
@@ -156,6 +165,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   }
 
   function enter(next: { phase: Phase; quarter: number }): void {
+    const previousPhase = phase;
     if (phase === 'TRADING' && next.phase !== 'TRADING') {
       for (const entry of delayed.splice(0)) {
         events.push({ e: 'pending_order', playerId: entry.intent.playerId, order: null, cancelled: true });
@@ -178,7 +188,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       results.recordEarnings(reports);
       events.push({ e: 'earnings', quarter, reports });
     }
-    if (phase === 'RESULTS' || phase === 'FINAL') finishQuarter(phase === 'FINAL');
+    if (phase === 'RESULTS' || phase === 'FINAL') finishQuarter(phase === 'FINAL', previousPhase);
     if (phase === 'SHOP') events.push(...cards.openShop(quarter));
   }
 
@@ -223,22 +233,24 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   }
 
   /** Close every quarter for fines, trade awards and the recap. Publish the appropriate standings. */
-  function finishQuarter(final: boolean): void {
+  function finishQuarter(final: boolean, previousPhase: Phase): void {
     const nextTradingDay = quarter * config.time.daysPerQuarter;
-    const close = cards.closeQuarter(quarter, nextTradingDay);
-    const extra = { ...cardExtra(nextTradingDay), arrests: close.arrests };
-    const event = results.closeQuarter(quarter, news.log(), extra);
-    // Cards that publish no headline (insider tips, earnings peeks) are revealed too.
-    event.recap.cardAuthors.push(...close.reveals);
-    if (final) {
-      finalMarks = marksAfterLastGap();
-    } else {
-      events.push(event);
-      for (const m of close.moments) {
-        const moment = results.addMoment(m.kind, m.text);
-        if (moment !== null) events.push(moment);
+    const alreadyClosed = previousPhase === 'RESULTS' || previousPhase === 'SHOP';
+    const close = alreadyClosed ? null : cards.closeQuarter(quarter, nextTradingDay);
+    const extra = { ...cardExtra(nextTradingDay), arrests: close?.arrests ?? results.last()?.arrests ?? [] };
+    if (close) {
+      const event = results.closeQuarter(quarter, news.log(), extra);
+      // Cards that publish no headline (insider tips, earnings peeks) are revealed too.
+      event.recap.cardAuthors.push(...close.reveals);
+      if (!final) {
+        events.push(event);
+        for (const m of close.moments) {
+          const moment = results.addMoment(m.kind, m.text);
+          if (moment !== null) events.push(moment);
+        }
       }
     }
+    if (final) finalMarks = marksAfterLastGap();
     // Everybody sees their updated portfolio at the close and the marks used in the final standings.
     for (const p of players) events.push(portfolioOf(p.id)!);
     if (final) events.push(results.final(news.log(), extra));
@@ -286,6 +298,11 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         for (const p of players) events.push(portfolioOf(p.id)!);
         return true;
       }
+      case 'end_game':
+        if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
+        if (phase === 'LOBBY' || phase === 'FINAL') return reject(intent, 'wrong_phase', 'there is no active game to end'), false;
+        enter({ phase: 'FINAL', quarter });
+        return true;
       case 'order': {
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
         if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'the market is closed'), false;
@@ -378,6 +395,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       if (event.e === 'fill') results.recordFill(event);
       events.push(event);
     }
+    recordNetWorth();
     if (moment) events.push(moment);
   }
 
@@ -412,21 +430,23 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       // 2. clock (does not run in LOBBY and FINAL)
       const length = phaseLength(config, phase);
       if (length !== null && !enteredByIntent) {
-        const allReady = canReadyUp(phase, debugMode) && readyPlayers.size === players.length;
+        const readyToAdvance = canReadyUp(phase, debugMode) && readyPlayers.size >= (debugMode ? 1 : players.length);
         if (phase === 'TRADING') {
-          // Debug Ready Up runs the remaining market steps at once. Candles carry the full history
+          // Skipping Trading in debug mode runs the remaining market steps at once. Candles carry the full history
           // and closing quotes to clients without a burst of intraday price messages.
-          const steps = allReady ? length - phaseTick : 1;
-          for (let i = 0; i < steps; i++) stepTrading(!allReady);
+          const steps = readyToAdvance ? length - phaseTick : 1;
+          for (let i = 0; i < steps; i++) stepTrading(!readyToAdvance);
           phaseTick += steps;
         } else {
           phaseTick += 1;
         }
-        if (phaseTick >= length || allReady) {
+        if (phaseTick >= length || readyToAdvance) {
           enter(nextPhase(config, { phase, quarter }));
         }
       }
 
+      // Between trading days, card purchases and quarter settlement can change the latest point.
+      if (phase !== 'TRADING' && events.some((event) => event.e === 'portfolio')) recordNetWorth();
       tick += 1;
       // Every portfolio carries the player's hand, heat and jail.
       return events.map((e) => (e.e === 'portfolio' ? cards.decorate(e) : e));
@@ -447,6 +467,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     },
     getUniverse: () => universe,
     getMarketSnapshot: () => market.getSnapshot(),
+    getNetWorth: (fromTick = 0) => netWorthHistory.slice(fromTick),
     getPortfolio: (playerId) => portfolioOf(playerId),
     getShop: (playerId) => (phase === 'SHOP' ? cards.offersOf(playerId) : null),
     getPhaseReady: () => (canReadyUp(phase, debugMode) ? { e: 'phase_ready', readyPlayerIds: [...readyPlayers] } : null),

@@ -436,23 +436,57 @@ describe('start and phases', () => {
     expect(s.sim.getPhaseReady()?.readyPlayerIds).toEqual([]);
   });
 
-  it('starts debug mode for the whole game, goes from last Earnings to Final, and resets debug mode on Play Again', async () => {
+  it('lets one player skip in debug mode and resets debug mode on Play Again', async () => {
     const s = await start({ time: { quarters: 1, daysPerQuarter: 60 }, phaseMs: { RESULTS: 1_000 } });
     const ann = await open(s);
     await ann.join('player', 'Ann');
+    const bob = await open(s);
+    await bob.join('player', 'Bob');
     ann.send({ t: 'start', debugMode: true });
     const trading = await ann.next('phase', (m) => m.phase === 'TRADING');
     expect(trading.debugMode).toBe(true);
 
-    ann.send({ t: 'ready_up', quarter: 1, phase: 'TRADING' });
+    await bob.next('phase', (m) => m.phase === 'TRADING');
+    bob.send({ t: 'ready_up', quarter: 1, phase: 'TRADING' });
     const earnings = await ann.next('phase');
     expect(earnings.phase).toBe('EARNINGS');
     expect(earnings.endsAt! - s.sim.config.phaseMs.EARNINGS).toBeLessThan(trading.endsAt!);
     expect((await ann.next('phase')).phase).toBe('FINAL');
-    expect(await ann.next('results')).toMatchObject({ final: true, leaderboard: [expect.anything()] });
+    const final = await ann.next('results');
+    expect(final.final).toBe(true);
+    expect(final.leaderboard).toHaveLength(2);
 
     ann.send({ t: 'new_game' });
     expect((await ann.next('welcome')).phase.debugMode).toBeUndefined();
+  });
+
+  it.each([false, true])('ends an active match from a player’s request (debug = %s)', async (debugMode) => {
+    const s = await start({ time: { quarters: 3, daysPerQuarter: 60 } });
+    const ann = await open(s);
+    const { game } = await ann.join('player', 'Ann');
+    const bob = await open(s);
+    await bob.join('player', 'Bob');
+    const floor = await open(s);
+    await floor.join('spectator');
+
+    ann.send({ t: 'end_game', game });
+    expect(await ann.next('error')).toMatchObject({ code: 'rejected' });
+    ann.send({ t: 'start', debugMode });
+    await Promise.all([ann, bob, floor].map((client) => client.next('phase', (m) => m.phase === 'TRADING')));
+    floor.send({ t: 'end_game', game });
+    expect(await floor.next('error')).toMatchObject({ code: 'not_allowed' });
+    bob.send({ t: 'end_game', game: game! + 1 });
+    expect(await bob.next('error')).toMatchObject({ code: 'not_allowed' });
+
+    bob.send({ t: 'end_game', game });
+    for (const client of [ann, bob, floor]) {
+      expect(await client.next('phase')).toMatchObject({ phase: 'FINAL', quarter: 1, endsAt: null });
+      expect(await client.next('results')).toMatchObject({ final: true, recap: { quarter: 1 } });
+    }
+    bob.send({ t: 'end_game', game });
+    expect(await bob.next('error')).toMatchObject({ code: 'rejected' });
+    bob.send({ t: 'new_game' });
+    expect(await bob.next('welcome')).toMatchObject({ game: game! + 1, phase: { phase: 'LOBBY' } });
   });
 
   it('forwards sim rejections to the player only', async () => {
@@ -793,6 +827,51 @@ describe('hostile input', () => {
 });
 
 describe('trading', () => {
+  it('streams each player’s equity to the projector and restores the full series for a late join', async () => {
+    const s = await start({
+      time: { ticksPerCandle: 5, daysPerQuarter: 20 },
+      phaseMs: { SHOP: WAIT_MS },
+      lobby: { maxSpectators: 2 },
+    });
+    const ann = await open(s);
+    const { playerId: annId } = await ann.join('player', 'Ann');
+    const bob = await open(s);
+    const { playerId: bobId } = await bob.join('player', 'Bob');
+    const floor = await open(s);
+    await floor.join('spectator');
+    expect(await floor.next('net_worth')).toMatchObject({ reset: true, samples: [] });
+
+    ann.send({ t: 'start', debugMode: true });
+    const startingCash = s.sim.config.economy.startingCash;
+    expect((await floor.next('net_worth')).samples).toEqual([{ tick: 0, equity: { [annId]: startingCash, [bobId]: startingCash } }]);
+    await ann.next('phase', (m) => m.phase === 'TRADING');
+    const symbol = s.sim.getUniverse().companies[0]!.symbol;
+    ann.send({ t: 'order', symbol, qty: 10_000 });
+    const live = await floor.next('net_worth', (m) => m.samples.at(-1)?.equity[annId] !== startingCash);
+    expect(live.samples).toHaveLength(1);
+    expect(live.samples.at(-1)!.equity[bobId]).toBe(startingCash);
+    const next = await floor.next('net_worth');
+    expect(next.samples.map((sample) => sample.tick)).toEqual([live.samples[0]!.tick + 1]);
+
+    ann.send({ t: 'ready_up', phase: 'TRADING', quarter: 1 });
+    const lastTick = s.sim.config.time.daysPerQuarter * s.sim.config.time.ticksPerCandle;
+    const close = await floor.next('net_worth', (m) => m.samples.at(-1)?.tick === lastTick);
+    expect(close.samples.length).toBeGreaterThan(1);
+    const late = await open(s);
+    await late.join('spectator');
+    const history = await late.next('net_worth');
+    expect(history.reset).toBe(true);
+    expect(history.samples.map((sample) => sample.tick)).toEqual(Array.from({ length: lastTick + 1 }, (_, i) => i));
+    expect(history.samples.slice(close.samples[0]!.tick, lastTick)).toEqual(close.samples.slice(0, -1));
+    const offer = (await bob.next('shop')).offers[0]!;
+    bob.send({ t: 'buy_card', offerId: offer.offerId });
+    const correction = await floor.next('net_worth', (m) => m.samples.at(-1)?.equity[bobId] === startingCash - offer.price);
+    expect(correction.samples.map((sample) => sample.tick)).toEqual([lastTick]);
+    expect((await late.next('net_worth', (m) => m.samples.at(-1)?.equity[bobId] === startingCash - offer.price)).samples)
+      .toEqual(correction.samples);
+    expect(ann.received.some((m) => m.t === 'net_worth')).toBe(false);
+  });
+
   it('fills an order in TRADING, sends fill + portfolio to that player only, and restores the portfolio on reconnect', async () => {
     const s = await start({ time: { daysPerQuarter: 40, quarters: 2 } });
     const ann = await open(s);

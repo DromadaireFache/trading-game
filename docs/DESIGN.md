@@ -32,7 +32,9 @@ LOBBY → [ BRIEFING → TRADING → EARNINGS → RESULTS → SHOP ] × (N − 1
 
 Positions carry across quarters. Players are ranked by **net worth**.
 
-The player who starts the game can enable **Debug mode** in the lobby. When every player selects **Ready Up** during Trading, the remaining market days are simulated immediately and Earnings begins.
+The player who starts the game can enable **Debug mode** in the lobby. Any player can then skip Trading, Results, or Shop with one click. Skipping Trading simulates the remaining market days immediately and opens Earnings.
+
+Any player can choose **End game** in the header during an active match. Confirming opens the final standings for everyone, with **Play again** available from there.
 
 **Elimination:** if equity falls below $100k, the player is **out for good** and becomes a spectator.
 

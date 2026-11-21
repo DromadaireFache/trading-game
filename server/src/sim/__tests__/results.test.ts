@@ -109,6 +109,25 @@ describe('results', () => {
     expect(resultsOf(play(6).events)).toEqual(resultsOf(play(6).events));
   });
 
+  it('ends Trading early with current portfolio values and no extra market ticks', () => {
+    let equityAtEnd = 0;
+    const { sim, events } = play(9, (s) => {
+      const { phaseTick } = s.getState();
+      if (phaseTick === 0) {
+        s.submit({ kind: 'order', playerId: 'a', symbol: s.getUniverse().companies[0]!.symbol, qty: 20_000 });
+      }
+      if (phaseTick === 5) {
+        equityAtEnd = s.getPortfolio('a')!.equity;
+        s.submit({ kind: 'end_game', playerId: 'b' });
+      }
+    });
+    expect(sim.getState()).toMatchObject({ phase: 'FINAL', quarter: 1 });
+    expect(events.filter((event) => event.e === 'tick')).toHaveLength(5);
+    const [final] = resultsOf(events);
+    expect(final).toMatchObject({ final: true, recap: { quarter: 1 } });
+    expect(final!.leaderboard.find((row) => row.playerId === 'a')!.netWorth).toBe(equityAtEnd);
+  });
+
   it('a crash moment fires once per quarter and the game budget caps moments', () => {
     const universe = generateUniverse(createRng(1).fork(), defaultConfig);
     const index = universe.funds.find((f) => f.kind === 'index')!.symbol;

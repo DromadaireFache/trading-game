@@ -12,6 +12,7 @@ describe('parseClientMsg', () => {
     expect(parseClientMsg('{"t":"join","role":"spectator"}').ok).toBe(true);
     expect(parseClientMsg('{"t":"start"}')).toEqual({ ok: true, msg: { t: 'start' } });
     expect(parseClientMsg('{"t":"start","debugMode":true}')).toEqual({ ok: true, msg: { t: 'start', debugMode: true } });
+    expect(parseClientMsg('{"t":"end_game","game":2}')).toEqual({ ok: true, msg: { t: 'end_game', game: 2 } });
     expect(parseClientMsg('{"t":"order","symbol":"ACME","qty":-5}')).toEqual({ ok: true, msg: { t: 'order', symbol: 'ACME', qty: -5 } });
     expect(parseClientMsg('{"t":"order","symbol":"ACME","qty":-5,"requestId":42}')).toEqual({ ok: true, msg: { t: 'order', symbol: 'ACME', qty: -5, requestId: 42 } });
     expect(parseClientMsg('{"t":"buy_card","offerId":"o1"}').ok).toBe(true);
@@ -44,6 +45,8 @@ describe('parseClientMsg', () => {
       '{"t":"order","symbol":"ACME","qty":1,"requestId":0}',
       '{"t":"buy_card"}',
       '{"t":"start","debugMode":"true"}',
+      '{"t":"end_game"}',
+      '{"t":"end_game","game":0}',
       '{"t":"ready_up"}',
       '{"t":"ready_up","quarter":1.5}',
       '{"t":"ready_up","quarter":1,"phase":"EARNINGS"}',

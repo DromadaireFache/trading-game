@@ -20,7 +20,7 @@ import { randomUUID } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
 import { WS_CLOSE_REPLACED, roundOhlc, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
-import type { ClientMsg, ErrorCode, HoldingsMsg, JoinMsg, LobbyState, MarketMsg, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg } from '@tg/shared';
+import type { ClientMsg, ErrorCode, HoldingsMsg, JoinMsg, LobbyState, MarketMsg, NetWorthSample, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg } from '@tg/shared';
 import type { ServerEnv } from './env.ts';
 import { lanUrls } from './lan.ts';
 import { runTickClock } from './loop.ts';
@@ -82,6 +82,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
   let sim = createSim(env.seed, config, { headlines });
   /** 1 for the first game of this server run, +1 per "play again". Game n uses seed env.seed + n - 1. */
   let gameNumber = 1;
+  let lastSentWorth: NetWorthSample | undefined;
 
   /** token -> session. */
   const sessions = new Map<string, Session>();
@@ -112,6 +113,19 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
   function broadcast(msg: ServerMsg): void {
     const frame = JSON.stringify(msg);
     for (const socket of bySocket.keys()) sendRaw(socket, frame);
+  }
+
+  function broadcastNetWorth(): void {
+    const spectators = [...bySocket].filter(([, session]) => session.role === 'spectator');
+    if (spectators.length === 0) return;
+    // The last tick can be revised by a shop purchase or settlement. Include it only if it changed.
+    const samples = sim.getNetWorth(lastSentWorth?.tick);
+    if (samples[0] === lastSentWorth) samples.shift();
+    const latest = samples.at(-1);
+    if (latest === undefined) return;
+    lastSentWorth = latest;
+    const frame = JSON.stringify({ t: 'net_worth', samples } satisfies ServerMsg);
+    for (const [socket] of spectators) sendRaw(socket, frame);
   }
 
   function sendTo(playerId: PlayerId, msg: ServerMsg): void {
@@ -248,6 +262,11 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     });
     // Same synchronous turn as the welcome, so no tick can slip in between.
     send(socket, market);
+    if (session.role === 'spectator') {
+      const samples = sim.getNetWorth();
+      send(socket, { t: 'net_worth', samples, reset: true });
+      lastSentWorth = samples.at(-1);
+    }
     // A player who reconnects mid-game gets cash and positions back at once (none yet in the lobby).
     const portfolio = session.role === 'player' ? sim.getPortfolio(session.id) : undefined;
     if (portfolio !== undefined) send(socket, portfolioMsg(portfolio));
@@ -369,6 +388,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'only players can start a new game');
     if (sim.getState().phase !== 'FINAL') return sendError(socket, 'not_allowed', 'a new game can only start after the final results');
     gameNumber += 1;
+    lastSentWorth = undefined;
     sim = createSim(env.seed + gameNumber - 1, config, { headlines });
     starting = false;
     for (const s of playerSessions()) {
@@ -389,6 +409,9 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
 
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'spectators cannot do that');
     switch (msg.t) {
+      case 'end_game':
+        if (msg.game !== gameNumber) return sendError(socket, 'not_allowed', 'that game has already ended');
+        return sim.submit({ kind: 'end_game', playerId: session.id });
       case 'order': {
         const { t: _t, ...order } = msg;
         return sim.submit({ kind: 'order', playerId: session.id, ...order });
@@ -543,7 +566,11 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       maxCatchUpTicks: config.net.maxCatchUpTicks,
       onTick(tickTime) {
         try {
-          for (const event of sim.tick()) dispatch(event, tickTime);
+          const events = sim.tick();
+          for (const event of events) dispatch(event, tickTime);
+          if (events.some((event) => event.e === 'tick' || event.e === 'candle' || event.e === 'portfolio')) {
+            broadcastNetWorth();
+          }
         } catch (error) {
           log(`[server] tick failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
         }

@@ -37,7 +37,7 @@ export function LobbyView() {
           </button>
           <label className="lobby__debug">
             <input type="checkbox" checked={debugMode} onChange={(event) => setDebugMode(event.target.checked)} />
-            Debug mode (Ready Up in Trading)
+            Debug mode (allow skipping phases)
           </label>
           <p className="lobby__note">
             {missing > 0

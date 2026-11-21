@@ -234,6 +234,24 @@ describe('SEC', () => {
     expect(before.cash - g.sim.getPortfolio('p1')!.cash).toBeCloseTo(final!.arrests[0]!.fine, 4);
   });
 
+  it.each(['RESULTS', 'SHOP'] as const)('keeps the settled quarter when ending the game from %s', (phase) => {
+    const g = game([card('insider_tip')], certain);
+    const { hand } = buyAll(g, 'p1');
+    g.to('TRADING', 2, 30);
+    g.sim.submit({ kind: 'play_card', playerId: 'p1', cardId: hand[0]!.cardId });
+    g.step();
+    g.to(phase, 2);
+    const closed = g.sim.getResults()!;
+    const { cash } = g.sim.getPortfolio('p1')!;
+    expect(closed.arrests).toHaveLength(1);
+
+    g.sim.submit({ kind: 'end_game', playerId: 'p2' });
+    const [final] = only(g.step(), 'results');
+    expect(final).toMatchObject({ final: true, arrests: closed.arrests, recap: closed.recap });
+    expect(final!.statements).toEqual(closed.statements);
+    expect(g.sim.getPortfolio('p1')!.cash).toBe(cash);
+  });
+
   it('heat gets you arrested at RESULTS: fine charged, jailed for the next quarter, orders delayed', () => {
     const g = game([card('insider_tip')], certain);
     const { hand } = buyAll(g, 'p1');

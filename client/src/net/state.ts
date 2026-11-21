@@ -197,10 +197,11 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
     }
     case 'error':
       return { ...state, pendingOrder: state.pendingOrder?.confirmed ? state.pendingOrder : null, error: { code: msg.code, message: msg.message, at: now } };
-    // Market data lives in MarketStore (net/marketStore.ts), fed by GameClient: it must not touch this state.
+    // GameClient feeds market prices and projector standings to their own stores.
     case 'market':
     case 'tick':
     case 'candle':
+    case 'net_worth':
       return state;
     // Later milestones: fold these into their own slices.
     case 'headline': {

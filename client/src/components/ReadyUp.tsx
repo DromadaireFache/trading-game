@@ -1,5 +1,6 @@
 import { canReadyUp } from '@tg/shared';
 import { play } from '../features/fx/sound.ts';
+import { PHASE_LABEL } from '../lib/phases.ts';
 import { useGame, useGameClient } from '../net/GameProvider.tsx';
 
 export function ReadyUp() {
@@ -10,6 +11,7 @@ export function ReadyUp() {
   if (!canReadyUp(current, debugMode)) return null;
 
   const ready = readyPlayerIds.includes(me.playerId);
+  const label = debugMode ? `Skip ${PHASE_LABEL[current]}` : ready ? 'Ready' : 'Ready Up';
   return (
     <div className="phase-ready">
       <button
@@ -21,11 +23,13 @@ export function ReadyUp() {
         }}
         data-testid="ready-up"
       >
-        {ready ? 'Ready' : 'Ready Up'}
+        {label}
       </button>
-      <span role="status" data-testid="ready-count">
-        {readyPlayerIds.length}/{lobby?.players.length ?? 0} players ready
-      </span>
+      {!debugMode && (
+        <span role="status" data-testid="ready-count">
+          {readyPlayerIds.length}/{lobby?.players.length ?? 0} players ready
+        </span>
+      )}
     </div>
   );
 }
