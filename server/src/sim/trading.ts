@@ -9,6 +9,9 @@
  *   3. market.step()
  *   4. afterStep()      borrow fees (when a day closed), elimination, margin calls, portfolio events
  *
+ * Valuation (equity, buying power, margin calls, elimination) uses the FAIR price: the mid without the
+ * temporary impact still in it (see fairPrice). Fills use the effective mid.
+ *
  * Price impact of a fill of |q| shares at effective mid m, with x = notional / adv:
  *   fill price = m * (1 + sign(q) * min(maxSlippage, lambda * x))
  *   permanent  = sign(q) * min(maxPermanent, kPermanent * x)      log-return, applied once
@@ -99,8 +102,21 @@ export function createTrading(deps: TradingDeps): Trading {
     return out;
   }
 
+  /**
+   * Price used to VALUE positions (equity, buying power, margin, elimination, net worth): the mid
+   * without the temporary impact still decaying in it. Fills still happen at effectivePrice. Otherwise
+   * a big order marks its own position up by its temporary impact, which made buying a thin stock
+   * at the cap on the last tick of the game a free net-worth boost.
+   */
+  function fairPrice(symbol: SymbolId): number | undefined {
+    const price = effectivePrice(symbol);
+    if (price === undefined) return undefined;
+    const temp = temporary.get(symbol);
+    return temp === undefined ? price : price * Math.exp(-temp);
+  }
+
   function value(account: Account) {
-    return valuePortfolio(config, account.cash, positionsOf(account), effectivePrice);
+    return valuePortfolio(config, account.cash, positionsOf(account), fairPrice);
   }
 
   /** Books a fill: cash, average price, realized P&L. */
@@ -162,7 +178,7 @@ export function createTrading(deps: TradingDeps): Trading {
 
   function largestFirst(account: Account): Position[] {
     return positionsOf(account).sort(
-      (a, b) => Math.abs(b.qty) * (effectivePrice(b.symbol) ?? 0) - Math.abs(a.qty) * (effectivePrice(a.symbol) ?? 0),
+      (a, b) => Math.abs(b.qty) * (fairPrice(b.symbol) ?? 0) - Math.abs(a.qty) * (fairPrice(a.symbol) ?? 0),
     );
   }
 
@@ -193,18 +209,24 @@ export function createTrading(deps: TradingDeps): Trading {
       const reducesOnly = Math.sign(next) === Math.sign(cur) && Math.abs(next) <= Math.abs(cur);
       if (!reducesOnly && next !== 0) {
         const v = value(account);
-        const grossOthers = v.gross - Math.abs(cur) * mid;
+        const fair = fairPrice(symbol)!;
+        const grossOthers = v.gross - Math.abs(cur) * fair;
         const side = Math.sign(next);
         const sameSide = side === Math.sign(cur);
-        // Largest |next| with gross <= leverageCap * equity AFTER paying this order's slippage (the
-        // slippage is lost equity, so ignoring it let a big order into a small cap land at ~10x).
+        // Largest |next| with gross <= leverageCap * equity AFTER the fill, valued at the fair price:
+        // the equity lost is what the fill pays over (or gets under) the fair price, slippage included.
+        // Ignoring it let a big order into a small cap land at ~10x.
         const fits = (n: number): boolean => {
-          const traded = Math.abs(side * n - cur);
-          const cost = traded === 0 ? 0 : traded * mid * Math.min(im.maxSlippage, adv > 0 ? (im.lambda * traded * mid) / adv : Infinity);
-          return grossOthers + n * mid <= t.leverageCap * (v.equity - cost);
+          const delta = side * n - cur;
+          const traded = Math.abs(delta);
+          if (traded === 0) return grossOthers + n * fair <= t.leverageCap * v.equity;
+          const slip = Math.min(im.maxSlippage, adv > 0 ? (im.lambda * traded * mid) / adv : Infinity);
+          const fill = mid * (1 + Math.sign(delta) * slip);
+          const cost = delta * (fill - fair);
+          return grossOthers + n * fair <= t.leverageCap * (v.equity - cost);
         };
         let lo = sameSide ? Math.abs(cur) : 0;
-        let hi = Math.max(lo, Math.floor((t.leverageCap * v.equity - grossOthers) / mid));
+        let hi = Math.max(lo, Math.floor((t.leverageCap * v.equity - grossOthers) / fair));
         while (lo < hi) {
           const probe = Math.ceil((lo + hi) / 2);
           if (fits(probe)) lo = probe;

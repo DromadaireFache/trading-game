@@ -3,8 +3,8 @@
  * economy can be tuned toward DESIGN's target of a median winner of $1B-3B.
  *
  * Everything is deterministic: same seeds + config + bots => same report. Bots only submit `order`
- * intents (no cards, headlines, regimes or earnings yet: those are not wired into the sim), so the
- * numbers today are the "quiet market" baseline that M4 / M5 add to.
+ * intents. Headlines and earnings run inside the sim (M4); cards, regimes and the SEC are not wired
+ * yet (M5), so today's numbers are the baseline M5 adds to.
  *
  * Timing: the sim processes intents queued before tick() at the start of that tick, before the market
  * step. So a bot that sees `ticksLeft === 1` in TRADING trades on the last step of the quarter.
