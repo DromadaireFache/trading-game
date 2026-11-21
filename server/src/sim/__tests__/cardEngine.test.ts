@@ -233,13 +233,38 @@ describe('SEC', () => {
     expect(after.jailedUntil).toBe((2 + BASE.sec.jailQuarters) * BASE.time.daysPerQuarter);
     expect(before.cash - after.cash).toBeCloseTo(results.arrests[0]!.fine, 4);
     g.to('TRADING', 3, 2);
-    g.sim.submit({ kind: 'order', playerId: 'p1', symbol: g.sim.getUniverse().companies[0]!.symbol, qty: 10 });
+    const symbol = g.sim.getUniverse().companies[0]!.symbol;
+    const otherSymbol = g.sim.getUniverse().companies[1]!.symbol;
+    g.sim.submit({ kind: 'order', playerId: 'p1', symbol, qty: 10 });
+    g.sim.submit({ kind: 'order', playerId: 'p1', symbol: otherSymbol, qty: -10 });
     g.sim.submit({ kind: 'order', playerId: 'p2', symbol: g.sim.getUniverse().companies[0]!.symbol, qty: 10 });
     // p2 fills at once; p1's order waits sec.jailOrderDelayMs, then fills.
-    expect(only(g.step(), 'fill').map((f) => f.playerId)).toEqual(['p2']);
+    const initial = g.step();
+    expect(only(initial, 'fill').map((f) => f.playerId)).toEqual(['p2']);
+    expect(only(initial, 'reject')).toContainEqual(expect.objectContaining({ playerId: 'p1', code: 'jailed' }));
+    expect(g.sim.getPendingOrder('p1').order).toMatchObject({ symbol, qty: 10 });
+    g.sim.submit({ kind: 'order', playerId: 'p1', symbol, qty: -10 });
     const later: SimEvent[] = [];
     for (let i = 0; i <= msToTicks(BASE, BASE.sec.jailOrderDelayMs); i++) later.push(...g.step());
     expect(only(later, 'fill').map((f) => f.playerId)).toEqual(['p1']);
+    expect(only(later, 'reject')).toContainEqual(expect.objectContaining({ playerId: 'p1', code: 'jailed' }));
+    expect(g.sim.getPendingOrder('p1').order).toBeNull();
+  });
+
+  it('cancels a delayed jail order when the market closes', () => {
+    const g = game([card('insider_tip')], certain);
+    const { hand } = buyAll(g, 'p1');
+    g.to('TRADING', 2, 30);
+    g.sim.submit({ kind: 'play_card', playerId: 'p1', cardId: hand[0]!.cardId });
+    g.step();
+    g.to('TRADING', 3);
+    g.step(g.sim.getState().ticksLeft! - 2);
+    g.sim.submit({ kind: 'order', playerId: 'p1', symbol: g.sim.getUniverse().companies[0]!.symbol, qty: 10 });
+    expect(g.step().some((event) => event.e === 'pending_order' && event.order !== null)).toBe(true);
+    const close = g.step();
+    expect(close).toContainEqual(expect.objectContaining({ e: 'pending_order', playerId: 'p1', order: null, cancelled: true }));
+    expect(g.sim.getPendingOrder('p1').order).toBeNull();
+    expect(only(g.step(40), 'fill').filter((fill) => fill.playerId === 'p1')).toHaveLength(0);
   });
 
   it('trading a stock you manipulated adds heat once per stock per quarter', () => {

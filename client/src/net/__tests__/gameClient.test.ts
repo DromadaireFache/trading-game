@@ -88,6 +88,25 @@ describe('reconnectDelayMs', () => {
 });
 
 describe('GameClient', () => {
+  it('blocks repeated jailed orders immediately and restores server pending status', () => {
+    const { client, last } = setup();
+    client.start();
+    last().open();
+    client.join('Ann');
+    last().receive(welcome());
+    last().receive({ t: 'portfolio', cash: 1000, positions: [], equity: 1000, heat: 0, jailedUntil: 90 });
+    expect(client.send({ t: 'order', symbol: 'AAA', qty: 5 })).toBe(true);
+    expect(client.send({ t: 'order', symbol: 'BBB', qty: -5 })).toBe(false);
+    expect(last().sent.filter((msg) => msg.t === 'order')).toHaveLength(1);
+    last().receive({ t: 'pending_order', order: { symbol: 'AAA', qty: 5, remainingMs: 2000 } });
+    expect(client.getState().pendingOrder).toEqual({ symbol: 'AAA', qty: 5, endsAt: 2000, confirmed: true });
+    last().receive({ t: 'error', code: 'rejected', message: 'Previous order pending' });
+    expect(client.getState().pendingOrder?.symbol).toBe('AAA');
+    last().receive({ t: 'pending_order', order: null, cancelled: true });
+    expect(client.getState().pendingOrder).toBeNull();
+    expect(client.getState().orderCancelled).toBe(true);
+    expect(client.send({ t: 'order', symbol: 'BBB', qty: -5 })).toBe(true);
+  });
   it('a player sends nothing until a name is entered, then joins and stores the token', () => {
     const { client, last, storage } = setup();
     client.start();

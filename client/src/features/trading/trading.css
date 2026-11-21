@@ -428,3 +428,11 @@
   color: var(--tg-color-text-dim);
 }
 
+.order__jail {
+  padding: 6px 8px;
+  border: 1px solid var(--tg-color-accent);
+  border-radius: 5px;
+  color: var(--tg-color-accent);
+  font-size: 12px;
+  font-weight: 700;
+}

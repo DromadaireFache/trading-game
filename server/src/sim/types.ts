@@ -82,6 +82,7 @@ export type SimRejectCode =
   | 'not_implemented';
 
 export type SimEvent =
+  | { e: 'pending_order'; playerId: PlayerId; order: { symbol: SymbolId; qty: number; remainingMs: number } | null; cancelled?: boolean }
   /** A new phase began on this tick. durationTicks is null for LOBBY and FINAL. */
   | { e: 'phase'; phase: Phase; quarter: number; durationTicks: number | null }
   /** An intent was refused. The shell forwards it to that player as an `error` message. */
@@ -196,6 +197,7 @@ export interface Sim {
    * The shell sends it after `welcome` so a reconnect restores cash and positions at once.
    */
   getPortfolio(playerId: PlayerId): SimEventOf<'portfolio'> | undefined;
+  getPendingOrder(playerId: PlayerId): SimEventOf<'pending_order'>;
   /**
    * The latest `results` event (a quarter's, or the final one with awards), or null before the first
    * RESULTS. The shell sends it to a player who (re)joins during RESULTS, SHOP or FINAL.

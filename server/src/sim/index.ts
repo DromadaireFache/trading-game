@@ -147,7 +147,20 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
 
   let events: SimEvent[] = [];
 
+  function pendingOrder(playerId: PlayerId): SimEventOf<'pending_order'> {
+    const pending = delayed.find((entry) => entry.intent.playerId === playerId);
+    return { e: 'pending_order', playerId, order: pending ? {
+      symbol: pending.intent.symbol, qty: pending.intent.qty,
+      remainingMs: Math.max(0, pending.due - tick) * config.time.tickMs,
+    } : null };
+  }
+
   function enter(next: { phase: Phase; quarter: number }): void {
+    if (phase === 'TRADING' && next.phase !== 'TRADING') {
+      for (const entry of delayed.splice(0)) {
+        events.push({ e: 'pending_order', playerId: entry.intent.playerId, order: null, cancelled: true });
+      }
+    }
     phase = next.phase;
     quarter = next.quarter;
     phaseTick = 0;
@@ -277,9 +290,15 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       case 'order': {
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
         if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'the market is closed'), false;
+        if (!released && delayed.some((entry) => entry.intent.playerId === intent.playerId)) {
+          reject(intent, 'jailed', 'Your previous jail order is still pending.');
+          events.push(pendingOrder(intent.playerId));
+          return false;
+        }
         // Jail: the order goes through, but only sec.jailOrderDelayMs later (at that moment's price).
         if (!released && cards.isJailed(intent.playerId, market.getDay())) {
           delayed.push({ due: tick + msToTicks(config, config.sec.jailOrderDelayMs), intent });
+          events.push(pendingOrder(intent.playerId));
           return false;
         }
         // Quick bet: the day in progress counts as its first day; it never outlives the quarter.
@@ -294,6 +313,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
           if (event.e === 'fill') results.recordFill(event);
           events.push(event);
         }
+        if (!released) events.push(pendingOrder(intent.playerId));
         return false;
       }
       case 'buy_card': {
@@ -379,7 +399,9 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
           i++;
           continue;
         }
-        process(delayed.splice(i, 1)[0]!.intent, true);
+        const entry = delayed.splice(i, 1)[0]!;
+        process(entry.intent, true);
+        events.push(pendingOrder(entry.intent.playerId));
       }
       for (const intent of queue.splice(0)) {
         if (process(intent)) enteredByIntent = true;
@@ -407,6 +429,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       // Every portfolio carries the player's hand, heat and jail.
       return events.map((e) => (e.e === 'portfolio' ? cards.decorate(e) : e));
     },
+    getPendingOrder: pendingOrder,
     getState(): SimState {
       const length = phaseLength(config, phase);
       return {
