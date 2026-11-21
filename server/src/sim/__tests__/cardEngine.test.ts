@@ -3,7 +3,7 @@
  * (insider preview, fake + debunk, event, regime), heat, the SEC roll, fines, jail, and reveals.
  */
 import { describe, expect, it } from 'vitest';
-import { defaultConfig, mergeConfig, msToTicks } from '@tg/shared';
+import { defaultConfig, mergeConfig, msToTicks, quarterRamp } from '@tg/shared';
 import type { DeepPartial, GameConfig, Phase } from '@tg/shared';
 import type { CardCatalogEntry } from '@tg/shared/cards';
 import { DEFAULT_CATALOG } from '../data/cardData.ts';
@@ -128,7 +128,8 @@ describe('playing cards', () => {
     g.step(3);
     const published = g.sim.news.log().find((p) => p.source === 'card')!;
     expect(published).toMatchObject({ ownerId: 'p1', target: { scope: 'stock', symbol } });
-    expect(published.logReturn).toBeCloseTo(BASE.news.shock.large, 12);
+    // Played in Q2 of 3: cards hit harder each quarter.
+    expect(published.logReturn).toBeCloseTo(BASE.news.shock.large * quarterRamp(BASE, 2, BASE.progression.cardsLastQuarter), 12);
     expect(g.sim.getPortfolio('p1')!.hand).toHaveLength(0);
     g.to('RESULTS', 2, 1);
     const results = only(g.log, 'results').at(-1)!;

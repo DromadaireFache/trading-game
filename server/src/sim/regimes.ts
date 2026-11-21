@@ -54,6 +54,11 @@ export interface StartRegimeArgs {
   ownerId?: PlayerId;
   /** Target sector, required for lobbying. */
   sector?: string;
+  /**
+   * Strength (default 1): scales the sector drifts, a bill's drift and how far volMult and corrMult
+   * sit from 1. The rate change is not scaled.
+   */
+  power?: number;
 }
 
 export function canStartRegime(config: GameConfig, state: RegimeState): boolean {
@@ -64,6 +69,8 @@ export function canStartRegime(config: GameConfig, state: RegimeState): boolean 
 export function startRegime(config: GameConfig, state: RegimeState, args: StartRegimeArgs): StartRegimeResult {
   if (!canStartRegime(config, state)) return { ok: false, reason: 'regime_cap' };
   const fx = args.effect;
+  const power = args.power ?? 1;
+  const boost = (mult: number) => Math.max(0, 1 + (mult - 1) * power);
   const owner = args.ownerId === undefined ? {} : { ownerId: args.ownerId };
 
   let active: ActiveRegime;
@@ -76,7 +83,7 @@ export function startRegime(config: GameConfig, state: RegimeState, args: StartR
     active = {
       regime: { id: args.id, name: args.name, ...owner, quartersLeft: fx.quarters, sectorDrift: {}, volMult: 1, corrMult: 1, headlines: during },
       defId: args.defId,
-      lobby: { sector, driftIfPassed: fx.driftIfPassed, passed: fx.headlines.passed, failed: fx.headlines.failed },
+      lobby: { sector, driftIfPassed: fx.driftIfPassed * power, passed: fx.headlines.passed, failed: fx.headlines.failed },
     };
     startHeadline = fx.headlines.start;
   } else {
@@ -86,9 +93,9 @@ export function startRegime(config: GameConfig, state: RegimeState, args: StartR
         name: args.name,
         ...owner,
         quartersLeft: fx.quarters,
-        sectorDrift: { ...fx.sectorDrift },
-        volMult: fx.volMult,
-        corrMult: fx.corrMult,
+        sectorDrift: Object.fromEntries(Object.entries(fx.sectorDrift).map(([sector, d]) => [sector, (d as number) * power])),
+        volMult: boost(fx.volMult),
+        corrMult: boost(fx.corrMult),
         ...(fx.rateDelta === undefined ? {} : { rateDelta: fx.rateDelta }),
         headlines: [...fx.headlines.during],
       },

@@ -27,7 +27,19 @@ export interface BurstFx {
   power?: number;
 }
 
-type FxEvent = { kind: 'shake'; distance: number; duration: number } | ({ kind: 'popup' } & PopupFx) | ({ kind: 'burst' } & BurstFx);
+export interface FlashFx {
+  tone: FxTone;
+  /** 0..1: a faint glow at the screen edges at the low end, a full-screen wash at 1. */
+  strength: number;
+}
+
+type FxEvent =
+  | { kind: 'shake'; distance: number; duration: number }
+  | ({ kind: 'popup' } & PopupFx)
+  | ({ kind: 'burst' } & BurstFx)
+  | ({ kind: 'flash' } & FlashFx)
+  | { kind: 'chroma'; strength: number }
+  | { kind: 'punch'; strength: number };
 
 const SHAKES = {
   1: { distance: 3, duration: 280 },
@@ -61,7 +73,17 @@ export const fx = {
   },
   popup: (p: PopupFx) => emit({ kind: 'popup', ...p }),
   burst: (b: BurstFx) => emit({ kind: 'burst', ...b }),
+  /** A colored glow from the screen edges (green for a win, red for a loss). */
+  flash: (f: FlashFx) => emit({ kind: 'flash', tone: f.tone, strength: clamp01(f.strength) }),
+  /** Chromatic split: the page doubles into red and cyan copies for a moment. */
+  chroma: (strength = 1) => emit({ kind: 'chroma', strength: clamp01(strength) }),
+  /** Hit-stop: the page freezes for a beat, then punches in and settles. For the biggest moments. */
+  punch: (strength = 1) => emit({ kind: 'punch', strength: clamp01(strength) }),
 };
+
+function clamp01(n: number): number {
+  return Math.min(1, Math.max(0, Number.isFinite(n) ? n : 0));
+}
 
 export function reducedMotion(): boolean {
   try {

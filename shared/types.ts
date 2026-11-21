@@ -305,7 +305,10 @@ export interface CardDef {
 export interface CardOffer {
   offerId: string;
   card: CardDef;
+  /** What this player pays (after any discount). */
   price: number;
+  /** Underdog discount applied to this player's shop (0.25 = 25% off), when there is one. */
+  discount?: number;
 }
 
 /** A card in a player's hand. */

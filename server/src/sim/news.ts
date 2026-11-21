@@ -30,7 +30,7 @@
  * Time is the market tick (day * ticksPerCandle + tickOfDay), like ./shocks.ts.
  * Cards and regimes (M5) publish through enqueue() so they share the queue and the gap.
  */
-import { msToTicks } from '@tg/shared';
+import { msToTicks, quarterRamp } from '@tg/shared';
 import type { Briefing, GameConfig, HeadlineMagnitude, HeadlineTemplate, Sector, SymbolId } from '@tg/shared';
 import { SECTORS } from '@tg/shared';
 import { drawEarnings, earningsGap } from './earnings.ts';
@@ -244,15 +244,19 @@ export function createNews(deps: NewsDeps): News {
     const effectTick = item.ownerId !== undefined ? tick : tick + leadMinTicks + rng.int(leadMaxTicks - leadMinTicks + 1);
     // The move the market actually makes. Cards keep their exact effect; the engine's own news gets an
     // uncertain reaction, so a headline never fully tells you how far, how fast, or even which way.
-    let move = item.logReturn;
+    // The engine's own news grows with the quarter like the rest of the volatility (cards scale where
+    // they are played, earnings leaks follow the earnings).
+    const ownNews = item.source !== 'card' && item.source !== 'regime' && item.leakAmount === undefined;
+    const base = ownNews ? item.logReturn * quarterRamp(config, quarter, config.progression.volLastQuarter) : item.logReturn;
+    let move = base;
     if (move !== 0) {
       const shock = createShock(config, universe, { id, target, logReturn: move, startTick: effectTick });
-      const engineNews = reactionRng !== undefined && item.source !== 'card' && item.source !== 'regime' && item.leakAmount === undefined;
+      const engineNews = reactionRng !== undefined && ownNews;
       if (engineNews) {
         const r = reactionRng!;
         const size = Math.exp(reaction.sizeSigma * r.normal() - (reaction.sizeSigma * reaction.sizeSigma) / 2);
         const reversed = r.next() < reaction.reverseChance;
-        move = item.logReturn * size * (reversed ? -reaction.reverseScale : 1);
+        move = base * size * (reversed ? -reaction.reverseScale : 1);
         shock.logReturn = move;
         shock.overshoot = between(r, reaction.overshootMin, reaction.overshootMax);
         shock.rampTicks = Math.max(1, Math.round(shock.rampTicks * between(r, reaction.rampMultMin, reaction.rampMultMax)));

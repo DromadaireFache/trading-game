@@ -80,3 +80,34 @@ export function takeOrderButton(requestId: number | undefined): ButtonPress | un
 export function popWinningButton(press: ButtonPress, strength: number): void {
   if (!reducedMotion()) popCopy(press, PRESS_SCALE + 0.25 * strength, 220 + 200 * strength, true);
 }
+
+/** What gets a click ripple: buttons and the rows and cards you click in the desk. */
+const RIPPLE_TARGETS = 'button, .sym-row, .positions__row, .rival__pos, .hand .card, .shop .card, [role=button]';
+
+/**
+ * A ripple from the pointer, drawn on a fixed overlay clipped to the element's box and corners, so it
+ * never changes the element's own layout or overflow.
+ */
+export function ripple(target: Element, x: number, y: number): void {
+  const el = target.closest(RIPPLE_TARGETS);
+  if (!el || (el instanceof HTMLButtonElement && el.disabled) || reducedMotion()) return;
+  const rect = el.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return;
+  const box = document.createElement('span');
+  box.className = 'fx-ripple';
+  box.setAttribute('aria-hidden', 'true');
+  Object.assign(box.style, {
+    left: `${rect.x}px`,
+    top: `${rect.y}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
+    borderRadius: getComputedStyle(el).borderRadius,
+  });
+  const dot = document.createElement('span');
+  const r = Math.hypot(Math.max(x - rect.x, rect.right - x), Math.max(y - rect.y, rect.bottom - y));
+  Object.assign(dot.style, { left: `${x - rect.x - r}px`, top: `${y - rect.y - r}px`, width: `${2 * r}px`, height: `${2 * r}px` });
+  box.append(dot);
+  document.body.append(box);
+  const animation = dot.animate([{ transform: 'scale(0)', opacity: 0.45 }, { transform: 'scale(1)', opacity: 0 }], { duration: 480, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' });
+  animation.onfinish = animation.oncancel = () => box.remove();
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import { pressButton } from './buttonFx.ts';
+import type { CSSProperties, ReactNode } from 'react';
+import { pressButton, ripple } from './buttonFx.ts';
 import { onFx, reducedMotion } from './fx.ts';
 import type { FxTone } from './fx.ts';
 import './fx.css';
@@ -45,6 +45,7 @@ export function FxRoot({ children }: { children: ReactNode }) {
   const frame = useRef<number | null>(null);
   const nextId = useRef(1);
   const [popups, setPopups] = useState<Popup[]>([]);
+  const [flashes, setFlashes] = useState<{ id: number; tone: FxTone; strength: number }[]>([]);
 
   useEffect(() => {
     const colorOf = (tone: FxTone) => getComputedStyle(document.documentElement).getPropertyValue(`--tg-color-${tone === 'accent' ? 'accent' : tone}`).trim() || '#ffffff';
@@ -99,7 +100,42 @@ export function FxRoot({ children }: { children: ReactNode }) {
         setPopups((list) => [...list.slice(-(MAX_POPUPS - 1)), { id, text: e.text, tone: e.tone, x, y, size }]);
         return;
       }
+      if (e.kind === 'flash') {
+        const id = nextId.current++;
+        setFlashes((list) => [...list.slice(-3), { id, tone: e.tone, strength: e.strength }]);
+        return;
+      }
       if (reducedMotion()) return;
+      if (e.kind === 'chroma' || e.kind === 'punch') {
+        const el = rootRef.current?.firstElementChild as HTMLElement | null | undefined;
+        if (!el) return;
+        if (e.kind === 'chroma') {
+          const d = 2 + 5 * e.strength;
+          el.animate(
+            [
+              { filter: `drop-shadow(${d}px 0 0 rgb(255 40 80 / 0.75)) drop-shadow(${-d}px 0 0 rgb(40 220 255 / 0.75))` },
+              { filter: `drop-shadow(${-d / 2}px 0 0 rgb(255 40 80 / 0.5)) drop-shadow(${d / 2}px 0 0 rgb(40 220 255 / 0.5))`, offset: 0.5 },
+              { filter: 'none' },
+            ],
+            { duration: 220 + 180 * e.strength, easing: 'ease-out' },
+          );
+        } else {
+          // Freeze (no change for the first part), then a zoom punch that settles.
+          const hold = 70 + 90 * e.strength;
+          const total = hold + 320;
+          const at = hold / total;
+          el.animate(
+            [
+              { scale: '1', filter: 'brightness(1.6) saturate(1.4)' },
+              { scale: '1', filter: 'brightness(1.6) saturate(1.4)', offset: at },
+              { scale: String(1 + 0.025 * e.strength), filter: 'brightness(1.15)', offset: at + (1 - at) * 0.3 },
+              { scale: '1', filter: 'none' },
+            ],
+            { duration: total, easing: 'cubic-bezier(0.2, 1.4, 0.4, 1)' },
+          );
+        }
+        return;
+      }
       if (e.kind === 'shake') {
         const el = rootRef.current;
         if (!el) return;
@@ -146,6 +182,9 @@ export function FxRoot({ children }: { children: ReactNode }) {
         const button = ev.target instanceof Element ? ev.target.closest('button') : null;
         if (button) pressButton(button);
       }}
+      onPointerDownCapture={(ev) => {
+        if (ev.button === 0 && ev.target instanceof Element) ripple(ev.target, ev.clientX, ev.clientY);
+      }}
       onAnimationEnd={(ev) => {
         if (ev.animationName === 'fx-shake' && ev.target === rootRef.current?.firstElementChild) {
           rootRef.current?.classList.remove('fx-root--shaking');
@@ -154,6 +193,14 @@ export function FxRoot({ children }: { children: ReactNode }) {
     >
       {children}
       <div className="fx-layer" aria-hidden="true">
+        {flashes.map((f) => (
+          <span
+            key={f.id}
+            className={`fx-flash fx-flash--${f.tone}${f.strength >= 0.7 ? ' fx-flash--wash' : ''}`}
+            style={{ '--fx-flash': String(0.25 + 0.75 * f.strength) } as CSSProperties}
+            onAnimationEnd={() => setFlashes((list) => list.filter((x) => x.id !== f.id))}
+          />
+        ))}
         <canvas ref={canvasRef} className="fx-canvas" />
         {popups.map((p) => (
           <span

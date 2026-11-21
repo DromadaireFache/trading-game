@@ -27,7 +27,7 @@
  * heat once per stock per quarter. A legal card brings only sec.legalHeatShare of those two, and the
  * SEC only rolls for players who played an illegal card that quarter (see sec.ts).
  */
-import { msToTicks } from '@tg/shared';
+import { msToTicks, quarterRamp } from '@tg/shared';
 import type { Arrest, Card, CardDirection, CardReveal, GameConfig, PlayerId, Sector, SymbolId } from '@tg/shared';
 import { SECTORS } from '@tg/shared';
 import type { CardCatalogEntry, HeatKey } from '@tg/shared/cards';
@@ -38,7 +38,7 @@ import type { RegimeState } from './regimes.ts';
 import type { Rng } from './rng.ts';
 import { isJailed, resolveSec } from './sec.ts';
 import type { HeatSources } from './sec.ts';
-import { drawShopSelection, priceShopOffers } from './shop.ts';
+import { drawShopSelection, priceShopOffers, underdogs } from './shop.ts';
 import { shockSize } from './shocks.ts';
 import type { ShockTarget } from './shocks.ts';
 import type { Trading } from './trading.ts';
@@ -268,6 +268,13 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
     openShop(quarter) {
       const last = quarter >= config.time.quarters;
       const out: SimEventOf<'shop'>[] = [];
+      // The trailing half shops at a discount (config.progression.underdogDiscount).
+      const standing: { id: string; equity: number }[] = [];
+      for (const p of players.values()) {
+        const pf = trading.portfolio(p.id);
+        if (pf !== undefined && !pf.eliminated) standing.push({ id: p.id, equity: pf.equity });
+      }
+      const behind = underdogs(standing);
       // Every player gets their own draw (in join order, from the one shop stream): shops differ.
       for (const p of players.values()) {
         p.offers = new Map();
@@ -276,7 +283,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           p.offerList = [];
         } else {
           const selection = drawShopSelection(deps.shopRng, catalog, config, { quarter, activeRegimes: regimes.active.length });
-          p.offerList = priceShopOffers(selection, config, portfolio.equity);
+          p.offerList = priceShopOffers(selection, config, portfolio.equity, behind.has(p.id) ? config.progression.underdogDiscount : 0);
           p.offerList.forEach((offer, i) => p.offers.set(offer.offerId, { entry: selection.entries[i]!, price: offer.price, bought: false }));
         }
         out.push({ e: 'shop', playerId: p.id, offers: p.offerList });
@@ -313,6 +320,8 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
       if (index < 0) return fail('unknown_card', 'that card is not in your hand');
       const entry = p.hand[index]!.entry;
       const fx = entry.effect;
+      // Cards hit harder each quarter (config.progression).
+      const power = quarterRamp(config, quarter, config.progression.cardsLastQuarter);
       if (entry.needsDirection && direction === undefined) return fail('no_target', `${entry.name} needs a direction (up or down)`);
 
       // Resolve the target the card asks for.
@@ -369,7 +378,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
             source: 'card',
             query: { kind: 'fake_template', scope: fx.scope, direction: d, magnitude: fx.magnitude },
             target: shockTarget,
-            logReturn: shockSize(config, fx.magnitude, d),
+            logReturn: shockSize(config, fx.magnitude, d) * power,
             fake: true,
             ...owner,
           });
@@ -383,7 +392,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
             source: 'card',
             query: { kind: 'event', scope: fx.scope, direction: fx.direction, magnitude: fx.magnitude },
             target: shockTarget,
-            logReturn: shockSize(config, fx.magnitude, fx.direction),
+            logReturn: shockSize(config, fx.magnitude, fx.direction) * power,
             ...owner,
           });
           selfDealHeat(p, shockTarget, fx.direction, entry.legal);
@@ -399,6 +408,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
             name: entry.name,
             effect: fx,
             ownerId: id,
+            power,
             ...(shockTarget.scope === 'sector' ? { sector: shockTarget.sector } : {}),
           });
           if (!started.ok) {

@@ -213,6 +213,127 @@
   color: var(--tg-color-text-bright);
 }
 
+
+/* ---------------------------------------------------------------- trade flash */
+/* A colored glow from the screen edges; a strong one also washes the whole screen briefly. */
+.fx-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 calc(40px + 120px * var(--fx-flash)) calc(4px + 30px * var(--fx-flash)) color-mix(in srgb, var(--fx-color) 85%, transparent);
+  animation: fx-flash calc(0.45s + 0.5s * var(--fx-flash)) ease-out forwards;
+}
+.fx-flash--wash {
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--fx-color) 6%, transparent) 30%, color-mix(in srgb, var(--fx-color) 22%, transparent) 100%);
+}
+.fx-flash--up {
+  --fx-color: var(--tg-color-up);
+}
+.fx-flash--down {
+  --fx-color: var(--tg-color-down);
+}
+.fx-flash--accent {
+  --fx-color: var(--tg-color-accent);
+}
+.fx-flash--info {
+  --fx-color: var(--tg-color-info);
+}
+.fx-flash--warn {
+  --fx-color: var(--tg-color-warn);
+}
+@keyframes fx-flash {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: var(--fx-flash);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------- click ripple */
+.fx-ripple {
+  position: fixed;
+  z-index: 43;
+  overflow: hidden;
+  pointer-events: none;
+}
+.fx-ripple > span {
+  position: absolute;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tg-color-text-bright) 55%, transparent);
+}
+
+/* ---------------------------------------------------------------- hover and press, everywhere */
+/*
+ * Uses the individual `translate` property so it composes with each element's own transform (and the
+ * press pop, which animates `scale`). Tickers stay still on hover: a press near the edge must land.
+ */
+.fx-root button:not(:disabled):not(.paper__ticker):not(.ticker-tag):not(.sym-row) {
+  transition:
+    translate 0.14s cubic-bezier(0.2, 1.6, 0.4, 1),
+    filter 0.14s ease-out,
+    box-shadow 0.14s ease-out;
+}
+.fx-root button:not(:disabled):not(.paper__ticker):not(.ticker-tag):not(.sym-row):hover {
+  translate: 0 -2px;
+  filter: brightness(1.15);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--tg-color-bg-inset) 85%, transparent);
+}
+.fx-root button:not(:disabled):not(.paper__ticker):not(.ticker-tag):not(.sym-row):active {
+  translate: 0 1px;
+  filter: brightness(0.92);
+  box-shadow: none;
+  transition-duration: 0.04s;
+}
+.sym-row,
+.positions__row td,
+.rival__pos {
+  transition:
+    translate 0.15s cubic-bezier(0.2, 1.5, 0.4, 1),
+    background-color 0.15s ease-out,
+    box-shadow 0.15s ease-out;
+}
+.sym-row:hover {
+  translate: 3px 0;
+  box-shadow: inset 3px 0 0 var(--tg-color-accent);
+}
+.sym-row:active {
+  translate: 1px 0;
+  transition-duration: 0.04s;
+}
+.rival__pos:hover {
+  translate: 0 -1px;
+}
+/* A rival who just traded: their column flashes. */
+.rival--traded {
+  animation: fx-rival 0.7s ease-out;
+}
+.rival--traded-big {
+  animation: fx-rival-big 0.9s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes fx-rival {
+  0% {
+    box-shadow: inset 0 0 0 2px var(--tg-color-accent);
+  }
+  100% {
+    box-shadow: inset 0 0 0 2px transparent;
+  }
+}
+@keyframes fx-rival-big {
+  0% {
+    box-shadow: inset 0 0 0 3px var(--tg-color-warn), 0 0 18px color-mix(in srgb, var(--tg-color-warn) 60%, transparent);
+    scale: 1.03;
+  }
+  100% {
+    box-shadow: inset 0 0 0 3px transparent;
+    scale: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fx-root > :first-child,
   .fx-deal,
@@ -225,8 +346,22 @@
   .fx-popup {
     animation: fx-fade 1.15s ease-out forwards;
   }
-  .fx-button-copy {
+  .fx-button-copy,
+  .fx-ripple {
     display: none;
+  }
+  .fx-flash {
+    animation: fx-flash 0.6s ease-out forwards;
+  }
+  .rival--traded,
+  .rival--traded-big {
+    animation: none;
+  }
+  .fx-root button,
+  .sym-row,
+  .rival__pos {
+    transition: none !important;
+    translate: none !important;
   }
   .fx-tilt,
   .fx-tilt:hover {
