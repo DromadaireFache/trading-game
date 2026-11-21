@@ -53,7 +53,7 @@ const STAGE_PHASES: readonly Phase[] = ['RESULTS', 'SHOP', 'FINAL'];
 
 /**
  * The trading desk grid. The stock list and the chart; on the right your bet buttons, your money and
- * your cards, with the headline papers piled messily over the cards (click one to open its stock).
+ * your cards, with the headline papers piled over the cards (drag them aside or throw them away).
  * At the bottom: the other players' positions, then yours. Between and after quarters one "stage"
  * panel (results / shop / final) takes the place of everything but the right column.
  */

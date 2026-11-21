@@ -1048,7 +1048,8 @@ async function main(): Promise<void> {
       const sideBox = (await a.locator('.desk__side').boundingBox())!;
       check(paperBox!.x >= sideBox.x - 1 && paperBox!.x + paperBox!.width <= sideBox.x + sideBox.width + 1,
         `the paper stays inside the side column (paper x ${Math.round(paperBox!.x)}..${Math.round(paperBox!.x + paperBox!.width)}, column ${Math.round(sideBox.x)}..${Math.round(sideBox.x + sideBox.width)})`);
-      check((await a.locator(`${tid('headline')} button`).count()) === 0, 'the papers have no buttons');
+      check((await a.locator(`${top} button`).count()) === 1 && (await a.locator(`${top} ${tid('headline-close')}`).count()) === 1,
+        'a paper has exactly one button: its x');
       // A headline arriving mid-check drops in for a moment: read the box once it holds still.
       const stillBox = async (selector: string) => {
         let box = await a.locator(selector).boundingBox();
@@ -1060,7 +1061,7 @@ async function main(): Promise<void> {
         }
         return box;
       };
-      // Dragging moves a paper (and does not open its stock).
+      // Dragging moves a paper (and selects nothing).
       const pinned = `${tid('headline')}[data-id="${await a.getAttribute(top, 'data-id')}"]`;
       const selectedBefore = await a.getAttribute(tid('selected-symbol'), 'data-symbol');
       const before = await stillBox(pinned);
@@ -1071,14 +1072,26 @@ async function main(): Promise<void> {
       const after = await stillBox(pinned);
       check(after !== null && before!.x - after.x > 60 && before!.y - after.y > 70, `dragging moves the paper (${JSON.stringify(before)} -> ${JSON.stringify(after)})`);
       check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === selectedBefore, 'a drag does not open the stock');
+      // Nothing moves on hover, and a plain click does nothing.
+      const resting = await stillBox(pinned);
+      await a.mouse.move(resting!.x + 60, resting!.y + 60);
+      await sleep(300);
+      const hovered = await a.locator(pinned).boundingBox();
+      check(hovered !== null && Math.abs(hovered.x - resting!.x) < 1 && Math.abs(hovered.y - resting!.y) < 1, 'hovering a paper does not move it');
+      const hand = (await a.locator('.desk__hand').boundingBox())!;
+      const pileBefore = (await a.locator(tid('news-pile')).boundingBox())!;
+      await a.mouse.move(hand.x + 20, hand.y + 12);
+      await sleep(300);
+      const pileAfter = (await a.locator(tid('news-pile')).boundingBox())!;
+      check(Math.abs(pileAfter.y - pileBefore.y) < 1, 'hovering the cards does not move the pile');
       await shot(a, '20-play-headline');
-      // Clicking a paper opens its stock; the paper stays.
+      // A click on a paper does nothing: it does not open the stock, and the paper stays.
       const openId = await a.getAttribute(top, 'data-id');
-      const openTicker = (await a.getAttribute(top, 'data-ticker'))!;
-      await a.click(top);
-      await a.waitForSelector(`${tid('selected-symbol')}[data-symbol="${openTicker}"]`);
-      check(true, `clicking the paper opened ${openTicker}`);
-      check((await a.locator(`${tid('headline')}[data-id="${openId}"]`).count()) === 1, 'the paper stays after the click');
+      const selectedNow = await a.getAttribute(tid('selected-symbol'), 'data-symbol');
+      await a.click(top, { position: { x: 60, y: 70 } });
+      await sleep(200);
+      check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === selectedNow, 'clicking a paper does not open its stock');
+      check((await a.locator(`${tid('headline')}[data-id="${openId}"]`).count()) === 1, 'the paper stays after a click');
       // It stays until later headlines bury it: the next one lands on top, the old one under it.
       const seenNow = headlineFrames('A').length;
       await waitFor('the next headline', async () => headlineFrames('A').length > seenNow);
@@ -1093,12 +1106,11 @@ async function main(): Promise<void> {
       await a.click(top, { button: 'right' });
       await waitFor('the thrown paper to leave', async () => (await a.locator(`${tid('headline')}[data-id="${thrownId}"]`).count()) === 0);
       check(true, `right click threw paper ${thrownId} off the screen`);
-      // While the pointer is over the cards the pile slides out of the way.
-      const pileY = (await a.locator(tid('news-pile')).boundingBox())!.y;
-      const hand = (await a.locator('.desk__hand').boundingBox())!;
-      await a.mouse.move(hand.x + 20, hand.y + 12);
-      await waitFor('the pile to slide down', async () => (await a.locator(tid('news-pile')).boundingBox())!.y > pileY + 60);
-      check(true, 'hovering the cards slides the pile down');
+      // The x throws a paper away too.
+      const closedId = await a.getAttribute(top, 'data-id');
+      await a.click(`${top} ${tid('headline-close')}`);
+      await waitFor('the closed paper to leave', async () => (await a.locator(`${tid('headline')}[data-id="${closedId}"]`).count()) === 0);
+      check(true, `the x threw paper ${closedId} away`);
       await a.mouse.move(5, 5);
       // Pace: 2 to 10 s of game time between two public headlines.
       const pub = headlineFrames('A').filter((h) => !h.early);
@@ -1226,9 +1238,13 @@ async function main(): Promise<void> {
       check(handBefore > 0, `A still holds ${handBefore} cards in Q2`);
       for (let i = 0; i < handBefore; i++) {
         const cardEl = a.locator(tid('hand-card')).first();
-        // The headline papers lie over the cards: point at the cards so the pile slides away first.
-        await cardEl.hover({ position: { x: 20, y: 10 } });
-        await sleep(300);
+        // The headline papers lie over the cards: throw them away first, as a player would.
+        // (A thrown paper flies off with pointer-events off, so it no longer blocks the cards.)
+        const resting = a.locator(`${tid('headline')}:not(.paper--thrown) ${tid('headline-close')}`);
+        while ((await resting.count()) > 0) {
+          await resting.last().click().catch(() => undefined);
+          await sleep(50);
+        }
         const button = cardEl.locator(`${tid('play')}, ${tid('play-up')}`).first();
         if (await button.isDisabled()) break; // e.g. a sector card with the index fund selected
         await button.click();

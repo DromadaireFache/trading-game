@@ -22,15 +22,12 @@ const PILE = 4;
 /** Only headlines this fresh land on the pile: a reload or a late join does not dump old news on it. */
 const FRESH_MS = 4_000;
 const THROW_MS = 520;
-/** A press that moves farther than this is a drag, not a click. */
-const DRAG_PX = 5;
 
 /**
  * Headlines land as newspaper clippings (julien's paper look) on a pile at the bottom right, over your
- * cards, newest on top, each with its own slight tilt. Click a paper to open its stock (or the sector
- * fund, or the index for market-wide news); drag it to move it; right-click it to throw it off screen.
- * Otherwise it stays until PILE newer papers bury it. While the pointer is over the cards the pile
- * slides down so the cards can be played.
+ * cards, newest on top, each with its own slight tilt. A paper can only be moved (drag it) or removed
+ * (its x, or a right click, throws it off screen); nothing else on it reacts. Otherwise it stays until
+ * PILE newer papers bury it.
  */
 export function NewsPile({ className }: { className?: string }) {
   const { headlines, config } = useGame();
@@ -92,7 +89,6 @@ export function NewsPile({ className }: { className?: string }) {
           pop={pop}
           depth={pop.thrown ? -1 : resting.length - 1 - resting.indexOf(pop)}
           symbols={symbols}
-          onOpen={(symbol) => market.select(symbol)}
           onThrow={() => throwOut(pop.key)}
           onGrab={() => raise(pop.key)}
         />
@@ -119,60 +115,49 @@ interface PaperProps {
   /** 0 = on top; -1 = being thrown out. */
   depth: number;
   symbols: readonly SymbolInfo[];
-  onOpen: (symbol: string) => void;
   onThrow: () => void;
   onGrab: () => void;
 }
 
-function Paper({ pop, depth, symbols, onOpen, onThrow, onGrab }: PaperProps) {
+function Paper({ pop, depth, symbols, onThrow, onGrab }: PaperProps) {
   const { config } = useGame();
   const { headline, thrown } = pop;
   const ticker = tickerOf(headline, symbols);
-  const known = symbols.some((s) => s.symbol === ticker);
   const scope: Sector | 'market' = headline.sector ?? 'market';
   const quarter = dayToQuarter(config, headline.ts);
   const day = dayOfQuarter(config, headline.ts);
-  const open = () => {
-    if (known) onOpen(ticker);
-  };
 
-  // Dragging: the offset from where the pile put the paper. A press that barely moves is a click.
+  // Dragging: the offset from where the pile put the paper.
   const [drag, setDrag] = useState({ x: 0, y: 0 });
-  const grab = useRef<{ pointerX: number; pointerY: number; x: number; y: number; moved: boolean } | null>(null);
+  const grab = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
-    if (e.button !== 0 || thrown) return;
+    // The x is a button of its own: pressing it does not start a drag.
+    if (e.button !== 0 || thrown || (e.target as HTMLElement).closest('button')) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    grab.current = { pointerX: e.clientX, pointerY: e.clientY, x: drag.x, y: drag.y, moved: false };
+    grab.current = { pointerX: e.clientX, pointerY: e.clientY, x: drag.x, y: drag.y };
+    setDragging(true);
     onGrab();
   };
   const onPointerMove = (e: PointerEvent<HTMLElement>) => {
     const g = grab.current;
-    if (g === null) return;
-    const dx = e.clientX - g.pointerX;
-    const dy = e.clientY - g.pointerY;
-    if (!g.moved && Math.hypot(dx, dy) < DRAG_PX) return;
-    if (!g.moved) setDragging(true);
-    g.moved = true;
-    setDrag({ x: g.x + dx, y: g.y + dy });
+    if (g !== null) setDrag({ x: g.x + e.clientX - g.pointerX, y: g.y + e.clientY - g.pointerY });
   };
   const onPointerUp = () => {
-    const g = grab.current;
     grab.current = null;
     setDragging(false);
-    if (g !== null && !g.moved) open();
+  };
+  const throwOut = () => {
+    if (!thrown) onThrow();
   };
   const onContextMenu = (e: MouseEvent<HTMLElement>) => {
     e.preventDefault();
-    if (!thrown) onThrow();
+    throwOut();
   };
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
-      open();
-    } else if (e.key === 'Delete' || e.key === 'Backspace') {
-      e.preventDefault();
-      onThrow();
+      throwOut();
     }
   };
 
@@ -187,7 +172,6 @@ function Paper({ pop, depth, symbols, onOpen, onThrow, onGrab }: PaperProps) {
     <article
       className={`paper${headline.early ? ' paper--early' : ''}${depth > 0 ? ' paper--behind' : ''}${dragging ? ' paper--dragging' : ''}${thrown ? ' paper--thrown' : ''}`}
       style={style}
-      role="button"
       tabIndex={0}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -198,7 +182,7 @@ function Paper({ pop, depth, symbols, onOpen, onThrow, onGrab }: PaperProps) {
       }}
       onContextMenu={onContextMenu}
       onKeyDown={onKeyDown}
-      title={known ? `Click: open ${ticker} · drag: move · right-click: throw away` : undefined}
+      title="Drag to move it. x or right-click throws it away."
       data-testid="headline"
       data-id={headline.id}
       data-depth={depth}
@@ -209,6 +193,16 @@ function Paper({ pop, depth, symbols, onOpen, onThrow, onGrab }: PaperProps) {
         <span className="paper__date">
           Q{quarter} · Day {day}
         </span>
+        <button
+          type="button"
+          className="paper__close"
+          onClick={throwOut}
+          title="Throw it away (or right-click the paper)"
+          aria-label="Throw this headline away"
+          data-testid="headline-close"
+        >
+          ×
+        </button>
       </header>
       <div className="paper__body">
         <h3 className="paper__headline" data-testid="headline-text">
@@ -219,7 +213,7 @@ function Paper({ pop, depth, symbols, onOpen, onThrow, onGrab }: PaperProps) {
         </figure>
       </div>
       <footer className="paper__foot">
-        <span className="paper__note">{headline.early ? 'Only you can see this. Not public yet.' : 'Click to open it. The price moves in seconds.'}</span>
+        <span className="paper__note">{headline.early ? 'Only you can see this. Not public yet.' : 'Find it in your list: the price moves in seconds.'}</span>
         <span className="paper__ticker" data-testid="headline-ticker">
           {ticker}
         </span>
