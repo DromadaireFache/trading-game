@@ -486,6 +486,8 @@ async function main(): Promise<void> {
     const newPage = async (label: string, width: number, height: number): Promise<Page> => {
       const context = await browser!.newContext({ viewport: { width, height } });
       await context.addInitScript(PERF_MONITOR);
+      // The checks below are written for the Normal detail mode; new players start in Simple.
+      await context.addInitScript(`try { if (!localStorage.getItem('tg.uiMode')) localStorage.setItem('tg.uiMode', 'normal'); } catch {}`);
       const page = await context.newPage();
       const frames: ServerMsg[] = [];
       wire.set(label, frames);
@@ -906,6 +908,24 @@ async function main(): Promise<void> {
       check(beats === defaultConfig.news.scheduledBeatsPerQuarter, `the briefing beats are listed (${beats})`);
       check((await b.locator(tid('headline')).count()) > 0, 'B (reloaded mid-quarter) shows headlines too');
       await shot(a, '20-play-headlines');
+
+      // Detail modes: Simple hides funds, tickers and the extra rows; Pro shows the raw numbers.
+      await a.click(tid('mode-simple'));
+      await a.waitForSelector(`${tid('symbol-group')}[data-group=funds]`, { state: 'hidden' });
+      check(true, 'Simple mode hides the funds group');
+      check((await a.locator(tid('size-pct-25')).count()) === 0, 'Simple mode drops the share-of-money row');
+      check((await a.locator('[data-testid^=size-usd-]').count()) === 3, 'Simple mode offers three amounts');
+      const word = await textOf(a, 'risk-word');
+      check(['Safe', 'Careful', 'Danger'].includes(word), `Simple mode says the risk in words: "${word}"`);
+      await checkNoOverflow(a, 'desk in Simple mode');
+      await shot(a, '20-play-simple');
+      await a.click(tid('mode-pro'));
+      await waitFor('Pro risk numbers', async () => (await textOf(a, 'risk-word')).includes('×'));
+      check(true, `Pro mode shows leverage as a number: "${await textOf(a, 'risk-word')}"`);
+      await shot(a, '20-play-pro');
+      await a.click(tid('mode-normal'));
+      await a.waitForSelector(`${tid('symbol-group')}[data-group=funds]`);
+      check((await a.evaluate(`localStorage.getItem('tg.uiMode')`)) === 'normal', 'the chosen mode is remembered');
     });
 
     await step('every phase of every quarter, then FINAL', async () => {

@@ -4,6 +4,7 @@ import { Panel, Placeholder } from '../../components/Panel.tsx';
 import { changeDirection, formatPercent } from '../../lib/format.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 import { useLastDay, useMarketStore, useSymbols } from '../../net/marketHooks.ts';
+import { useUiMode } from '../../lib/uiMode.ts';
 import './headlines.css';
 
 /**
@@ -13,6 +14,7 @@ import './headlines.css';
  */
 export function HeadlinesPanel({ className }: { className?: string }) {
   const { headlines, briefing, earnings, config } = useGame();
+  const mode = useUiMode();
   // Latest rate decision this quarter, else the rate the quarter opened with.
   const decided = headlines.find((h) => h.rate !== undefined && briefing !== null && dayToQuarter(config, h.ts) === briefing.quarter)?.rate;
   const current = decided ?? briefing?.rate;
@@ -22,14 +24,14 @@ export function HeadlinesPanel({ className }: { className?: string }) {
   return (
     <Panel
       title="News"
-      aside={<span title="Higher rates usually push stocks down; a cut pushes them up.">{rate}</span>}
+      aside={mode === 'simple' ? 'good news ▲  bad news ▼' : <span title="Higher rates usually push stocks down; a cut pushes them up.">{rate}</span>}
       className={`news${className ? ` ${className}` : ''}`}
     >
       {empty ? (
         <Placeholder>Breaking news appears here. Good news pushes a price up, bad news pushes it down: be fast!</Placeholder>
       ) : (
         <>
-          {briefing && briefing.beats.length > 0 && <Beats beats={briefing.beats} />}
+          {mode !== 'simple' && briefing && briefing.beats.length > 0 && <Beats beats={briefing.beats} />}
           {briefing && briefing.regimes.length > 0 && (
             <div className="news__regimes" data-testid="regimes" title="Regimes bend the market until they end">
               In force: {briefing.regimes.join(' · ')}

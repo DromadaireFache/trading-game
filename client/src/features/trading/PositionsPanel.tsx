@@ -5,6 +5,8 @@ import { changeDirection, formatMoney, formatMoneyShort, formatPercent, formatPr
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
+import { useUiMode } from '../../lib/uiMode.ts';
+import type { UiMode } from '../../lib/uiMode.ts';
 import './trading.css';
 
 /**
@@ -14,6 +16,7 @@ import './trading.css';
 export function PositionsPanel({ className }: { className?: string }) {
   const live = useLivePortfolio();
   const { config } = useGame();
+  const mode = useUiMode();
 
   if (live === null) {
     return (
@@ -41,6 +44,7 @@ export function PositionsPanel({ className }: { className?: string }) {
           {formatMoney(live.totalPnl, true)} ({formatPercent(pnlFraction)})
         </span>
       </div>
+      {mode !== 'simple' && (
       <div className="positions__sub">
         <span title="Money not in a bet (negative = borrowed)">
           Cash <strong data-testid="cash">{formatMoney(live.portfolio.cash)}</strong>
@@ -49,22 +53,24 @@ export function PositionsPanel({ className }: { className?: string }) {
           In bets <strong>{formatMoneyShort(live.gross)}</strong>
         </span>
       </div>
+      )}
       {positions.length === 0 ? (
         <div className="positions__empty">No bets yet. Pick a stock and bet UP or DOWN.</div>
       ) : (
         <table className="positions__table" data-testid="positions">
           <thead>
             <tr>
-              <th>Stock</th>
+              <th>{mode === 'simple' ? 'Company' : 'Stock'}</th>
               <th>Bet</th>
-              <th>Worth</th>
+              {mode === 'pro' && <th>Avg</th>}
+              {mode !== 'simple' && <th>Worth</th>}
               <th>Profit</th>
               <th aria-label="Cash out" />
             </tr>
           </thead>
           <tbody>
             {positions.map((p) => (
-              <PositionRow key={p.symbol} position={p} decimals={config.market.priceDecimals} canTrade={!live.portfolio.eliminated} />
+              <PositionRow key={p.symbol} position={p} decimals={config.market.priceDecimals} canTrade={!live.portfolio.eliminated} mode={mode} />
             ))}
           </tbody>
         </table>
@@ -73,7 +79,7 @@ export function PositionsPanel({ className }: { className?: string }) {
   );
 }
 
-function PositionRow({ position, decimals, canTrade }: { position: Position; decimals: number; canTrade: boolean }) {
+function PositionRow({ position, decimals, canTrade, mode }: { position: Position; decimals: number; canTrade: boolean; mode: UiMode }) {
   const client = useGameClient();
   const market = useMarketStore();
   const { phase } = useGame();
@@ -94,13 +100,16 @@ function PositionRow({ position, decimals, canTrade }: { position: Position; dec
       data-testid="position-row"
       data-symbol={position.symbol}
     >
-      <td className="positions__sym">{position.symbol}</td>
+      <td className={mode === 'simple' ? 'positions__name' : 'positions__sym'}>
+        {mode === 'simple' ? (market.getInfo(position.symbol)?.name ?? position.symbol) : position.symbol}
+      </td>
       <td>
         <span className={`positions__dir positions__dir--${up ? 'up' : 'down'}`} data-testid="position-qty" data-qty={position.qty}>
-          {up ? '▲' : '▼'} {formatShares(position.qty)}
+          {up ? '▲' : '▼'} {mode === 'simple' ? (up ? 'UP' : 'DOWN') : formatShares(position.qty)}
         </span>
       </td>
-      <td>{formatMoneyShort(Math.abs(position.qty) * last)}</td>
+      {mode === 'pro' && <td>{formatPrice(position.avgPrice, decimals)}</td>}
+      {mode !== 'simple' && <td>{formatMoneyShort(Math.abs(position.qty) * last)}</td>}
       <td className={`positions__profit change--${changeDirection(pnlFraction)}`} title={formatPercent(pnlFraction)}>
         {pnl >= 0 ? '+' : ''}
         {formatMoneyShort(pnl)}

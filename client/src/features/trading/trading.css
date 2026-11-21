@@ -319,3 +319,22 @@
   opacity: 0.3;
   cursor: not-allowed;
 }
+
+/* ---------------------------------------------------------------- detail modes */
+
+.order__row--3 {
+  grid-template-columns: 9ch repeat(3, minmax(0, 1fr));
+}
+.order__risk-word {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--risk-color);
+  white-space: nowrap;
+}
+.positions__name {
+  font-weight: 700;
+  color: var(--tg-color-text-bright);
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

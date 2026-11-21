@@ -6,6 +6,7 @@ import { formatMoney, formatMoneyShort, formatPrice, formatShares } from '../../
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
+import { useUiMode } from '../../lib/uiMode.ts';
 import './trading.css';
 
 type Side = 'buy' | 'sell';
@@ -30,6 +31,7 @@ export function OrderPanel({ className }: { className?: string }) {
   const quote = useQuote(symbol);
   const live = useLivePortfolio();
   const [side, setSide] = useState<Side>('buy');
+  const mode = useUiMode();
 
   if (live === null || symbol === null) {
     return (
@@ -57,12 +59,15 @@ export function OrderPanel({ className }: { className?: string }) {
   const status = eliminated ? 'You are out of the game.' : open ? null : 'Betting is closed until the market opens.';
   const risk = Number.isFinite(live.leverage) ? Math.min(1, live.leverage / cap) : 1;
   const riskLevel = risk < 0.5 ? 'low' : risk < 0.85 ? 'mid' : 'high';
+  const riskWord = riskLevel === 'low' ? 'Safe' : riskLevel === 'mid' ? 'Careful' : 'Danger';
+  // Simple mode: three fixed amounts and no share-of-money row; Pro adds the raw numbers.
+  const amounts = mode === 'simple' ? config.trading.quickSizeUsd.slice(0, 3) : config.trading.quickSizeUsd;
   const verb = side === 'buy' ? 'Bet UP on' : 'Bet DOWN on';
 
   return (
     <Panel
       title="Place a bet"
-      aside={
+      aside={mode === 'simple' ? <span className="order__on">{info?.name ?? symbol}</span> : 
         <span className="order__on" title={info?.name}>
           {symbol} <strong>${price > 0 ? formatPrice(price, decimals) : '--'}</strong>
         </span>
@@ -94,9 +99,9 @@ export function OrderPanel({ className }: { className?: string }) {
         </button>
       </div>
 
-      <div className="order__row">
+      <div className={`order__row order__row--${amounts.length}`}>
         <span className="order__label">How much</span>
-        {config.trading.quickSizeUsd.map((usd) => (
+        {amounts.map((usd) => (
           <button
             key={usd}
             type="button"
@@ -110,6 +115,7 @@ export function OrderPanel({ className }: { className?: string }) {
           </button>
         ))}
       </div>
+      {mode !== 'simple' && (
       <div className="order__row">
         <span className="order__label" title="A share of the money you can bet right now">Of my money</span>
         {config.trading.quickSizePct.map((pct) => (
@@ -126,6 +132,7 @@ export function OrderPanel({ className }: { className?: string }) {
           </button>
         ))}
       </div>
+      )}
 
       <div className="order__held-row">
         <span
@@ -134,8 +141,8 @@ export function OrderPanel({ className }: { className?: string }) {
           title={held === 0 ? undefined : `${formatShares(Math.abs(held))} shares`}
         >
           {held === 0
-            ? `No bet on ${symbol} yet`
-            : `${held > 0 ? '▲ UP' : '▼ DOWN'} · ${formatMoneyShort(Math.abs(held) * price)}`}
+            ? `No bet on ${mode === 'simple' ? 'it' : symbol} yet`
+            : `${held > 0 ? '▲ UP' : '▼ DOWN'} · ${formatMoneyShort(Math.abs(held) * price)}${mode === 'pro' ? ` · ${formatShares(Math.abs(held))} sh` : ''}`}
         </span>
         <button type="button" className="order__cash" disabled={disabled || Math.abs(held) < 2} onClick={() => send(-Math.trunc(held / 2))} data-testid="order-half" title="Close half of this bet">
           Cash out ½
@@ -159,6 +166,9 @@ export function OrderPanel({ className }: { className?: string }) {
           <span className="order__fact-label">Risk</span>
           <span className="order__risk-bar" aria-hidden="true">
             <span className="order__risk-fill" style={{ transform: `scaleX(${risk})` }} />
+          </span>
+          <span className="order__risk-word" data-testid="risk-word">
+            {mode === 'pro' ? `${Number.isFinite(live.leverage) ? live.leverage.toFixed(2) : '--'}× / ${cap}×` : riskWord}
           </span>
         </div>
       </div>

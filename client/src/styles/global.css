@@ -779,3 +779,88 @@ ol {
 .floor .roster__row {
   padding: 1.2vh 1vw;
 }
+
+/* ---------------------------------------------------------------- detail modes (lib/uiMode.ts) */
+
+.mode-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--tg-color-bg-inset);
+  border: 2px solid var(--tg-color-border);
+  border-radius: 8px;
+}
+.mode-toggle__btn {
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 7px;
+  color: var(--tg-color-text-dim);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mode-toggle__btn--on {
+  color: var(--tg-color-on-accent);
+  background: var(--tg-color-accent);
+}
+.mode-toggle--big {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+.mode-toggle--big .mode-toggle__btn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  text-align: left;
+  color: var(--tg-color-text);
+  background: var(--tg-color-bg-inset);
+  border: 2px solid var(--tg-color-border);
+  border-radius: 10px;
+  box-shadow: 0 3px 0 var(--tg-color-shadow);
+}
+.mode-toggle--big .mode-toggle__btn--on {
+  color: var(--tg-color-on-accent);
+  background: var(--tg-color-accent);
+  border-color: var(--tg-color-accent);
+}
+.mode-toggle--big .mode-toggle__label {
+  font-family: var(--tg-font-display);
+  font-size: 18px;
+  font-weight: 900;
+}
+.mode-toggle__blurb {
+  font-size: 12px;
+  font-weight: 600;
+}
+.lobby__mode {
+  grid-column: 1 / -1;
+  order: -1;
+}
+.phase-header__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Simple mode (on /play only; the projector keeps its own look). */
+[data-mode='simple'] .play .phase-strip,
+[data-mode='simple'] .play .sym-head__facts,
+[data-mode='simple'] .play .sym-group[data-group='funds'],
+[data-mode='simple'] .play .sym-row__ticker {
+  display: none;
+}
+[data-mode='simple'] .play .sym-row {
+  grid-template-columns: minmax(0, 1fr) auto 7ch;
+}
+[data-mode='simple'] .play .sym-row__name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--tg-color-text-bright);
+}
