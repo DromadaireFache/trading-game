@@ -164,12 +164,10 @@
   transform: rotate(-2deg);
 }
 
-.paper__ticker:hover:not(:disabled) {
-  transform: rotate(-2deg) translateY(-2px);
+.paper__ticker:hover {
+  /* No movement on hover: a press near the edge must still land on the ticker. */
   box-shadow: 0 2px 0 var(--tg-color-card-text);
-}
-.paper__ticker:disabled {
-  cursor: default;
+  filter: brightness(1.08);
 }
 
 /* An insider tip: a secret memo, not a newspaper. */

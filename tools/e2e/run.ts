@@ -1098,9 +1098,17 @@ async function main(): Promise<void> {
       const tickerId = (await a.getAttribute(top, 'data-id'))!;
       const tickerOfPaper = (await a.getAttribute(`${tid('headline')}[data-id="${tickerId}"]`, 'data-ticker'))!;
       await selectSymbol(a, tickerOfPaper === stockA ? indexSymbol : stockA);
-      await a.click(`${tid('headline')}[data-id="${tickerId}"] ${tid('headline-ticker')}`);
+      // A human click: press near the ticker's edge, wobble a pixel, release.
+      const tickerBox = (await a.locator(`${tid('headline')}[data-id="${tickerId}"] ${tid('headline-ticker')}`).boundingBox())!;
+      const paperBefore = (await a.locator(`${tid('headline')}[data-id="${tickerId}"]`).boundingBox())!;
+      await a.mouse.move(tickerBox.x + 6, tickerBox.y + tickerBox.height - 5);
+      await a.mouse.down();
+      await a.mouse.move(tickerBox.x + 7, tickerBox.y + tickerBox.height - 4);
+      await a.mouse.up();
       await a.waitForSelector(`${tid('selected-symbol')}[data-symbol="${tickerOfPaper}"]`);
-      check((await a.locator(`${tid('headline')}[data-id="${tickerId}"]`).count()) === 1, `clicking the ticker opened ${tickerOfPaper}, and the paper stays`);
+      const paperAfter = (await a.locator(`${tid('headline')}[data-id="${tickerId}"]`).boundingBox())!;
+      check(Math.abs(paperAfter.x - paperBefore.x) < 1 && Math.abs(paperAfter.y - paperBefore.y) < 1,
+        `clicking the ticker opened ${tickerOfPaper} without dragging the paper, and the paper stays`);
       // It stays until later headlines bury it: the next one lands on top, the old one under it.
       const seenNow = headlineFrames('A').length;
       await waitFor('the next headline', async () => headlineFrames('A').length > seenNow);

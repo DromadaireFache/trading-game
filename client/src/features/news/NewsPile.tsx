@@ -136,7 +136,7 @@ function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
   const grab = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const onPointerDown = (e: PointerEvent<HTMLElement>) => {
-    // The x is a button of its own: pressing it does not start a drag.
+    // The x and the ticker are buttons of their own (they also stop the press): never a drag.
     if (e.button !== 0 || thrown || (e.target as HTMLElement).closest('button')) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     grab.current = { pointerX: e.clientX, pointerY: e.clientY, x: drag.x, y: drag.y };
@@ -200,6 +200,7 @@ function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
         <button
           type="button"
           className="paper__close"
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={throwOut}
           title="Throw it away (or right-click the paper)"
           aria-label="Throw this headline away"
@@ -221,8 +222,10 @@ function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
         <button
           type="button"
           className="paper__ticker"
-          disabled={!symbols.some((s) => s.symbol === ticker)}
-          onClick={() => onOpen(ticker)}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => {
+            if (symbols.some((s) => s.symbol === ticker)) onOpen(ticker);
+          }}
           title={`Open ${ticker}`}
           data-testid="headline-ticker"
         >
