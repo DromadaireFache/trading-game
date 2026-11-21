@@ -150,7 +150,7 @@ export interface PhaseMsg extends PhaseInfo {
  * Universe + price history. Sent to ONE connection right after every `welcome` (first join,
  * reconnect, spectator, in any phase including LOBBY), so a refresh restores the chart.
  * Never broadcast and never repeated: after it the client keeps itself current with tick/candle.
- * Up to 61 symbols x 720 candles (about 1 MB of JSON late in a game), prices rounded with roundPrice().
+ * Up to 61 symbols x 360 candles by default, prices rounded with roundPrice().
  */
 export interface MarketMsg extends MarketSnapshot {
   t: 'market';

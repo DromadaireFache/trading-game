@@ -8,7 +8,7 @@ import { ConnectionBadge } from './ConnectionBadge.tsx';
 import { ModeToggle } from './ModeToggle.tsx';
 
 /**
- * Top bar of /play: always shows the current phase, the quarter (Q3/8) and the live countdown,
+ * Top bar of /play: always shows the current phase, the quarter (Q3/4) and the live countdown,
  * plus who you are and the connection state.
  */
 export function PhaseHeader() {

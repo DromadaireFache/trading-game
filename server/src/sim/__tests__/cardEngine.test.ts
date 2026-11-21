@@ -177,7 +177,7 @@ describe('playing cards', () => {
 
   it('card headlines go before a backlog of engine headlines', () => {
     // 30-day quarters with ~20 engine headlines and a 2 s gap: the queue runs behind.
-    const g = game([card('lucky_strike')]);
+    const g = game([card('lucky_strike')], { news: { randomHeadlinesPerQuarter: 12 } });
     const { hand } = buyAll(g, 'p1');
     g.to('TRADING', 2, 250);
     expect(g.sim.news.upcoming().some((i) => i.tick < 2 * BASE.time.daysPerQuarter * BASE.time.ticksPerCandle - 60)).toBe(true);

@@ -16,7 +16,8 @@
  *     draw scope, magnitude and direction from config.news, at a random tick after quietDays.
  * Every TRADING tick (beforeStep): publish at most ONE due item, and only when news.minGapMs has
  * passed since the last headline (the global queue; later items wait; a due card or regime item goes
- * before any backlog of engine headlines), then turn all live shocks into
+ * before any backlog of engine headlines). Published news shocks and rate changes start after a
+ * seeded 1–5 second trading-clock delay; then turn all live shocks into
  * this tick's symbolReturn. Items still waiting at the close are dropped.
  * At EARNINGS (closeQuarter): reports with gap = gapFactor * (surprise - what PUBLISHED leaks priced
  * in). The gap goes into the first step of the next quarter (prices are frozen outside TRADING).
@@ -152,7 +153,9 @@ export function createNews(deps: NewsDeps): News {
   const tpc = config.time.ticksPerCandle;
   const tradingTicks = config.time.daysPerQuarter * tpc;
   const minGapTicks = msToTicks(config, config.news.minGapMs);
-  const settleTicks = 2 * msToTicks(config, config.news.rampMs);
+  const leadMinTicks = Math.ceil(config.news.leadMinMs / config.time.tickMs);
+  const leadMaxTicks = Math.max(leadMinTicks, Math.floor(config.news.leadMaxMs / config.time.tickMs));
+  const settleTicks = 2 * msToTicks(config, config.news.rampMs) + leadMaxTicks;
   const companyBySymbol = new Map(universe.companies.map((c) => [c.symbol, c]));
   /** Expected quarterly EPS per company (fundamentals are fixed for the game), rounded to cents. */
   const consensus: Record<SymbolId, number> = {};
@@ -165,6 +168,7 @@ export function createNews(deps: NewsDeps): News {
   /** Items with `carry` still waiting at the close. */
   let carried: NewsItem[] = [];
   let shocks: Shock[] = [];
+  const delayedEffects: Array<{ tick: number; dRate?: number; reverts?: string }> = [];
   let lastPublished: number | null = null;
   let seq = 0;
   let quarter = 0;
@@ -220,12 +224,15 @@ export function createNews(deps: NewsDeps): News {
     const { template, text } = item.rendered;
     const target = item.target;
     const id = `n${++seq}`;
+    const effectTick = tick + leadMinTicks + rng.int(leadMaxTicks - leadMinTicks + 1);
     if (item.logReturn !== 0) {
-      const shock = createShock(config, universe, { id, target, logReturn: item.logReturn, startTick: tick });
+      const shock = createShock(config, universe, { id, target, logReturn: item.logReturn, startTick: effectTick });
       // A fake stays revertible until its debunk lands (an unset revertTick would drop it once settled).
       shocks.push(item.fake ? { ...shock, revertTick: Number.POSITIVE_INFINITY } : shock);
     }
-    if (item.reverts !== undefined) shocks = shocks.map((s) => (s.id === item.reverts ? revertShock(s, tick) : s));
+    if (item.reverts !== undefined || item.dRate !== undefined) {
+      delayedEffects.push({ tick: effectTick, ...(item.reverts === undefined ? {} : { reverts: item.reverts }), ...(item.dRate === undefined ? {} : { dRate: item.dRate }) });
+    }
     if (item.leakAmount !== undefined && target.scope === 'stock') priced[target.symbol] = (priced[target.symbol] ?? 0) + item.leakAmount;
     if (item.fake) {
       const direction = item.query.direction === 'up' ? 'down' : 'up';
@@ -355,10 +362,22 @@ export function createNews(deps: NewsDeps): News {
       if (due !== undefined && due.tick <= tick && (lastPublished === null || tick - lastPublished >= minGapTicks)) {
         queue.splice(index, 1);
         const next = due.dRate === undefined ? undefined : Math.min(config.market.rateMax, Math.max(config.market.rateMin, rate + due.dRate));
-        if (publish(due, tick, next) !== null) {
+        // A late leak must settle before earnings or its move would be counted twice.
+        const tooLateForLeak = due.leakAmount !== undefined && tick + settleTicks >= quarter * tradingTicks;
+        if (!tooLateForLeak && publish(due, tick, next) !== null) {
           lastPublished = tick;
-          if (next !== undefined) dRate = next - rate;
         }
+      }
+
+      for (let i = delayedEffects.length - 1; i >= 0; i--) {
+        const effect = delayedEffects[i]!;
+        if (effect.tick > tick) continue;
+        if (effect.reverts !== undefined) shocks = shocks.map((s) => (s.id === effect.reverts ? revertShock(s, tick) : s));
+        if (effect.dRate !== undefined) {
+          const nextRate = Math.min(config.market.rateMax, Math.max(config.market.rateMin, rate + dRate + effect.dRate));
+          dRate = nextRate - rate;
+        }
+        delayedEffects.splice(i, 1);
       }
 
       const stepped = stepShocks(shocks, tick);

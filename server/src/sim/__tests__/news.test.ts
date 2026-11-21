@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { defaultConfig, mergeConfig, msToTicks } from '@tg/shared';
 import type { GameConfig, HeadlineTemplate } from '@tg/shared';
 import { DEFAULT_HEADLINES, DEFAULT_PLACEHOLDERS } from '../data/headlineData.ts';
-import { createHeadlineBook, createRng, createSim, fillHeadline, generateUniverse } from '../index.ts';
+import { createHeadlineBook, createNews, createRng, createSim, fillHeadline, generateUniverse } from '../index.ts';
 import type { Sim, SimEvent, SimEventOf } from '../index.ts';
 
 const T = (id: string, over: Partial<HeadlineTemplate>): HeadlineTemplate => ({
@@ -143,6 +143,65 @@ function playGame(seed: number, config: GameConfig = CONFIG): { sim: Sim; events
 const only = <E extends SimEvent['e']>(events: SimEvent[], e: E) => events.filter((x): x is SimEventOf<E> => x.e === e);
 
 describe('news through the sim', () => {
+  it('draws seeded headline lead times between one and five seconds', () => {
+    const config = mergeConfig(CONFIG, { news: { randomHeadlinesPerQuarter: 0, scheduledBeatsPerQuarter: 0 }, earnings: { leaksPerQuarter: 0 } });
+    const delays = new Set<number>();
+    for (let seed = 1; seed <= 12; seed++) {
+      const rng = createRng(seed);
+      const universe = generateUniverse(rng.fork(), config);
+      const news = createNews({ config, universe, book: createHeadlineBook(DEFAULT_HEADLINES, rng.fork()), lists: DEFAULT_PLACEHOLDERS, rng, earningsRng: createRng(seed) });
+      news.startQuarter(1, 0, config.market.startRate);
+      news.enqueue({ tick: 0, source: 'random', query: { kind: 'real', scope: 'stock', direction: 'up' }, target: { scope: 'stock', symbol: universe.companies[0]!.symbol }, logReturn: 0.05 });
+      expect(news.beforeStep(0, config.market.startRate).events).toHaveLength(1);
+      let firstMove = -1;
+      for (let tick = 1; tick <= 50; tick++) {
+        if (news.beforeStep(tick, config.market.startRate).symbolReturn) { firstMove = tick; break; }
+      }
+      expect(firstMove).toBeGreaterThanOrEqual(10);
+      expect(firstMove).toBeLessThanOrEqual(50);
+      delays.add(firstMove);
+    }
+    expect(delays.size).toBeGreaterThan(1);
+  });
+
+  it('publishes before both the price shock and policy rate change', () => {
+    const config = mergeConfig(CONFIG, {
+      news: { leadMinMs: 2_000, leadMaxMs: 2_000, randomHeadlinesPerQuarter: 0, scheduledBeatsPerQuarter: 0 },
+      earnings: { leaksPerQuarter: 0 },
+    });
+    const rng = createRng(77);
+    const universe = generateUniverse(rng.fork(), config);
+    const news = createNews({ config, universe, book: createHeadlineBook(DEFAULT_HEADLINES, rng.fork()), lists: DEFAULT_PLACEHOLDERS, rng, earningsRng: createRng(78) });
+    news.startQuarter(1, 0, config.market.startRate);
+    news.enqueue({ tick: 0, source: 'rate', query: { kind: 'real', scope: 'market', direction: 'up' }, target: { scope: 'market' }, logReturn: 0.05, dRate: -0.0025 });
+    const first = news.beforeStep(0, config.market.startRate);
+    expect(first.events).toHaveLength(1);
+    expect(first.symbolReturn).toBeUndefined();
+    expect(first.dRate).toBe(0);
+    for (let tick = 1; tick < 20; tick++) {
+      const step = news.beforeStep(tick, config.market.startRate);
+      expect(step.symbolReturn).toBeUndefined();
+      expect(step.dRate).toBe(0);
+    }
+    const effect = news.beforeStep(20, config.market.startRate);
+    expect(effect.symbolReturn?.[universe.companies[0]!.symbol]).toBeGreaterThan(0);
+    expect(effect.dRate).toBeCloseTo(-0.0025);
+  });
+
+  it('does not publish a leak too late to settle before earnings', () => {
+    const config = mergeConfig(CONFIG, { news: { randomHeadlinesPerQuarter: 0, scheduledBeatsPerQuarter: 0 }, earnings: { leaksPerQuarter: 0 } });
+    const rng = createRng(99);
+    const universe = generateUniverse(rng.fork(), config);
+    const news = createNews({ config, universe, book: createHeadlineBook(DEFAULT_HEADLINES, rng.fork()), lists: DEFAULT_PLACEHOLDERS, rng, earningsRng: createRng(100) });
+    news.startQuarter(1, 0, config.market.startRate);
+    const symbol = universe.companies[0]!.symbol;
+    const end = config.time.daysPerQuarter * config.time.ticksPerCandle;
+    news.enqueue({ tick: end - 1, source: 'leak', query: { kind: 'real', scope: 'stock', direction: 'up' }, target: { scope: 'stock', symbol }, logReturn: 0.1, leakAmount: 0.1 });
+    expect(news.beforeStep(end - 1, config.market.startRate).events).toHaveLength(0);
+    const report = news.closeQuarter().find((item) => item.symbol === symbol)!;
+    expect(report.gap).toBeCloseTo(config.earnings.gapFactor * report.surprise, 12);
+  });
+
   it('is deterministic: the same seed publishes the same headlines', () => {
     const a = only(playGame(3).events, 'headline');
     const b = only(playGame(3).events, 'headline');

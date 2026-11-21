@@ -4,6 +4,7 @@ import { changeDirection, formatPercent, formatPrice } from '../../lib/format.ts
 import { groupSymbols, splitIntoColumns } from '../../lib/symbolGroups.ts';
 import { useMarketStore, useSelectedSymbol, useSymbols } from '../../net/marketHooks.ts';
 import { quoteChange } from '../../net/marketStore.ts';
+import { QuotePaintQueue } from './quotePaintQueue.ts';
 
 const LIST_COLUMNS = 2;
 
@@ -14,6 +15,17 @@ export function SymbolList() {
   const selected = useSelectedSymbol();
   const columns = useMemo(() => splitIntoColumns(groupSymbols(symbols), LIST_COLUMNS), [symbols]);
   const decimals = market.getConfig().market.priceDecimals;
+  const paintQueue = useMemo(() => new QuotePaintQueue(), [market]);
+  useEffect(() => {
+    const timer = window.setInterval(() => paintQueue.flush(), market.getConfig().time.tickMs);
+    const unsubscribe = market.subscribeFeed((event) => {
+      if (event.kind === 'reset') paintQueue.reset();
+    });
+    return () => {
+      window.clearInterval(timer);
+      unsubscribe();
+    };
+  }, [market, paintQueue]);
   // Stable callback so memo'd rows do not re-render when another row is selected.
   const onSelect = useMemo(() => (symbol: SymbolId) => market.select(symbol), [market]);
 
@@ -31,6 +43,7 @@ export function SymbolList() {
                   decimals={decimals}
                   selected={info.symbol === selected}
                   onSelect={onSelect}
+                  paintQueue={paintQueue}
                 />
               ))}
             </section>
@@ -46,14 +59,14 @@ interface SymbolRowProps {
   decimals: number;
   selected: boolean;
   onSelect: (symbol: SymbolId) => void;
+  paintQueue: QuotePaintQueue;
 }
 
 /**
- * One row. React renders it once (and again only when it is selected / deselected); price and change
- * are written straight to the DOM from the store subscription. At 10 Hz x 61 rows that keeps React
- * out of the hot path entirely, which matters most in dev mode where creating elements is slow.
+ * One row. Store changes mark it dirty; the list paints a random tenth of its rows each tick.
+ * Other market consumers still receive every update directly from the store.
  */
-const SymbolRow = memo(function SymbolRow({ info, decimals, selected, onSelect }: SymbolRowProps) {
+const SymbolRow = memo(function SymbolRow({ info, decimals, selected, onSelect, paintQueue }: SymbolRowProps) {
   const market = useMarketStore();
   const priceRef = useRef<HTMLSpanElement>(null);
   const changeRef = useRef<HTMLSpanElement>(null);
@@ -83,9 +96,13 @@ const SymbolRow = memo(function SymbolRow({ info, decimals, selected, onSelect }
       lastPrice = quote?.price;
     };
 
-    paint();
-    return market.subscribeSymbol(symbol, paint);
-  }, [market, symbol, decimals]);
+    const unregister = paintQueue.register(symbol, paint);
+    const unsubscribe = market.subscribeSymbol(symbol, () => paintQueue.mark(symbol));
+    return () => {
+      unsubscribe();
+      unregister();
+    };
+  }, [market, symbol, decimals, paintQueue]);
 
   return (
     <button
