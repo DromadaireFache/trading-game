@@ -19,7 +19,7 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 
 ## Not verified / known gaps
 
-- **M2 was not reviewed.** The independent reviews were stopped before they ran. It was committed after the integration step, and the tests and e2e pass.
+- **M2 reviewed (2026-11-21).** I read `market.ts` and `universe.ts` and ran probes over 2000 seeds: names and tickers are unique, and no symbol hit the price floor in 20 high-volatility full games. One bug, now fixed: a NaN or infinite `dRate` left the policy rate NaN for the rest of the game, and infinite `volMult`/`corrMult` could floor prices. Non-finite step inputs now fall back to their defaults (`marketInputs.test.ts`). Still open for M4: the rate has no bounds and can go negative.
 - **Generator never run.** It typechecks, but has never run, not even with `--dry-run`. It has no npm script, README or tests yet.
 - **No second machine tested.** A connection from another physical machine on the LAN is untested. Only this host was used, with the server bound to all interfaces.
 - **No restart.** Starting a new game needs a server restart.

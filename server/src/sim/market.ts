@@ -94,7 +94,11 @@ export interface Market {
   getSnapshot(): MarketSnapshot;
 }
 
-export type CreateMarket = (universe: Universe, rng: Rng, config: GameConfig) => Market;
+function finiteOr(value: number | undefined, fallback: number): number {
+  return value !== undefined && Number.isFinite(value) ? value : fallback;
+}
+
+export type CreateMarket =(universe: Universe, rng: Rng, config: GameConfig) => Market;
 
 export const createMarket: CreateMarket = (universe, rng, config) => {
   const { ticksPerCandle } = config.time;
@@ -179,9 +183,11 @@ export const createMarket: CreateMarket = (universe, rng, config) => {
   return {
     universe,
     step(input) {
-      const volMult = input?.volMult ?? 1;
-      const commonMult = volMult * (input?.corrMult ?? 1);
-      const dRate = input?.dRate ?? 0;
+      // Non-finite scalars fall back to their quiet default: a NaN dRate would otherwise make the
+      // rate NaN for the rest of the game, and an infinite multiplier would send prices to the floor.
+      const volMult = finiteOr(input?.volMult, 1);
+      const commonMult = volMult * finiteOr(input?.corrMult, 1);
+      const dRate = finiteOr(input?.dRate, 0);
       rate += dRate;
 
       // Common factors. Always drawn, in a fixed order (see "Noise stream" in the file header).
@@ -190,7 +196,7 @@ export const createMarket: CreateMarket = (universe, rng, config) => {
       const drift = input?.sectorDriftPerDay;
       for (let s = 0; s < sectorCount; s++) {
         sectorShock[s] = noise[1 + s]! * commonMult;
-        sectorDrift[s] = drift === undefined ? 0 : (drift[SECTORS[s]!] ?? 0) * dt;
+        sectorDrift[s] = drift === undefined ? 0 : finiteOr(drift[SECTORS[s]!], 0) * dt;
       }
 
       // Per-symbol extras: on a company they move the company, on a fund only the fund's premium.
