@@ -729,7 +729,7 @@ describe('trading', () => {
     const opening = await ann.next('portfolio');
     expect(opening).toMatchObject({ cash: defaultConfig.economy.startingCash, equity: defaultConfig.economy.startingCash, positions: [] });
 
-    ann.send({ t: 'order', symbol: 'TG50', qty: 100 });
+    ann.send({ t: 'order', symbol: 'TG30', qty: 100 });
     expect((await ann.next('error')).message).toMatch(/closed/);
 
     await ann.next('phase', (m) => m.phase === 'TRADING');

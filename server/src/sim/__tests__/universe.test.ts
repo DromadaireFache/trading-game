@@ -25,16 +25,16 @@ describe('universe generation', () => {
     expect(a.companies.map((c) => c.marketCap)).not.toEqual(b.companies.map((c) => c.marketCap));
   });
 
-  it('has 10 sectors x 5 companies and 11 funds with unique tickers, names and CEOs, for many seeds', () => {
+  it('has 6 sectors x 5 companies and 7 funds with unique tickers, names and CEOs, for many seeds', () => {
     for (const seed of SEEDS) {
       const u = universeOf(seed);
-      expect(u.companies).toHaveLength(50);
-      expect(u.funds).toHaveLength(11);
+      expect(u.companies).toHaveLength(30);
+      expect(u.funds).toHaveLength(7);
       expect(u.companies.map((c) => c.sector)).toEqual(SECTORS.flatMap((s) => [s, s, s, s, s]));
       expect(u.symbols).toEqual([...u.funds.map((f) => f.symbol), ...u.companies.map((c) => c.symbol)]);
-      expect(new Set(u.symbols).size, `tickers, seed ${seed}`).toBe(61);
-      expect(new Set(u.companies.map((c) => c.name)).size, `names, seed ${seed}`).toBe(50);
-      expect(new Set(u.companies.map((c) => c.ceo)).size, `ceos, seed ${seed}`).toBe(50);
+      expect(new Set(u.symbols).size, `tickers, seed ${seed}`).toBe(37);
+      expect(new Set(u.companies.map((c) => c.name)).size, `names, seed ${seed}`).toBe(30);
+      expect(new Set(u.companies.map((c) => c.ceo)).size, `ceos, seed ${seed}`).toBe(30);
       for (const symbol of u.symbols) expect(symbol).toMatch(/^[A-Z][A-Z0-9]{1,4}$/);
     }
   });
@@ -72,8 +72,8 @@ describe('universe generation', () => {
     const of = (key: 'sigmaI' | 'betaM') => (u: Universe, s: Sector) => u.companies.filter((c) => c.sector === s).map((c) => c[key]);
     const sigma = bySector(of('sigmaI'));
     const beta = bySector(of('betaM'));
-    expect(sigma.airlines).toBeGreaterThan(sigma.consumer * 1.3);
-    expect(beta.tech).toBeGreaterThan(beta.consumer * 1.3);
+    expect(sigma.airlines).toBeGreaterThan(sigma.defense * 1.3);
+    expect(beta.tech).toBeGreaterThan(beta.defense * 1.3);
 
     // Varied: one universe spans a good part of each range.
     const u = universeOf(3);
@@ -125,7 +125,7 @@ describe('universe generation', () => {
 
     // More companies than name stems: still unique tickers.
     const wide = universeOf(5, mergeConfig(defaultConfig, { market: { companiesPerSector: 14 } }));
-    expect(wide.companies).toHaveLength(140);
-    expect(new Set(wide.symbols).size).toBe(151);
+    expect(wide.companies).toHaveLength(84);
+    expect(new Set(wide.symbols).size).toBe(91);
   });
 });

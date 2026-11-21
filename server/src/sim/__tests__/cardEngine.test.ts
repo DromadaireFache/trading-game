@@ -3,7 +3,7 @@
  * (insider preview, fake + debunk, event, regime), heat, the SEC roll, fines, jail, and reveals.
  */
 import { describe, expect, it } from 'vitest';
-import { defaultConfig, mergeConfig } from '@tg/shared';
+import { defaultConfig, mergeConfig, msToTicks } from '@tg/shared';
 import type { DeepPartial, GameConfig, Phase } from '@tg/shared';
 import type { CardCatalogEntry } from '@tg/shared/cards';
 import { DEFAULT_CATALOG } from '../data/cardData.ts';
@@ -14,6 +14,8 @@ const BASE: GameConfig = mergeConfig(defaultConfig, {
   time: { daysPerQuarter: 30, quarters: 3 },
   phaseMs: { BRIEFING: 200, EARNINGS: 200, RESULTS: 200, SHOP: 200 },
   lobby: { minPlayers: 1 },
+  // Short quarters: a tighter news gap and lead so card headlines land within a few steps.
+  news: { minGapMs: 2_000, leadMinMs: 1_000, leadMaxMs: 5_000 },
 });
 
 const card = (defId: string): CardCatalogEntry => DEFAULT_CATALOG.find((c) => c.defId === defId)!;
@@ -215,7 +217,7 @@ describe('playing cards', () => {
 describe('SEC', () => {
   const certain: DeepPartial<GameConfig> = { sec: { catchProbabilityPerHeat: 1, maxCatchProbability: 1, rankMultiplier: [1, 1, 1, 1] } };
 
-  it('heat gets you arrested at RESULTS: fine charged, jailed into next quarter, no trading or cards', () => {
+  it('heat gets you arrested at RESULTS: fine charged, jailed for the next quarter, orders delayed', () => {
     const g = game([card('insider_tip')], certain);
     const { hand } = buyAll(g, 'p1');
     g.to('TRADING', 2, 30);
@@ -224,16 +226,20 @@ describe('SEC', () => {
     const before = g.sim.getPortfolio('p1')!;
     g.to('RESULTS', 2, 1);
     const results = only(g.log, 'results').at(-1)!;
-    expect(results.arrests).toEqual([expect.objectContaining({ playerId: 'p1', reason: 'insider trading', jailDays: BASE.sec.jailDaysShort })]);
+    expect(results.arrests).toEqual([expect.objectContaining({ playerId: 'p1', reason: 'insider trading', jailDays: BASE.sec.jailQuarters * BASE.time.daysPerQuarter })]);
     expect(results.leaderboard.find((r) => r.playerId === 'p1')!.jailed).toBe(true);
     const after = g.sim.getPortfolio('p1')!;
     expect(after.heat).toBe(0);
-    expect(after.jailedUntil).toBe(2 * BASE.time.daysPerQuarter + BASE.sec.jailDaysShort);
+    expect(after.jailedUntil).toBe((2 + BASE.sec.jailQuarters) * BASE.time.daysPerQuarter);
     expect(before.cash - after.cash).toBeCloseTo(results.arrests[0]!.fine, 4);
     g.to('TRADING', 3, 2);
     g.sim.submit({ kind: 'order', playerId: 'p1', symbol: g.sim.getUniverse().companies[0]!.symbol, qty: 10 });
     g.sim.submit({ kind: 'order', playerId: 'p2', symbol: g.sim.getUniverse().companies[0]!.symbol, qty: 10 });
-    expect(only(g.step(), 'reject')).toEqual([expect.objectContaining({ playerId: 'p1', code: 'jailed' })]);
+    // p2 fills at once; p1's order waits sec.jailOrderDelayMs, then fills.
+    expect(only(g.step(), 'fill').map((f) => f.playerId)).toEqual(['p2']);
+    const later: SimEvent[] = [];
+    for (let i = 0; i <= msToTicks(BASE, BASE.sec.jailOrderDelayMs); i++) later.push(...g.step());
+    expect(only(later, 'fill').map((f) => f.playerId)).toEqual(['p1']);
   });
 
   it('trading a stock you manipulated adds heat once per stock per quarter', () => {
@@ -246,6 +252,32 @@ describe('SEC', () => {
     for (let i = 0; i < 3; i++) g.sim.submit({ kind: 'order', playerId: 'p1', symbol, qty: 100 });
     g.step();
     expect(g.sim.getPortfolio('p1')!.heat).toBe(BASE.sec.heat.fakeHeadline + BASE.sec.heat.tradeManipulatedTarget);
+  });
+
+  it('self-dealing: a card on a stock you hold adds heat, more when it moves your way; legal cards too', () => {
+    const heatAfter = (defId: string, held: number, target: (g: Game) => string) => {
+      const g = game([card(defId)]);
+      const { hand } = buyAll(g, 'p1');
+      g.to('TRADING', 2, 5);
+      const symbol = g.sim.getUniverse().companies[3]!.symbol;
+      if (held !== 0) g.sim.submit({ kind: 'order', playerId: 'p1', symbol, qty: held });
+      g.step();
+      g.sim.submit({ kind: 'play_card', playerId: 'p1', cardId: hand[0]!.cardId, target: target(g), direction: 'up' });
+      g.step();
+      return g.sim.getPortfolio('p1')!.heat;
+    };
+    const stock = (g: Game) => g.sim.getUniverse().companies[3]!.symbol;
+    const other = (g: Game) => g.sim.getUniverse().companies[20]!.symbol;
+    const { selfDeal, selfDealInFavor } = BASE.sec.heat;
+    // Lucky Strike (legal, up): free on someone else's stock, heat on yours, more if you are long.
+    expect(heatAfter('lucky_strike', 0, stock)).toBe(0);
+    expect(heatAfter('lucky_strike', 100, other)).toBe(0);
+    expect(heatAfter('lucky_strike', -100, stock)).toBe(selfDeal);
+    expect(heatAfter('lucky_strike', 100, stock)).toBe(selfDeal + selfDealInFavor);
+    // Act of God (legal, down) on a stock you are short.
+    expect(heatAfter('act_of_god', -100, stock)).toBe(selfDeal + selfDealInFavor);
+    // An illegal card keeps its own heat on top.
+    expect(heatAfter('planted_rumor', 100, stock)).toBe(BASE.sec.heat.fakeHeadline + selfDeal + selfDealInFavor);
   });
 
   it('a whole game with cards is deterministic', () => {

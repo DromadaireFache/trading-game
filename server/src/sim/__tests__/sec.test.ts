@@ -26,17 +26,16 @@ describe('sec', () => {
     expect(catchProbability(defaultConfig, -10, 0)).toBe(0);
   });
 
-  it('long jail at or above longJailHeat', () => {
-    expect(jailDaysFor(defaultConfig, sec.longJailHeat - 1)).toBe(sec.jailDaysShort);
-    expect(jailDaysFor(defaultConfig, sec.longJailHeat)).toBe(sec.jailDaysLong);
+  it('jail lasts jailQuarters quarters of trading days', () => {
+    expect(jailDaysFor(defaultConfig)).toBe(sec.jailQuarters * defaultConfig.time.daysPerQuarter);
   });
 
   it('a caught player is fined, jailed from the next trading day and loses their heat', () => {
     const players: SecPlayer[] = [{ playerId: 'p1', name: 'Ada', heat: 30, netWorth: 50e6, sources: { fakeHeadline: 30 } }];
     const { outcomes, arrests } = resolveSec(createRng(1), certain, players, 180);
-    expect(outcomes[0]).toMatchObject({ caught: true, fine: 50e6 * sec.fineShareOfNetWorth, jailDays: sec.jailDaysShort, jailedUntil: 180 + sec.jailDaysShort, heatAfter: 0 });
+    expect(outcomes[0]).toMatchObject({ caught: true, fine: 50e6 * sec.fineShareOfNetWorth, jailDays: jailDaysFor(defaultConfig), jailedUntil: 180 + jailDaysFor(defaultConfig), heatAfter: 0 });
     expect(arrests).toHaveLength(1);
-    expect(arrests[0]!.text).toBe(`Ada arrested for spreading fake news. ${sec.jailDaysShort} days.`);
+    expect(arrests[0]!.text).toBe(`Ada arrested for spreading fake news. ${jailDaysFor(defaultConfig)} days.`);
   });
 
   it('picks the reason from the largest heat source', () => {

@@ -20,13 +20,16 @@
  *                  of the quarter, a projector moment; it bends the market until it ends
  *   lobbying       the same as a regime (a bill; passes or fails when it ends)
  *   counter cards  stretch goal: not offered by the shop, refused if played
- * Illegal cards add their heat when played. Trading a stock you manipulated this quarter (fake or
- * illegal event card on it or its sector) adds tradeManipulatedTarget heat once per stock per quarter.
+ * Illegal cards add their heat when played. A card that moves prices (fake headline, event, lobbying)
+ * aimed at a stock or sector the player holds adds sec.heat.selfDeal, plus selfDealInFavor when it
+ * moves it the player's way, legal cards included: cards are meant to be played on the others' bets.
+ * Trading a stock you moved with a card this quarter (on it or its sector) adds tradeManipulatedTarget
+ * heat once per stock per quarter.
  */
 import { msToTicks } from '@tg/shared';
 import type { Arrest, Card, CardDirection, CardReveal, GameConfig, PlayerId, Sector, SymbolId } from '@tg/shared';
 import { SECTORS } from '@tg/shared';
-import type { CardCatalogEntry } from '@tg/shared/cards';
+import type { CardCatalogEntry, HeatKey } from '@tg/shared/cards';
 import { toCardDef } from '@tg/shared/cards';
 import type { News, NewsItem } from './news.ts';
 import { emptyRegimeState, endQuarter, marketInputFor, startRegime } from './regimes.ts';
@@ -158,10 +161,33 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
   }
 
   function heat(p: PlayerCards, entry: CardCatalogEntry): void {
-    if (entry.heat === null) return;
-    const next = addHeat(config, p.heat, p.sources, entry.heat);
+    if (entry.heat !== null) addHeatTo(p, entry.heat);
+  }
+
+  function addHeatTo(p: PlayerCards, key: HeatKey): void {
+    const next = addHeat(config, p.heat, p.sources, key);
     p.heat = next.heat;
     p.sources = next.sources;
+  }
+
+  /** Does `symbol` move with `target`? (the stock itself or its sector fund; any stock or fund of a sector) */
+  function exposedTo(symbol: SymbolId, target: ShockTarget): boolean {
+    if (target.scope === 'market') return true;
+    const sector = companyBySymbol.get(symbol)?.sector ?? sectorFund.get(symbol);
+    if (target.scope === 'sector') return sector === target.sector;
+    return symbol === target.symbol || (sectorFund.has(symbol) && sector === companyBySymbol.get(target.symbol)?.sector);
+  }
+
+  /**
+   * Self-dealing: a price-moving card on something the player holds. Heat for holding it (not for a
+   * market-wide card), more when the move goes the player's way (net long and up, net short and down).
+   */
+  function selfDealHeat(p: PlayerCards, target: ShockTarget, direction: CardDirection): void {
+    const held = (trading.portfolio(p.id)?.positions ?? []).filter((pos) => pos.qty !== 0 && exposedTo(pos.symbol, target));
+    if (held.length === 0) return;
+    if (target.scope !== 'market') addHeatTo(p, 'selfDeal');
+    const net = held.reduce((sum, pos) => sum + pos.qty * pos.avgPrice, 0);
+    if ((direction === 'up' && net > 0) || (direction === 'down' && net < 0)) addHeatTo(p, 'selfDealInFavor');
   }
 
   function sectorOf(target: string | undefined): Sector | undefined {
@@ -325,6 +351,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
             fake: true,
             ...owner,
           });
+          selfDealHeat(p, shockTarget, d);
           manipulate(p, shockTarget);
           break;
         }
@@ -337,7 +364,8 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
             logReturn: shockSize(config, fx.magnitude, fx.direction),
             ...owner,
           });
-          if (!entry.legal) manipulate(p, shockTarget);
+          selfDealHeat(p, shockTarget, fx.direction);
+          manipulate(p, shockTarget);
           revealed = `${entry.name}${shockTarget.scope === 'market' ? '' : ` on ${targetLabel(shockTarget)}`}`;
           break;
         }
@@ -358,6 +386,8 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           }
           regimes = started.state;
           pendingDRate += started.dRate;
+          // A bill lifts its sector if it passes: lobbying for your own bets is self-dealing too.
+          if (fx.kind === 'lobbying') selfDealHeat(p, shockTarget, 'up');
           // Only the start headline carries the author (one reveal per card); the rest are its follow-ups.
           const headline = (templateId: string, tick: number, first = false): NewsItem => ({
             tick,

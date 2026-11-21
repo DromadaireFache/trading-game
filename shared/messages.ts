@@ -248,6 +248,20 @@ export interface PortfolioMsg {
   streak?: number;
 }
 
+/**
+ * One player's open positions, broadcast to everybody (players and projector) whenever that player's
+ * portfolio changes, and sent for every player on join. Lets each desk show what the others hold.
+ */
+export interface HoldingsMsg {
+  t: 'holdings';
+  playerId: PlayerId;
+  positions: Position[];
+  equity: number;
+  eliminated?: boolean;
+  /** Game day until which the player is in jail. */
+  jailedUntil?: number;
+}
+
 /** A quick bet settled (sent to its player only). */
 export interface BetResultMsg {
   t: 'bet_result';
@@ -323,6 +337,7 @@ export type ServerMsg =
   | FillMsg
   | BetResultMsg
   | PortfolioMsg
+  | HoldingsMsg
   | ShopMsg
   | ResultsMsg
   | MomentMsg

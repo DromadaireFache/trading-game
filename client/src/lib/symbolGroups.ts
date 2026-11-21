@@ -10,7 +10,7 @@ export interface SymbolGroup {
 
 /** Funds first (index + sector funds), then one group per sector, in the order the server sent them. */
 export function groupSymbols(symbols: readonly SymbolInfo[]): SymbolGroup[] {
-  const funds: SymbolGroup = { key: 'funds', label: 'Funds (a whole sector in one)', symbols: [] };
+  const funds: SymbolGroup = { key: 'funds', label: 'Funds', symbols: [] };
   const sectors = new Map<string, SymbolGroup>();
   for (const info of symbols) {
     if (info.kind !== 'stock') {
@@ -26,23 +26,4 @@ export function groupSymbols(symbols: readonly SymbolInfo[]): SymbolGroup[] {
     group.symbols.push(info);
   }
   return [...(funds.symbols.length > 0 ? [funds] : []), ...sectors.values()];
-}
-
-/**
- * Splits the groups over `columns` columns of about equal height, keeping their order
- * (a group counts its rows plus one for its heading).
- */
-export function splitIntoColumns(groups: readonly SymbolGroup[], columns: number): SymbolGroup[][] {
-  const rows = (g: SymbolGroup) => g.symbols.length + 1;
-  const total = groups.reduce((sum, g) => sum + rows(g), 0);
-  const out: SymbolGroup[][] = Array.from({ length: Math.max(1, columns) }, () => []);
-  let column = 0;
-  let filled = 0;
-  for (const group of groups) {
-    // Move on once this column holds its share of all rows.
-    if (column < out.length - 1 && filled >= (total * (column + 1)) / out.length) column++;
-    out[column]!.push(group);
-    filled += rows(group);
-  }
-  return out;
 }

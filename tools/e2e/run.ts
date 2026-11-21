@@ -13,7 +13,7 @@
  * live countdown through every quarter to FINAL, reload = same player, late join refused, /floor as a
  * spectator that is not counted as a player, raw websocket join through the Vite proxy, no page overflow
  * at 1366x768, countdown cadence, a duplicated tab (old tab is blocked) and a lost tab (back in by name).
- * Milestone 2 (market): the `market` snapshot through the proxy, 61 symbols in 11 groups on both players,
+ * Milestone 2 (market): the `market` snapshot through the proxy, 37 symbols in 7 groups on both players,
  * on-screen prices equal one server tick and agree between the two windows, a candle chart that grows one
  * candle per second and really has candles painted (stock, index fund, /floor), prices frozen outside
  * TRADING and continuing next quarter with continuing day numbers, a mid-quarter refresh that restores
@@ -50,6 +50,8 @@ const overrides: DeepPartial<GameConfig> = {
   // SHOP is long enough to buy cards in (milestone 5).
   phaseMs: { BRIEFING: 1500, EARNINGS: 800, RESULTS: 1500, SHOP: 3000 },
   lobby: { minPlayers: 2 },
+  // Short quarters: more random headlines than the real pace, so the news checks never wait long.
+  news: { randomHeadlinesPerQuarter: 6 },
 };
 const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800 + 1500 + 3000);
 const COMPANIES_PER_SECTOR = defaultConfig.market.companiesPerSector;
@@ -284,8 +286,8 @@ function wsCollect(url: string, join: object, count: number): Promise<ServerMsg[
 
 /** Every server frame a page received, in order (all its websockets, so it survives reloads). */
 const wire = new Map<string, ServerMsg[]>();
-/** bet_result frames A had before its quick bet (milestone: quick bets). */
-let quickBetResultsBefore = 0;
+/** The symbol of A's quick bet, which must still be open at RESULTS. */
+let quickBetSymbol = '';
 const framesOf = (label: string): ServerMsg[] => wire.get(label) ?? [];
 const ticksOf = (label: string): TickMsg[] => framesOf(label).filter((m): m is TickMsg => m.t === 'tick');
 const snapshotsOf = (label: string): MarketMsg[] => framesOf(label).filter((m): m is MarketMsg => m.t === 'market');
@@ -312,13 +314,25 @@ const shownPrice = (text: string) => Number(text.replace(/,/g, ''));
 const boardKey = (board: BoardRow[]) => board.map((r) => `${r.symbol}=${r.price}`).join(' ');
 
 /** The most recent tick of `label`'s own stream whose prices are exactly what the board shows. */
-function tickShownBy(label: string, board: BoardRow[]): TickMsg | undefined {
-  const ticks = ticksOf(label);
-  for (let i = ticks.length - 1; i >= 0 && i >= ticks.length - 40; i--) {
-    const tick = ticks[i]!;
-    if (board.every((row) => tick.prices[row.symbol] === shownPrice(row.price))) return tick;
+/**
+ * The list repaints a random tenth of its rows per tick (quotePaintQueue), so each row shows its price
+ * from some recent tick, not all rows from the same one. Returns the newest tick any row matches, or
+ * undefined if some row matches none of the last RECENT_TICKS ticks received.
+ */
+const RECENT_TICKS = 100;
+function tickShownBy(label: string, board: BoardRow[]): { day: number; tickOfDay: number } | undefined {
+  const ticks = ticksOf(label).slice(-RECENT_TICKS);
+  // A row not repainted since the page joined still shows the `market` snapshot's price.
+  const snapshot = snapshotsOf(label).at(-1);
+  let newest: { day: number; tickOfDay: number } | undefined;
+  for (const row of board) {
+    let hit: { day: number; tickOfDay: number } | undefined;
+    for (let i = ticks.length - 1; i >= 0 && hit === undefined; i--) if (ticks[i]!.prices[row.symbol] === shownPrice(row.price)) hit = ticks[i];
+    if (hit === undefined && snapshot !== undefined && snapshot.prices[row.symbol] === shownPrice(row.price)) hit = snapshot;
+    if (hit === undefined) return undefined;
+    if (newest === undefined || tickId(hit) > tickId(newest)) newest = hit;
   }
-  return undefined;
+  return newest;
 }
 
 interface ChartSeen {
@@ -660,7 +674,7 @@ async function main(): Promise<void> {
     const stockA = stocks[0]!.symbol;
     const stockB = stocks[COMPANIES_PER_SECTOR + 2]!.symbol;
 
-    await step('market: 61 symbols in 11 groups with live prices on both players', async () => {
+    await step(`market: ${SYMBOL_COUNT} symbols in ${SECTORS.length + 1} groups with live prices on both players`, async () => {
       for (const [label, page] of [['A', a], ['B', b]] as const) {
         const board = await boardOf(page);
         check(board.length === SYMBOL_COUNT, `${label} lists ${SYMBOL_COUNT} symbols (got ${board.length})`);
@@ -678,28 +692,26 @@ async function main(): Promise<void> {
           `${label} has the list on screen down to the last row`);
       }
       const before = await boardOf(a);
-      await sleep(DAY_MS);
+      // The list repaints a tenth of its rows per tick: give it two seconds.
+      await sleep(2 * DAY_MS);
       const after = await boardOf(a);
       const moved = after.filter((r, i) => r.price !== before[i]!.price).length;
-      check(moved >= SYMBOL_COUNT * 0.8, `prices move: ${moved} of ${SYMBOL_COUNT} changed within one second`);
+      check(moved >= SYMBOL_COUNT * 0.8, `prices move: ${moved} of ${SYMBOL_COUNT} changed within two seconds`);
     });
 
     await step('market: both windows show the same server tick', async () => {
       const SAMPLES = 6;
-      let identical = 0;
       let worstLag = 0;
       for (let i = 0; i < SAMPLES; i++) {
         const [boardA, boardB] = await Promise.all([boardOf(a), boardOf(b)]);
         // The frame log on our side can lag the page by a moment.
         await sleep(130);
         const [tickA, tickB] = [tickShownBy('A', boardA), tickShownBy('B', boardB)];
-        if (!tickA || !tickB) throw new Error(`CHECK FAILED: sample ${i}: the list of ${tickA ? 'B' : 'A'} is not the price set of any single tick it received`);
+        if (!tickA || !tickB) throw new Error(`CHECK FAILED: sample ${i}: a row in the list of ${tickA ? 'B' : 'A'} shows no price of its last ${RECENT_TICKS} ticks`);
         worstLag = Math.max(worstLag, Math.abs(tickId(tickA) - tickId(tickB)));
-        if (boardKey(boardA) === boardKey(boardB)) identical += 1;
       }
-      check(true, `in ${SAMPLES} samples each window showed exactly the ${SYMBOL_COUNT} prices of one tick it had received`);
-      check(worstLag <= 2, `the two windows were never more than ${worstLag} tick(s) apart (limit 2)`);
-      check(identical >= 1, `${identical} of ${SAMPLES} simultaneous reads were identical on all ${SYMBOL_COUNT} prices`);
+      check(true, `in ${SAMPLES} samples every row of each window showed a price from a tick it had received`);
+      check(worstLag <= 3, `the newest prices on the two windows were never more than ${worstLag} tick(s) apart (limit 3)`);
       const fromB = new Map(ticksOf('B').map((t) => [tickId(t), JSON.stringify(t.prices)]));
       const common = ticksOf('A').filter((t) => fromB.has(tickId(t)));
       check(common.length >= 10 && common.every((t) => fromB.get(tickId(t)) === JSON.stringify(t.prices)),
@@ -799,7 +811,7 @@ async function main(): Promise<void> {
       // A buys $1M of stockA (Buy is the default side).
       await a.click(tid('size-usd-1000000'));
       await a.waitForSelector(positionRow(stockA));
-      const qtyA = money(await a.locator(`${positionRow(stockA)} ${tid('position-qty')}`).textContent() ?? '');
+      const qtyA = Number(await a.locator(`${positionRow(stockA)} ${tid('position-qty')}`).getAttribute('data-qty'));
       const fillA = fillsOf('A').at(-1)!;
       check(fillA?.symbol === stockA && fillA.qty === qtyA && qtyA > 0, `A bought ${qtyA} ${stockA} @ ${fillA?.price}`);
       check(Math.abs(qtyA * fillA.price - 1e6) < 0.02 * 1e6, `about $1M worth (${Math.round(qtyA * fillA.price)})`);
@@ -811,7 +823,7 @@ async function main(): Promise<void> {
       await b.click(tid('side-sell'));
       await b.click(tid('size-pct-25'));
       await b.waitForSelector(positionRow(stockB));
-      const qtyB = money(await b.locator(`${positionRow(stockB)} ${tid('position-qty')}`).textContent() ?? '');
+      const qtyB = Number(await b.locator(`${positionRow(stockB)} ${tid('position-qty')}`).getAttribute('data-qty'));
       check(qtyB < 0, `B is short ${qtyB} ${stockB}`);
       // From the server portfolio sent with the fill: the live value moves with every tick (and with the
       // short's own impact, which pushes the price down and B's equity up).
@@ -871,15 +883,17 @@ async function main(): Promise<void> {
       const restored = await checkChartDrawn(b, 'B after reload', stockB, snapshot.day);
       const onA = await chartOf(a);
       check(onA !== null && Math.abs(onA.candles - restored.candles) <= 1, `B's restored chart has as many candles as A's (${restored.candles} vs ${onA?.candles})`);
-      await sleep(250);
+      // The list repaints a tenth of its rows per tick: within a second, rows show prices of ticks after the snapshot.
+      await sleep(DAY_MS);
       const live = await boardOf(b);
       await sleep(130);
-      const liveTick = tickShownBy('B', live);
-      check(liveTick !== undefined && tickId(liveTick) > tickId(snapshot), 'the reloaded list is live again: it shows a tick newer than the snapshot');
+      const newer = ticksOf('B').filter((t) => tickId(t) > tickId(snapshot));
+      const fresh = live.filter((r) => shownPrice(r.price) !== snapshot.prices[r.symbol] && newer.some((t) => t.prices[r.symbol] === shownPrice(r.price)));
+      check(fresh.length > 0, `the reloaded list is live again: ${fresh.length} rows show prices of ticks newer than the snapshot`);
       await shot(b, '18-play-after-reload');
       const [cdA, cdB] = [countdownSeconds(await textOf(a, 'countdown')), countdownSeconds(await textOf(b, 'countdown'))];
       check(cdA !== null && cdB !== null && Math.abs(cdA - cdB) <= 1, `B countdown after reload agrees with A (${cdB} vs ${cdA})`);
-      check((await b.locator(tid('roster-player')).count()) === 2, 'B still sees 2 players');
+      check((await b.locator(tid('rival')).count()) === 1, 'B still sees the other player in its rivals panel');
 
       const late = await newPage('late', 1366, 768);
       await late.goto(`${base}/play`);
@@ -891,18 +905,12 @@ async function main(): Promise<void> {
       await late.context().close();
     });
 
-    await step('headlines: both players get the same news feed, slots filled, beats announced', async () => {
+    await step('headlines: both players get the same news, slots filled, it pops up as a newspaper', async () => {
       const headlineFrames = (label: string) => framesOf(label).filter((m) => m.t === 'headline') as Array<{ id: string; text: string; symbol?: string; early?: boolean }>;
-      await waitFor('at least 3 headlines', async () => headlineFrames('A').length >= 3);
+      await waitFor('a first headline', async () => headlineFrames('A').length >= 1);
       const onA = headlineFrames('A');
       check(onA.every((h) => !/\{[A-Z_]+\}/.test(h.text)), `every headline has its slots filled (${onA.length} so far)`);
       check(new Set(onA.map((h) => h.id)).size === onA.length, 'no headline id repeats on the wire');
-      // A headline can land between reading the wire and reading the page: accept anything in between.
-      const shownA = await a.locator(tid('headline')).count();
-      const topA = (await a.locator(`${tid('headline')} .news__text`).first().textContent())?.trim();
-      const afterA = headlineFrames('A');
-      check(shownA >= Math.min(onA.length, 60) && shownA <= Math.min(afterA.length, 60), `A's feed lists the headlines received (${shownA} shown, ${onA.length}..${afterA.length} received)`);
-      check(afterA.slice(-2).some((h) => h.text === topA), `the newest headline is on top: "${topA}"`);
       const idsB = new Set(headlineFrames('B').map((h) => h.id));
       check(onA.filter((h) => !h.early).slice(-3).every((h) => idsB.has(h.id)), 'B received the same latest headlines as A');
       check(!headlineFrames('floor').some((h) => h.early), 'no early (insider) headline reached the floor');
@@ -911,9 +919,14 @@ async function main(): Promise<void> {
         const name = stocks.find((s) => s.symbol === stockHeadline.symbol)?.name ?? '';
         log(`  stock headline on ${stockHeadline.symbol} (${name}): "${stockHeadline.text}"`);
       }
-      const beats = await a.locator(`${tid('beats')} li`).count();
-      check(beats === defaultConfig.news.scheduledBeatsPerQuarter, `the briefing beats are listed (${beats})`);
-      check((await b.locator(tid('headline')).count()) > 0, 'B (reloaded mid-quarter) shows headlines too');
+      // A new headline pops up as a newspaper with its ticker, and the paper cannot be clicked.
+      const seenBefore = headlineFrames('A').length;
+      await waitFor('a new headline', async () => headlineFrames('A').length > seenBefore);
+      await a.waitForSelector(tid('news-pop'));
+      const latest = headlineFrames('A').at(-1)!;
+      const ticker = (await a.locator(tid('news-pop-ticker')).last().textContent())?.trim() ?? '';
+      check(ticker.length > 0 && (latest.symbol === undefined || ticker === latest.symbol), `the headline pops up as a paper with its ticker (${ticker}): "${latest.text}"`);
+      check((await a.evaluate(`getComputedStyle(document.querySelector('[data-testid=news-pops]')).pointerEvents`)) === 'none', 'the news popup cannot be clicked');
       await shot(a, '20-play-headlines');
 
       // Detail modes: Simple hides funds, tickers and the extra rows; Pro shows the raw numbers.
@@ -922,14 +935,12 @@ async function main(): Promise<void> {
       check(true, 'Simple mode hides the funds group');
       check((await a.locator('[data-testid^=size-]').count()) === 0, 'Simple mode replaces the order buttons with quick bets');
       check((await a.locator('[data-testid^=stake-]').count()) === 3, 'Simple mode offers three stakes');
-      check((await a.locator(tid('headline-up')).count()) > 0, 'Simple mode puts a quick bet on every headline');
-      // A quick bet cashes out by itself after config.trading.quickBetDays days and reports a result.
-      const resultsBefore = framesOf('A').filter((m) => m.t === 'bet_result').length;
+      // A quick bet is a plain position: it stays open until it is sold (checked again at RESULTS).
+      const fillsBefore = framesOf('A').filter((m) => m.t === 'fill').length;
       await a.click(tid('quick-up'));
-      await waitFor('a quick bet fill', async () => framesOf('A').some((m) => m.t === 'portfolio' && ((m as { bets?: unknown[] }).bets?.length ?? 0) > 0));
+      await waitFor('a quick bet fill', async () => framesOf('A').filter((m) => m.t === 'fill').length > fillsBefore);
+      quickBetSymbol = (framesOf('A').filter((m) => m.t === 'fill').at(-1) as { symbol: string }).symbol;
       await shot(a, '20-play-simple');
-      // It settles by itself within quickBetDays days and never outlives the quarter: checked at RESULTS.
-      quickBetResultsBefore = resultsBefore;
       await checkNoOverflow(a, 'desk in Simple mode');
       await a.click(tid('mode-pro'));
       await waitFor('Pro risk numbers', async () => (await textOf(a, 'risk-word')).includes('×'));
@@ -968,10 +979,6 @@ async function main(): Promise<void> {
         await shot(a, `14-play-${phase}`);
         await checkNoOverflow(a, `desk in ${phase} at 1366x768`);
         check(await a.locator(tid('size-usd-1000000')).isDisabled(), `order buttons are disabled in ${phase}`);
-        if (phase !== 'EARNINGS') {
-          await a.waitForSelector(tid('earnings'));
-          check(true, `A shows the Q1 earnings reports in ${phase}`);
-        }
         if (phase === 'RESULTS') {
           // Milestone 6: the quarter's results on the desk and on the projector.
           await a.waitForSelector(tid('leaderboard'));
@@ -984,8 +991,9 @@ async function main(): Promise<void> {
           const q1Results = framesOf('A').filter((m) => m.t === 'results');
           check(q1Results.length === 1 && !(q1Results[0] as { final?: boolean }).final,
             `A got one Q1 results message (got ${q1Results.length}: ${q1Results.map((r) => JSON.stringify((r as { recap?: { quarter?: number } }).recap?.quarter)).join(',')})`);
-          const settled = framesOf('A').filter((m) => m.t === 'bet_result').slice(quickBetResultsBefore) as Array<{ pnl: number; streak: number }>;
-          check(settled.length >= 1, `A's quick bet settled by itself before the quarter closed: ${settled.map((r) => `${r.pnl >= 0 ? '+' : ''}${Math.round(r.pnl)} (streak ${r.streak})`).join(', ')}`);
+          const lastPortfolio = framesOf('A').filter((m) => m.t === 'portfolio').at(-1) as { positions: Array<{ symbol: string }> } | undefined;
+          check(!framesOf('A').some((m) => m.t === 'bet_result') && lastPortfolio?.positions.some((p) => p.symbol === quickBetSymbol) === true,
+            `A's quick bet on ${quickBetSymbol} is still open at RESULTS (nothing cashed out by itself)`);
           await shot(a, '14-play-RESULTS-board');
           await shot(floor, '14-floor-RESULTS');
         }
@@ -1087,7 +1095,7 @@ async function main(): Promise<void> {
       check(true, 'the floor shows the winner in FINAL');
       await sleep(200);
       await shot(a, '20-play-FINAL');
-      check((await textOf(a, 'hand-empty')) === 'Game over: no more cards.', 'in FINAL the hand says the game is over');
+      check((await textOf(a, 'hand-empty')) === 'Game over', 'in FINAL the hand says the game is over');
       await shot(floor, '21-floor-FINAL');
       await checkNoOverflow(a, 'desk in FINAL at 1366x768');
       await checkNoOverflow(floor, 'floor in FINAL');
@@ -1142,7 +1150,9 @@ async function main(): Promise<void> {
     });
 
     await step('lost tab: the same name takes the disconnected seat back mid-game', async () => {
-      await waitFor('A sees Bud offline', async () => (await a.locator(`${tid('roster-player')}.roster__row--offline`).count()) === 1);
+      // In FINAL the desk shows the standings, not the roster: read the roster A received.
+      const budOnline = () => (framesOf('A').filter((m) => m.t === 'lobby').at(-1) as { players: Array<{ name: string; connected: boolean }> } | undefined)?.players.find((p) => p.name === 'Bud')?.connected;
+      await waitFor('A sees Bud offline', async () => budOnline() === false);
       const before = JSON.parse((await b.evaluate(`sessionStorage.getItem('tg.session.player')`)) as string) as { token: string };
       const lost = await newPage('lost', 1366, 768);
       await lost.goto(`${base}/play`);
@@ -1152,8 +1162,9 @@ async function main(): Promise<void> {
       check((await textOf(lost, 'me-name')) === 'Bud', 'a fresh tab that types "bud" is Bud again');
       const after = await sessionToken(lost);
       check(typeof after === 'string' && after !== before.token, 'the seat got a fresh token');
-      await waitFor('A sees everybody online', async () => (await a.locator(`${tid('roster-player')}.roster__row--offline`).count()) === 0);
-      check((await rosterNames(a)).join(',') === 'Gordon,Bud', 'roster is still Gordon, Bud');
+      await waitFor('A sees everybody online', async () => budOnline() === true);
+      const names = (framesOf('A').filter((m) => m.t === 'lobby').at(-1) as { players: Array<{ name: string }> }).players.map((p) => p.name);
+      check(names.join(',') === 'Gordon,Bud', 'roster is still Gordon, Bud');
       await lost.context().close();
     });
 
@@ -1176,7 +1187,7 @@ async function main(): Promise<void> {
       await a.waitForSelector(rowOf((await boardOf(a))[0]?.symbol ?? ''));
       const newSymbols = (await boardOf(a)).map((r) => r.symbol).join();
       check(newSymbols !== oldSymbols && (await boardOf(a)).length === SYMBOL_COUNT, 'a new universe (next seed) is on screen');
-      check((await a.locator(tid('headline')).count()) === 0, "no headline of the old game is left in A's feed");
+      check((await a.locator(tid('news-pop')).count()) === 0, 'no headline of the old game is on A\'s desk');
       check((await a.locator(tid('positions')).count()) === 0, 'A starts the new game with no positions');
       const health = (await (await fetch(`http://127.0.0.1:${serverPort}/health`)).json()) as { game: number; phase: string };
       check(health.game === 2 && health.phase === 'BRIEFING', `the server runs game ${health.game}`);

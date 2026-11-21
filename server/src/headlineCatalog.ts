@@ -33,12 +33,8 @@ const products: Record<Sector, readonly string[]> = {
   energy: ['SolarSkin panels', 'GreenGrid inverters', 'HydroCell batteries'],
   defense: ['AeroDrone', 'FalconEye radar', 'Sentinel air defense'],
   airlines: ['SkyBridge commuter service', 'Horizon business class', 'AirLink regional service'],
-  tourism: ['Harborlight cruise', 'Northstar rail tour', 'SunSpire resort packages'],
   finance: ['ClearLedger payment platform', 'Vaultline savings accounts', 'OakKey insurance plans'],
   health: ['VitaPatch', 'AirMate respirator', 'NovaScan diagnostic system'],
-  consumer: ['Quantum Toaster', 'CrunchBar snacks', 'CloudBed mattresses'],
-  industrials: ['MegaJet engine', 'ForgeArm assembly robot', 'Atlas motion controller'],
-  materials: ['Duralloy steel', 'ClearStone ceramics', 'FlexSil industrial mesh'],
 };
 
 function productFor(sector: Sector, symbol: SymbolId, random: (count: number) => number): string {

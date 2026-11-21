@@ -3,17 +3,14 @@ import type { Position } from '@tg/shared';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
 import { changeDirection, formatMoney, formatMoneyShort, formatPercent, formatPrice, formatShares } from '../../lib/format.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
-import { useLastDay, useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
+import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
 import { useUiMode } from '../../lib/uiMode.ts';
 import type { UiMode } from '../../lib/uiMode.ts';
 import './trading.css';
 
-/**
- * Your money: net worth as the big score number, how far you are from the start, and your open bets
- * (UP / DOWN, what each is worth now and what it made). Click a bet to look at it; x cashes it out.
- */
-export function PositionsPanel({ className }: { className?: string }) {
+/** Your money: net worth as the big score number and how far you are from the start. */
+export function MoneyPanel({ className }: { className?: string }) {
   const live = useLivePortfolio();
   const { config } = useGame();
   const mode = useUiMode();
@@ -27,10 +24,8 @@ export function PositionsPanel({ className }: { className?: string }) {
   }
 
   const pnlFraction = live.totalPnl / config.economy.startingCash;
-  const positions = [...live.portfolio.positions].sort((a, b) => a.symbol.localeCompare(b.symbol));
-
   return (
-    <Panel title="Your money" className={`positions${className ? ` ${className}` : ''}`}>
+    <Panel title="Your money" className={`money${className ? ` ${className}` : ''}`}>
       {live.portfolio.eliminated && (
         <div className="positions__out" data-testid="eliminated">
           OUT! Your money fell below {formatMoneyShort(config.economy.eliminationEquity)}. You can still watch.
@@ -45,37 +40,65 @@ export function PositionsPanel({ className }: { className?: string }) {
         </span>
       </div>
       {mode !== 'simple' && (
-      <div className="positions__sub">
-        <span title="Money not in a bet (negative = borrowed)">
-          Cash <strong data-testid="cash">{formatMoney(live.portfolio.cash)}</strong>
-        </span>
-        <span title="Total size of all your bets">
-          In bets <strong>{formatMoneyShort(live.gross)}</strong>
-        </span>
-      </div>
+        <div className="positions__sub">
+          <span title="Money not in a bet (negative = borrowed)">
+            Cash <strong data-testid="cash">{formatMoney(live.portfolio.cash)}</strong>
+          </span>
+          <span title="Total size of all your bets">
+            In bets <strong>{formatMoneyShort(live.gross)}</strong>
+          </span>
+        </div>
       )}
-      {mode === 'simple' && <BetResults />}
+    </Panel>
+  );
+}
+
+/**
+ * Your positions: every open bet (UP / DOWN, what it is worth now and what it made). A bet stays open
+ * until you cash it out (x) or a margin call closes it. Click a row to look at that stock.
+ */
+export function PositionsPanel({ className }: { className?: string }) {
+  const live = useLivePortfolio();
+  const { config } = useGame();
+  const mode = useUiMode();
+
+  if (live === null) {
+    return (
+      <Panel title="Your positions" className={className}>
+        <Placeholder>Your bets show up here when the game starts.</Placeholder>
+      </Panel>
+    );
+  }
+
+  const positions = [...live.portfolio.positions].sort((a, b) => a.symbol.localeCompare(b.symbol));
+  return (
+    <Panel
+      title="Your positions"
+      aside={<span className="positions__legend"><span className="change--up">▲ long</span> <span className="change--down">▼ short</span></span>}
+      className={`positions${className ? ` ${className}` : ''}`}
+    >
       {positions.length === 0 ? (
         <div className="positions__empty">No bets yet. Pick a stock and bet UP or DOWN.</div>
       ) : (
-        <table className="positions__table" data-testid="positions">
-          <thead>
-            <tr>
-              <th>{mode === 'simple' ? 'Company' : 'Stock'}</th>
-              <th>Bet</th>
-              {mode === 'pro' && <th>Avg</th>}
-              {mode !== 'simple' && <th>Worth</th>}
-              <th>Profit</th>
-              {mode === 'simple' && <th>Ends</th>}
-              <th aria-label="Cash out" />
-            </tr>
-          </thead>
-          <tbody>
-            {positions.map((p) => (
-              <PositionRow key={p.symbol} position={p} decimals={config.market.priceDecimals} canTrade={!live.portfolio.eliminated} mode={mode} />
-            ))}
-          </tbody>
-        </table>
+        <div className="positions__scroll">
+          <table className="positions__table" data-testid="positions">
+            <thead>
+              <tr>
+                <th>Stock</th>
+                <th>Bet</th>
+                {mode === 'pro' && <th>Avg</th>}
+                <th>Worth</th>
+                <th>Profit</th>
+                <th aria-label="Cash out" />
+              </tr>
+            </thead>
+            <tbody>
+              {positions.map((p) => (
+                <PositionRow key={p.symbol} position={p} decimals={config.market.priceDecimals} canTrade={!live.portfolio.eliminated} mode={mode} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </Panel>
   );
@@ -93,39 +116,27 @@ function PositionRow({ position, decimals, canTrade, mode }: { position: Positio
   const pnlFraction = cost > 0 ? pnl / cost : 0;
   const open = phase?.phase === 'TRADING' && canTrade;
   const up = position.qty > 0;
-  const { portfolio } = useGame();
-  const lastDay = useLastDay();
-  /** Days until the first quick bet on this symbol cashes out by itself ('' = a normal bet). */
-  const endsIn = (symbol: string) => {
-    const bet = portfolio?.bets?.filter((b) => b.symbol === symbol).sort((a, b) => a.closeAtDay - b.closeAtDay)[0];
-    if (bet === undefined) return '';
-    const left = bet.closeAtDay - Math.max(0, lastDay) + 1;
-    return left <= 1 ? 'today' : `${left} days`;
-  };
 
   return (
     <tr
-      className={`positions__row${selected ? ' positions__row--selected' : ''}`}
+      className={`positions__row positions__row--${up ? 'up' : 'down'}${selected ? ' positions__row--selected' : ''}`}
       onClick={() => market.select(position.symbol)}
       title={`${formatShares(Math.abs(position.qty))} shares, bought at $${formatPrice(position.avgPrice, decimals)}, now $${formatPrice(last, decimals)}`}
       data-testid="position-row"
       data-symbol={position.symbol}
     >
-      <td className={mode === 'simple' ? 'positions__name' : 'positions__sym'}>
-        {mode === 'simple' ? (market.getInfo(position.symbol)?.name ?? position.symbol) : position.symbol}
-      </td>
+      <td className="positions__sym">{position.symbol}</td>
       <td>
         <span className={`positions__dir positions__dir--${up ? 'up' : 'down'}`} data-testid="position-qty" data-qty={position.qty}>
-          {up ? '▲' : '▼'} {mode === 'simple' ? (up ? 'UP' : 'DOWN') : formatShares(position.qty)}
+          {up ? '▲' : '▼'} {mode === 'pro' ? formatShares(position.qty) : up ? 'LONG' : 'SHORT'}
         </span>
       </td>
       {mode === 'pro' && <td>{formatPrice(position.avgPrice, decimals)}</td>}
-      {mode !== 'simple' && <td>{formatMoneyShort(Math.abs(position.qty) * last)}</td>}
+      <td>{formatMoneyShort(Math.abs(position.qty) * last)}</td>
       <td className={`positions__profit change--${changeDirection(pnlFraction)}`} title={formatPercent(pnlFraction)}>
         {pnl >= 0 ? '+' : ''}
         {formatMoneyShort(pnl)}
       </td>
-      {mode === 'simple' && <td className="positions__ends">{endsIn(position.symbol)}</td>}
       <td>
         <button
           type="button"
@@ -142,32 +153,5 @@ function PositionRow({ position, decimals, canTrade, mode }: { position: Positio
         </button>
       </td>
     </tr>
-  );
-}
-
-/** Simple mode: the win streak and the last quick-bet results, newest first. */
-function BetResults() {
-  const { betResults, portfolio } = useGame();
-  const market = useMarketStore();
-  const streak = betResults[0]?.streak ?? portfolio?.streak ?? 0;
-  if (betResults.length === 0) return <div className="bets__hint">Finished bets show up here.</div>;
-  return (
-    <div className="bets" data-testid="bet-results">
-      <div className={`bets__streak${streak >= 2 ? ' bets__streak--hot' : ''}`} data-testid="streak">
-        {streak > 0 ? `Win streak ${streak}` : 'Streak broken'}
-      </div>
-      <ol className="bets__list">
-        {betResults.slice(0, 4).map((r) => (
-          <li key={r.seq} className={`bets__item bets__item--${r.pnl > 0 ? 'win' : 'loss'}`} data-testid="bet-result">
-            <span className="bets__mark">{r.pnl > 0 ? '✓' : '✗'}</span>
-            <span className="bets__name">{market.getInfo(r.symbol)?.name ?? r.symbol}</span>
-            <span className="bets__pnl">
-              {r.pnl >= 0 ? '+' : ''}
-              {formatMoneyShort(r.pnl)}
-            </span>
-          </li>
-        ))}
-      </ol>
-    </div>
   );
 }

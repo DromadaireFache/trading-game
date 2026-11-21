@@ -1,0 +1,133 @@
+/*
+ * Headline popups: newspaper clippings dropped on the desk. Colors and fonts only through var(--tg-...).
+ * The whole pile ignores the mouse: you cannot click a headline, you have to find its ticker.
+ */
+.news-pops {
+  position: relative;
+  z-index: 5;
+  pointer-events: none;
+  align-self: start;
+  justify-self: center;
+  /* Fixed width: on a narrow chart the paper simply floats over its neighbors (it ignores the mouse). */
+  width: 440px;
+  max-width: calc(100vw - 32px);
+  margin-top: 36px;
+}
+
+.paper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 10px;
+  color: var(--tg-color-card-text);
+  background: var(--tg-color-card-face);
+  border: 1px solid color-mix(in srgb, var(--tg-color-card-text) 35%, transparent);
+  border-radius: 2px;
+  box-shadow:
+    0 6px 0 var(--tg-color-shadow),
+    0 14px 28px color-mix(in srgb, var(--tg-color-shadow) 70%, transparent);
+  /* Older papers slide down and back in the pile. */
+  transform: translate(calc(var(--pop-depth) * 14px), calc(var(--pop-depth) * 26px)) rotate(var(--pop-tilt));
+  animation: paper-drop 380ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  transition: transform 250ms ease, opacity 250ms ease;
+}
+.paper--behind {
+  opacity: 0.8;
+  filter: saturate(0.8) brightness(0.92);
+}
+@keyframes paper-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-40px) rotate(calc(var(--pop-tilt) - 8deg)) scale(1.08);
+  }
+}
+
+.paper__mast {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 4px;
+  border-bottom: 3px double var(--tg-color-card-text);
+  font-family: var(--tg-font-serif);
+}
+.paper__name {
+  font-size: 18px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+.paper__date {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.paper__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 10px;
+  align-items: start;
+}
+.paper__headline {
+  margin: 0;
+  font-family: var(--tg-font-serif);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+.paper__art {
+  margin: 0;
+  color: var(--tg-color-card-text);
+}
+.news-art {
+  display: block;
+  width: 120px;
+  height: 84px;
+}
+
+.paper__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--tg-color-card-text) 40%, transparent);
+}
+.paper__note {
+  font-family: var(--tg-font-serif);
+  font-size: 11px;
+  font-style: italic;
+}
+.paper__ticker {
+  flex: none;
+  padding: 2px 8px;
+  font-family: var(--tg-font-mono);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--tg-color-card-face);
+  background: var(--tg-color-card-text);
+  border-radius: 2px;
+  transform: rotate(-2deg);
+}
+
+/* An insider tip: a secret memo, not a newspaper. */
+.paper--early {
+  background: color-mix(in srgb, var(--tg-color-info) 18%, var(--tg-color-card-face));
+  border: 2px dashed var(--tg-color-info);
+}
+.paper--early .paper__ticker {
+  background: var(--tg-color-info);
+  color: var(--tg-color-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper {
+    animation: none;
+    transition: none;
+  }
+}

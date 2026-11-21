@@ -8,9 +8,10 @@ import { CardFace } from './CardFace.tsx';
 import './cards.css';
 
 /**
- * The player's cards (limit config.cards.handLimit), heat and jail. A card is played in TRADING on
- * the symbol selected in the market list: a stock card needs a stock, a sector card takes the sector
- * of the selected stock or sector fund.
+ * The player's cards as real cards, side by side (config.cards.handLimit slots, empty ones dashed),
+ * plus heat and jail. A card is played in TRADING on the symbol selected in the market list: a stock
+ * card needs a stock, a sector card takes the sector of the selected stock or sector fund. Aim them at
+ * the other players' bets: a card on something you hold yourself draws the SEC's attention.
  */
 export function HandPanel({ className }: { className?: string }) {
   const { config, phase } = useGame();
@@ -28,13 +29,14 @@ export function HandPanel({ className }: { className?: string }) {
   const { hand = [], heat, jailedUntil, eliminated } = live.portfolio;
   const jailed = jailedUntil !== undefined && Math.max(0, lastDay) < jailedUntil;
   const open = phase?.phase === 'TRADING' && !jailed && !eliminated;
-  const heatLevel = heat >= config.sec.longJailHeat ? 'high' : heat > 0 ? 'some' : 'none';
+  // High = a 30%+ chance of being caught at the end of the quarter (before the rank multiplier).
+  const heatLevel = heat * config.sec.catchProbabilityPerHeat >= 0.3 ? 'high' : heat > 0 ? 'some' : 'none';
 
   return (
     <Panel
       title="Your cards"
       aside={
-        <span title="Heat comes from illegal cards. The more heat (and the richer you are), the likelier the SEC fines and jails you at the end of the quarter.">
+        <span title="Heat comes from illegal cards and from any card played on a stock you hold yourself. The more heat (and the richer you are), the likelier the SEC fines and jails you at the end of the quarter.">
           SEC{' '}
           <span className={`hand__heat hand__heat--${heatLevel}`} data-testid="heat">
             heat {Math.round(heat)}
@@ -45,26 +47,27 @@ export function HandPanel({ className }: { className?: string }) {
     >
       {jailed && (
         <div className="hand__jail" data-testid="jailed">
-          IN JAIL until Q{dayToQuarter(config, jailedUntil!)} day {dayOfQuarter(config, jailedUntil!)}: no betting, no cards. Your bets stay open.
+          IN JAIL {jailedUntil! >= config.time.quarters * config.time.daysPerQuarter ? 'for the rest of the game' : `until Q${dayToQuarter(config, jailedUntil!)} day ${dayOfQuarter(config, jailedUntil!)}`}: no cards, and your orders go through {config.sec.jailOrderDelayMs / 1000}s late.
         </div>
       )}
-      {hand.length === 0 ? (
-        <div className="hand__empty" data-testid="hand-empty">
-          {phase?.phase === 'FINAL'
-            ? 'Game over: no more cards.'
-            : (phase?.quarter ?? 0) >= config.time.quarters
-              ? 'No cards. The last quarter has no shop.'
-              : 'No cards. Buy some in the SHOP phase.'}
-        </div>
-      ) : (
-        <div className="hand__list" data-testid="hand">
-          {hand.map((c) => (
-            <HandCard key={c.cardId} card={c} open={open} />
-          ))}
-        </div>
-      )}
+      <div className="hand__list" data-testid="hand">
+        {hand.map((c) => (
+          <HandCard key={c.cardId} card={c} open={open} />
+        ))}
+        {Array.from({ length: Math.max(0, config.cards.handLimit - hand.length) }, (_, i) => (
+          <div key={`slot-${i}`} className="hand__slot" data-testid={hand.length === 0 && i === 0 ? 'hand-empty' : undefined}>
+            {i === 0 && emptyText(phase?.phase === 'FINAL', (phase?.quarter ?? 0) >= config.time.quarters, hand.length)}
+          </div>
+        ))}
+      </div>
     </Panel>
   );
+}
+
+function emptyText(final: boolean, lastQuarter: boolean, held: number): string {
+  if (final) return 'Game over';
+  if (lastQuarter) return 'No shop in the last quarter';
+  return held === 0 ? 'Buy cards in the SHOP' : 'Empty slot';
 }
 
 function HandCard({ card, open }: { card: Card; open: boolean }) {
@@ -95,18 +98,19 @@ function HandCard({ card, open }: { card: Card; open: boolean }) {
 
   return (
     <CardFace card={def} testId="hand-card">
+      <div className="card__target">{def.targetKind === 'none' ? 'No target needed' : label ? label.trim() : `Pick a ${def.targetKind}`}</div>
       {def.needsDirection ? (
         <>
           <button type="button" className="card__btn card__btn--up" disabled={!open || missing} title={why} onClick={() => play('up')} data-testid="play-up">
-            Up{label}
+            ▲ Up
           </button>
           <button type="button" className="card__btn card__btn--down" disabled={!open || missing} title={why} onClick={() => play('down')} data-testid="play-down">
-            Down{label}
+            ▼ Down
           </button>
         </>
       ) : (
         <button type="button" className="card__btn" disabled={!open || missing} title={why} onClick={() => play()} data-testid="play">
-          Play{label}
+          Play
         </button>
       )}
     </CardFace>

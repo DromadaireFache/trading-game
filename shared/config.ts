@@ -227,8 +227,20 @@ export interface GameConfig {
     lobbyPassProbability: number;
   };
   sec: {
-    /** Heat added per illegal act. */
-    heat: { insiderTip: number; fakeHeadline: number; tradeManipulatedTarget: number; illegalEvent: number; tipOff: number };
+    /**
+     * Heat added per act. selfDeal: a card that moves a stock or sector you hold (legal cards too);
+     * selfDealInFavor: added on top when it moves it your way (pumping your long, sinking your short).
+     * A market-wide card only adds selfDealInFavor, when it moves the market your way.
+     */
+    heat: {
+      insiderTip: number;
+      fakeHeadline: number;
+      tradeManipulatedTarget: number;
+      illegalEvent: number;
+      tipOff: number;
+      selfDeal: number;
+      selfDealInFavor: number;
+    };
     /** P(caught) = min(maxCatchProbability, heat * catchProbabilityPerHeat * rankMultiplier[rank]). */
     catchProbabilityPerHeat: number;
     /** Index 0 = richest player. Richer players are watched more closely. */
@@ -236,10 +248,10 @@ export interface GameConfig {
     maxCatchProbability: number;
     /** Fine as a share of net worth. */
     fineShareOfNetWorth: number;
-    /** Jail: half a quarter, or a full quarter at/above longJailHeat. */
-    jailDaysShort: number;
-    jailDaysLong: number;
-    longJailHeat: number;
+    /** Jail length in quarters (of trading days), counted from the next quarter's open. */
+    jailQuarters: number;
+    /** In jail: no cards (playing or buying), and every order fills this long after it was sent. */
+    jailOrderDelayMs: number;
     /** Heat multiplier applied at the end of each quarter when not caught. */
     heatDecayPerQuarter: number;
   };
@@ -309,7 +321,7 @@ export const defaultConfig: GameConfig = {
     quickBetStakes: [0.1, 0.25, 0.5],
   },
   market: {
-    sectors: 10,
+    sectors: 6,
     companiesPerSector: 5,
     marketCapMin: 5e9,
     marketCapMax: 500e9,
@@ -340,12 +352,8 @@ export const defaultConfig: GameConfig = {
       energy: { betaMarket: 0.5, betaSector: 0.8, idioVol: 0.6, rateSensitivity: 0.3 },
       defense: { betaMarket: 0.2, betaSector: 0.7, idioVol: 0.3, rateSensitivity: 0.2 },
       airlines: { betaMarket: 0.8, betaSector: 0.8, idioVol: 0.8, rateSensitivity: 0.4 },
-      tourism: { betaMarket: 0.7, betaSector: 0.6, idioVol: 0.6, rateSensitivity: 0.4 },
       finance: { betaMarket: 0.6, betaSector: 0.6, idioVol: 0.4, rateSensitivity: 0.7 },
       health: { betaMarket: 0.2, betaSector: 0.4, idioVol: 0.5, rateSensitivity: 0.3 },
-      consumer: { betaMarket: 0.1, betaSector: 0.3, idioVol: 0.1, rateSensitivity: 0.3 },
-      industrials: { betaMarket: 0.5, betaSector: 0.5, idioVol: 0.4, rateSensitivity: 0.5 },
-      materials: { betaMarket: 0.6, betaSector: 0.7, idioVol: 0.6, rateSensitivity: 0.4 },
     },
     sectorProfileSpread: 0.25,
     capVolTilt: 0.4,
@@ -378,11 +386,13 @@ export const defaultConfig: GameConfig = {
     shock: { small: 0.02, medium: 0.05, large: 0.12, huge: 0.5 },
     rampMs: 3_000,
     overshoot: 0.15,
-    minGapMs: 2_000,
-    leadMinMs: 1_000,
-    leadMaxMs: 5_000,
-    scheduledBeatsPerQuarter: 3,
-    randomHeadlinesPerQuarter: 3,
+    minGapMs: 6_000,
+    // Headlines pop up on every desk; the price starts moving 4-6 s later, time to find the ticker.
+    leadMinMs: 4_000,
+    leadMaxMs: 6_000,
+    // About 5 headlines a quarter: 1 scheduled beat (the rate decision), 2 random, 2 earnings leaks.
+    scheduledBeatsPerQuarter: 1,
+    randomHeadlinesPerQuarter: 2,
     noiseShare: 0.25,
     scopeWeights: { market: 0.05, sector: 0.3, stock: 0.65 },
     magnitudeWeights: { small: 0.3, medium: 0.3, large: 0.2, huge: 0.2 },
@@ -394,7 +404,7 @@ export const defaultConfig: GameConfig = {
   earnings: {
     surpriseSigma: 0.08,
     gapFactor: 1,
-    leaksPerQuarter: 4,
+    leaksPerQuarter: 2,
     leakShareMin: 0.3,
     leakShareMax: 0.6,
   },
@@ -415,14 +425,13 @@ export const defaultConfig: GameConfig = {
     lobbyPassProbability: 0.6,
   },
   sec: {
-    heat: { insiderTip: 20, fakeHeadline: 30, tradeManipulatedTarget: 15, illegalEvent: 40, tipOff: 25 },
+    heat: { insiderTip: 20, fakeHeadline: 30, tradeManipulatedTarget: 25, illegalEvent: 40, tipOff: 25, selfDeal: 30, selfDealInFavor: 30 },
     catchProbabilityPerHeat: 0.006,
     rankMultiplier: [1.5, 1.2, 1, 0.8],
     maxCatchProbability: 0.9,
     fineShareOfNetWorth: 0.1,
-    jailDaysShort: 45,
-    jailDaysLong: 90,
-    longJailHeat: 60,
+    jailQuarters: 1,
+    jailOrderDelayMs: 3_000,
     heatDecayPerQuarter: 0.5,
   },
   presentation: {

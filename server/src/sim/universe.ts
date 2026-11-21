@@ -1,5 +1,5 @@
 /**
- * Universe generation: 10 sectors x 5 companies + 1 index fund + 10 sector funds, from a seed.
+ * Universe generation: 6 sectors x 5 companies + 1 index fund + 6 sector funds, from a seed.
  * Pure (see ./types.ts). Name material comes from ./data/names.ts only.
  *
  * CONTRACT (fixed by the milestone-2 foundation; server and client rely on it):

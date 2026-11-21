@@ -33,13 +33,13 @@ describe('market contract', () => {
     const universe = sim.getUniverse();
     const info = sim.getMarketSnapshot().universe;
 
-    expect(universe.companies).toHaveLength(50);
-    expect(universe.funds).toHaveLength(11);
-    expect(new Set(universe.symbols).size).toBe(61);
+    expect(universe.companies).toHaveLength(30);
+    expect(universe.funds).toHaveLength(7);
+    expect(new Set(universe.symbols).size).toBe(37);
     expect(info.symbols.map((s) => s.symbol)).toEqual(universe.symbols);
     expect(info.symbols.map((s) => s.kind)).toEqual(['index', ...SECTORS.map(() => 'sector'), ...universe.companies.map(() => 'stock')]);
-    expect(info.symbols.slice(1, 11).map((s) => s.sector)).toEqual([...SECTORS]);
-    expect(info.symbols.slice(11).map((s) => s.sector)).toEqual(SECTORS.flatMap((s) => [s, s, s, s, s]));
+    expect(info.symbols.slice(1, 7).map((s) => s.sector)).toEqual([...SECTORS]);
+    expect(info.symbols.slice(7).map((s) => s.sector)).toEqual(SECTORS.flatMap((s) => [s, s, s, s, s]));
 
     const allowed = new Set(['symbol', 'name', 'kind', 'sector', 'marketCap', 'ceo', 'members']);
     for (const symbol of info.symbols) {

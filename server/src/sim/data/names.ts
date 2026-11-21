@@ -38,10 +38,6 @@ export const SECTOR_NAMES: Record<Sector, SectorNames> = {
     stems: ['Skylarka', 'Aerovia', 'Cirrovia', 'Jetmoor', 'Altaire', 'Meridoux', 'Nordwing', 'Zephyra', 'Nimbojet', 'Cloudhop'],
     suffixes: ['Airways', 'Air', 'Airlines', 'Aviation', 'Express', 'Wings'],
   },
-  tourism: {
-    stems: ['Wanderly', 'Palmora', 'Voyagio', 'Azurea', 'Grandstay', 'Lagoona', 'Tripwell', 'Seabrisa', 'Mirador', 'Roamwell'],
-    suffixes: ['Resorts', 'Cruises', 'Hotels', 'Travel', 'Leisure', 'Holidays'],
-  },
   finance: {
     stems: ['Goldmere', 'Fidelmont', 'Norbanque', 'Crestline', 'Sterlow', 'Vaultis', 'Harborview', 'Pennymoor', 'Lombarde', 'Equivane'],
     suffixes: ['Financial', 'Capital', 'Bancorp', 'Trust', 'Insurance', 'Partners'],
@@ -49,18 +45,6 @@ export const SECTOR_NAMES: Record<Sector, SectorNames> = {
   health: {
     stems: ['Medivane', 'Curelia', 'Biosyra', 'Vitalune', 'Panacera', 'Genovex', 'Helixon', 'Remedora', 'Neurava', 'Carewell'],
     suffixes: ['Pharma', 'Biotech', 'Health', 'Therapeutics', 'Medical', 'Labs'],
-  },
-  consumer: {
-    stems: ['Snackwell', 'Brightmart', 'Fizzco', 'Homely', 'Cozyhaus', 'Munchmore', 'Trendora', 'Dailybite', 'Glowberry', 'Pawsome'],
-    suffixes: ['Brands', 'Foods', 'Retail', 'Stores', 'Goods', 'Beverages'],
-  },
-  industrials: {
-    stems: ['Steelhart', 'Gearworth', 'Machinor', 'Rivetco', 'Forgewell', 'Titanbuild', 'Cranmoor', 'Boltmann', 'Haulmark', 'Pistonia'],
-    suffixes: ['Industries', 'Machinery', 'Engineering', 'Logistics', 'Works', 'Heavy'],
-  },
-  materials: {
-    stems: ['Orecrest', 'Cobaltis', 'Timberlane', 'Quarrymen', 'Lithara', 'Cuprova', 'Alloyd', 'Graniteway', 'Polymera', 'Silvermoor'],
-    suffixes: ['Mining', 'Metals', 'Chemicals', 'Materials', 'Minerals', 'Lumber'],
   },
 };
 
@@ -78,7 +62,7 @@ export const CEO_LAST_NAMES: readonly string[] = [
 ];
 
 /** The index fund (all companies). */
-export const INDEX_FUND = { symbol: 'TG50', name: 'Total Market 50' } as const;
+export const INDEX_FUND = { symbol: 'TG30', name: 'Total Market 30' } as const;
 
 /** One sector fund per sector. Tickers start with X so they stand out in the list. */
 export const SECTOR_FUNDS: Record<Sector, { symbol: string; name: string }> = {
@@ -86,10 +70,6 @@ export const SECTOR_FUNDS: Record<Sector, { symbol: string; name: string }> = {
   energy: { symbol: 'XNRG', name: 'Energy Fund' },
   defense: { symbol: 'XDEF', name: 'Defense Fund' },
   airlines: { symbol: 'XAIR', name: 'Airlines Fund' },
-  tourism: { symbol: 'XTRV', name: 'Tourism Fund' },
   finance: { symbol: 'XFIN', name: 'Finance Fund' },
   health: { symbol: 'XHLT', name: 'Healthcare Fund' },
-  consumer: { symbol: 'XCON', name: 'Consumer Fund' },
-  industrials: { symbol: 'XIND', name: 'Industrials Fund' },
-  materials: { symbol: 'XMAT', name: 'Materials Fund' },
 };

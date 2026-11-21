@@ -29,18 +29,14 @@ export type Role = 'player' | 'spectator';
 // Universe (DESIGN.md section 3)
 // ---------------------------------------------------------------------------
 
-/** 10 sectors. Display names are the design track's call; ids are stable. */
+/** 6 sectors. Display names are the design track's call; ids are stable. */
 export const SECTORS = [
   'tech',
   'energy',
   'defense',
   'airlines',
-  'tourism',
   'finance',
   'health',
-  'consumer',
-  'industrials',
-  'materials',
 ] as const;
 export type Sector = (typeof SECTORS)[number];
 
@@ -50,12 +46,8 @@ export const SECTOR_LABELS: Record<Sector, string> = {
   energy: 'Energy',
   defense: 'Defense',
   airlines: 'Airlines',
-  tourism: 'Tourism',
   finance: 'Finance',
   health: 'Healthcare',
-  consumer: 'Consumer',
-  industrials: 'Industrials',
-  materials: 'Materials',
 };
 
 export interface Fundamentals {

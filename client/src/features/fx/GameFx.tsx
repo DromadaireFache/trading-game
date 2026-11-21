@@ -21,7 +21,7 @@ const BIG_WIN_SHARE = 0.02;
  *  - a fill that closes or cuts a position: its realized P&L as a +$ popup with coins, or a red -$
  *    with a thud. Computed from the position held before the fill (kept from `portfolio` messages,
  *    which arrive right after each fill), because a closed position leaves the list.
- *  - a public headline: blip and a pulse on the feed
+ *  - a public headline: blip (the headline itself pops up as a newspaper, see NewsPopups)
  *  - the index moving BIG_MOVE within ~2 s: shake and whoosh
  *  - TRADING opens: bell; RESULTS / FINAL: pop
  *  - a BREAKING moment: big shake and sting
@@ -103,12 +103,10 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           if (msg.early) {
             // Only this player sees it: an insider preview or a mole's note.
             play('secret');
-            fx.popup({ text: 'INSIDER TIP', tone: 'info', ...anchorOf('[data-testid=headlines]', anchorOf('.desk__headlines')), size: 1.3 });
-            pulse(document.querySelector('[data-testid=headlines]')?.closest('.panel'));
+            fx.popup({ text: 'INSIDER TIP', tone: 'info', ...anchorOf('.desk__chart'), size: 1.3 });
             return;
           }
           play('news');
-          pulse(document.querySelector('[data-testid=headlines]')?.closest('.panel'));
           return;
         case 'phase':
           if (msg.phase === 'TRADING') play('bell');
@@ -191,13 +189,4 @@ function cardMoments(before: { hand: number; heat: number; jailed: boolean }, no
     fx.popup({ text: 'FREE!', tone: 'up', ...hand, size: 1.6 });
     fx.burst({ ...hand, tone: 'up', count: 40, power: 8 });
   }
-}
-
-/** One accent pulse on an element (restarts if it is already pulsing). */
-function pulse(el: Element | null | undefined): void {
-  if (!el) return;
-  el.classList.remove('fx-pulse');
-  void (el as HTMLElement).offsetWidth;
-  el.classList.add('fx-pulse');
-  el.addEventListener('animationend', () => el.classList.remove('fx-pulse'), { once: true });
 }

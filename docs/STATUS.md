@@ -37,6 +37,15 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 1. **M6 Results, final and floor.** Done (julien), and wired to M5: `server/src/sim/results.ts` builds the leaderboard, per-player statements (best and worst trade), the market recap (top 3 moves in different sectors, each with the headline, earnings gap, card or regime that caused it), the final awards (best trade, best short, bag holder, comeback, most chaos, busiest trader, margin call magnet, longest sentence) and crash moments (at most one per quarter, `presentation.maxMomentsPerGame` per game). /play shows real RESULTS and FINAL screens; /floor shows the standings in RESULTS and FINAL and a full-screen BREAKING banner for `presentation.momentVisibleMs`. A reconnect during RESULTS, SHOP or FINAL gets the latest results. **For M5:** pass arrests, fines, card spend, jail and card names to `closeQuarter` / `final` as their `extra` (see the comment in `createSim`), and call `results.addMoment` for regime starts and the leader's arrest. Not done: sound sting and screen shake (design track).
 2. **M7 Balance.** Second pass done with cards (docs/BALANCE.md). Card-using bots (insider-trader, manipulator, event-player) buy and play cards and pay the SEC; the harness reports card spend, fines, arrests and jail. At a realistic table of 4 skilled players the median winner is $1.24B (p10 $390M, p90 $3.81B), inside the $1-3B target, after raising daily volume to 6-24% of market cap. Open: skilled players get eliminated 15-18% of the time when 4 whales pile into one thin stock; insider tips are weak; the top tail runs past $3B.
 
+## Desk and rules rework (2026-11-21)
+
+- 6 sectors (tech, energy, defense, airlines, finance, health) x 5 companies; the list shows tickers only.
+- New /play desk: list | chart | order, money and a hand of 3 upright cards on top; the other players' positions (live, green long / red short, via the new `holdings` broadcast) and your positions below.
+- News: about 5 headlines a quarter, shown as non-clickable newspaper popups with a drawing and the ticker; prices start moving 4-6 s later. The old news feed, beats list and earnings box are gone from the desk.
+- Positions stay open until sold or margin-called (quick bets no longer cash out after 5 days).
+- SEC: any price-moving card on a stock or sector you hold adds self-dealing heat (more if it moves your way). Jail is now one quarter of no cards and orders delayed by 3 s, instead of no trading at all.
+- Balance (docs/BALANCE.md) was measured before these changes; the harness has not been rerun.
+
 ## Open items (2026-11-21)
 
 - Balance (M7, julien): the target holds in the harness (median winner $1.24B at a 4-skilled-player table with cards), but skilled players get eliminated 15-18% of the time, insider tips are weak, and the top tail runs past $3B. See docs/BALANCE.md; next is a playtest with humans.
