@@ -9,6 +9,7 @@
 import { defaultConfig } from '@tg/shared';
 import type {
   Briefing,
+  CardOffer,
   EarningsMsg,
   ErrorCode,
   FillMsg,
@@ -70,6 +71,8 @@ export interface GameState {
   briefing: Briefing | null;
   /** Latest earnings reports, until the next briefing. */
   earnings: Omit<EarningsMsg, 't'> | null;
+  /** This SHOP's offers for this player (prices are personal). */
+  shop: CardOffer[];
 }
 
 export const MAX_HEADLINES = 60;
@@ -99,6 +102,7 @@ export const initialGameState: GameState = {
   headlines: [],
   briefing: null,
   earnings: null,
+  shop: [],
 };
 
 /** Folds one server message into the state. Returns the same object when nothing changed. */
@@ -163,6 +167,7 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       return { ...state, earnings };
     }
     case 'shop':
+      return { ...state, shop: msg.offers };
     case 'results':
     case 'moment':
       return state;

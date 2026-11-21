@@ -1,10 +1,61 @@
+import { useEffect, useState } from 'react';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
+import { formatMoney } from '../../lib/format.ts';
+import { useGame, useGameClient } from '../../net/GameProvider.tsx';
+import { useLivePortfolio } from '../../net/portfolioHooks.ts';
+import { CardFace } from '../cards/CardFace.tsx';
+import '../cards/cards.css';
 
-/** PLACEHOLDER (cards milestone): Card offers go here. */
+/**
+ * SHOP: this quarter's offers, priced for this player's net worth. One click buys; the card goes to
+ * the hand (limit config.cards.handLimit) and is played in a later TRADING phase.
+ */
 export function ShopPanel({ className }: { className?: string }) {
+  const { shop, config, phase } = useGame();
+  const client = useGameClient();
+  const live = useLivePortfolio();
+  // Offers this player clicked (the server refuses a second buy; this just greys the button).
+  const [bought, setBought] = useState<Set<string>>(new Set());
+  const shopKey = shop.map((o) => o.offerId).join(',');
+  useEffect(() => setBought(new Set()), [shopKey]);
+
+  const handSize = live?.portfolio.hand?.length ?? 0;
+  const full = handSize >= config.cards.handLimit;
+  const last = (phase?.quarter ?? 0) >= config.time.quarters;
+
   return (
-    <Panel title="Shop" aside="cards for next quarter" className={className}>
-      <Placeholder>Card offers go here.</Placeholder>
+    <Panel
+      title="Shop"
+      aside={`hand ${handSize}/${config.cards.handLimit}${live ? `  -  equity ${formatMoney(live.equity)}` : ''}`}
+      className={`shop${className ? ` ${className}` : ''}`}
+    >
+      {shop.length === 0 ? (
+        <Placeholder>{last ? 'The game is over after this quarter: no more cards.' : 'No cards on offer.'}</Placeholder>
+      ) : (
+        <div className="shop__grid" data-testid="shop">
+          {shop.map((offer) => {
+            const owned = bought.has(offer.offerId);
+            const tooDear = live !== null && live.equity - offer.price < config.economy.eliminationEquity;
+            return (
+              <CardFace key={offer.offerId} card={offer.card} testId="offer">
+                <span className="card__price">{formatMoney(offer.price)}</span>
+                <button
+                  type="button"
+                  className="card__btn"
+                  disabled={owned || full || tooDear}
+                  title={owned ? 'Bought' : full ? 'Your hand is full' : tooDear ? 'You cannot afford it' : `Buy ${offer.card.name}`}
+                  onClick={() => {
+                    if (client.send({ t: 'buy_card', offerId: offer.offerId })) setBought((b) => new Set(b).add(offer.offerId));
+                  }}
+                  data-testid="buy"
+                >
+                  {owned ? 'Bought' : 'Buy'}
+                </button>
+              </CardFace>
+            );
+          })}
+        </div>
+      )}
     </Panel>
   );
 }
