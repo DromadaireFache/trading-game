@@ -64,9 +64,16 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     ...universe.companies.map((c) => [c.symbol, c.adv] as const),
     ...universe.funds.map((f) => [f.symbol, f.adv] as const),
   ]);
+  /**
+   * Prices that value accounts after the game. The last EARNINGS gap has no market step left to land
+   * on (prices only move in TRADING), so at FINAL it is applied here instead: companies at
+   * price * exp(gap), funds scaled by how much their basket moved. Null until FINAL.
+   */
+  let finalMarks: Map<string, number> | null = null;
+  const markOf = (symbol: string) => finalMarks?.get(symbol) ?? market.getPrice(symbol);
   const trading = createTrading({
     config,
-    priceOf: (symbol) => market.getPrice(symbol),
+    priceOf: markOf,
     advOf: (symbol) => advBySymbol.get(symbol),
     now: () => market.getDay() + market.getTickOfDay() / config.time.ticksPerCandle,
   });
@@ -85,7 +92,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   const results = createResults({
     config,
     universe,
-    priceOf: (symbol) => market.getPrice(symbol),
+    priceOf: markOf,
     players: () => players,
     equityOf: (id) => trading.portfolio(id)?.equity ?? 0,
     positionsOf: (id) => trading.portfolio(id)?.positions ?? [],
@@ -141,7 +148,34 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     }
     if (phase === 'RESULTS') events.push(...quarterResults());
     if (phase === 'SHOP') events.push(...cards.openShop(quarter));
-    if (phase === 'FINAL') events.push(results.final(news.log(), { ...cardExtra(quarter * config.time.daysPerQuarter), arrests: [] }));
+    if (phase === 'FINAL') {
+      finalMarks = marksAfterLastGap();
+      // Everybody sees the net worth the final standings use.
+      for (const p of players) events.push(cards.decorate(trading.portfolio(p.id)!));
+      events.push(results.final(news.log(), { ...cardExtra(quarter * config.time.daysPerQuarter), arrests: [] }));
+    }
+  }
+
+  function marksAfterLastGap(): Map<string, number> | null {
+    const gap = news.pendingGap();
+    if (gap === null) return null;
+    const floor = config.market.priceFloor;
+    const marks = new Map<string, number>();
+    for (const c of universe.companies) {
+      const price = market.getPrice(c.symbol)!;
+      marks.set(c.symbol, Math.max(floor, price * Math.exp(gap[c.symbol] ?? 0)));
+    }
+    for (const f of universe.funds) {
+      let before = 0;
+      let after = 0;
+      f.members.forEach((m, i) => {
+        before += f.units[i]! * market.getPrice(m)!;
+        after += f.units[i]! * marks.get(m)!;
+      });
+      const price = market.getPrice(f.symbol)!;
+      marks.set(f.symbol, Math.max(floor, before > 0 ? (price * after) / before : price));
+    }
+    return marks;
   }
 
   /** What the cards / SEC side adds to a results event (QuarterExtra of ./results.ts). */

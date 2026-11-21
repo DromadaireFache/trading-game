@@ -11,6 +11,7 @@ import { CandleChart } from '../market/CandleChart.tsx';
 import { SymbolHeader } from '../market/SymbolHeader.tsx';
 import { FloorResults, MomentBanner } from '../results/FloorResults.tsx';
 import { SoundToggle } from '../fx/SoundToggle.tsx';
+import { HeadlineTape } from './HeadlineTape.tsx';
 import '../market/market.css';
 
 /**
@@ -93,6 +94,7 @@ export function FloorView() {
         </h2>
         <Roster lobby={lobby} showEmptySeats={current === 'LOBBY'} />
       </aside>
+      <HeadlineTape />
     </div>
   );
 }

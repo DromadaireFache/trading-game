@@ -34,14 +34,19 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
   const lastBigMove = useRef(0);
   const game = useRef(0);
   const equity = useRef(0);
+  /** Hand size, heat and jail as of the last `portfolio` (null = none seen yet this game). */
+  const cards = useRef<{ hand: number; heat: number; jailed: boolean } | null>(null);
+  const meId = useRef<string | null>(null);
 
   const handler = useCallback(
     (msg: ServerMsg) => {
       switch (msg.t) {
         case 'welcome':
+          meId.current = msg.playerId;
           if ((msg.game ?? 1) !== game.current) {
             game.current = msg.game ?? 1;
             held.current.clear();
+            cards.current = null;
           }
           return;
         case 'market':
@@ -85,12 +90,23 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           }
           return;
         }
-        case 'portfolio':
+        case 'portfolio': {
           held.current = new Map(msg.positions.map((p) => [p.symbol, { qty: p.qty, avgPrice: p.avgPrice }]));
           equity.current = msg.equity;
+          const now = { hand: msg.hand?.length ?? 0, heat: msg.heat, jailed: msg.jailedUntil !== undefined };
+          const before = cards.current;
+          cards.current = now;
+          if (before) cardMoments(before, now);
           return;
+        }
         case 'headline':
-          if (msg.early) return;
+          if (msg.early) {
+            // Only this player sees it: an insider preview or a mole's note.
+            play('secret');
+            fx.popup({ text: 'INSIDER TIP', tone: 'info', ...anchorOf('[data-testid=headlines]', anchorOf('.desk__headlines')), size: 1.3 });
+            pulse(document.querySelector('[data-testid=headlines]')?.closest('.panel'));
+            return;
+          }
           play('news');
           pulse(document.querySelector('[data-testid=headlines]')?.closest('.panel'));
           return;
@@ -102,6 +118,19 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           fx.shake(3);
           play('sting');
           return;
+        case 'results': {
+          if (msg.final || msg.arrests.length === 0) return;
+          const mine = msg.arrests.find((a) => a.playerId === meId.current);
+          if (mine && role === 'player') {
+            fx.shake(3);
+            play('siren');
+            fx.popup({ text: `ARRESTED! ${mine.jailDays} DAYS`, tone: 'down', ...anchorOf('[data-testid=arrests]', anchorOf('.desk__stage')), size: 2 });
+          } else {
+            play('thump');
+            fx.shake(1);
+          }
+          return;
+        }
         default:
           return;
       }
@@ -139,6 +168,29 @@ function celebrate(pnl: number, equity: number): void {
     play('thump');
   }
   if (big) fx.shake(1);
+}
+
+/** Hand, heat and jail changes between two `portfolio` messages. */
+function cardMoments(before: { hand: number; heat: number; jailed: boolean }, now: { hand: number; heat: number; jailed: boolean }): void {
+  const hand = anchorOf('[data-testid=hand]', anchorOf('.desk__hand'));
+  if (now.hand > before.hand) {
+    play('card');
+    fx.popup({ text: '+CARD', tone: 'accent', ...hand, size: 1.2 });
+    fx.burst({ ...hand, tone: 'accent', count: 14, power: 5 });
+  } else if (now.hand < before.hand) {
+    play('whoosh');
+    fx.shake(1);
+    fx.popup({ text: 'PLAYED!', tone: 'warn', ...hand, size: 1.5 });
+    fx.burst({ ...hand, tone: 'warn', count: 30, power: 8 });
+  }
+  if (now.heat > before.heat + 0.5) {
+    fx.popup({ text: `HEAT +${Math.round(now.heat - before.heat)}`, tone: 'down', ...anchorOf('[data-testid=heat]', hand), size: 1 });
+  }
+  if (before.jailed && !now.jailed) {
+    play('cash');
+    fx.popup({ text: 'FREE!', tone: 'up', ...hand, size: 1.6 });
+    fx.burst({ ...hand, tone: 'up', count: 40, power: 8 });
+  }
 }
 
 /** One accent pulse on an element (restarts if it is already pulsing). */

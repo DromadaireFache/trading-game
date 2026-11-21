@@ -26,6 +26,8 @@ interface Particle {
 }
 
 const MAX_POPUPS = 12;
+/** Popup font size at size 1, px. */
+const POPUP_FONT_PX = 22;
 const MAX_PARTICLES = 400;
 const GRAVITY = 0.35;
 
@@ -88,7 +90,12 @@ export function FxRoot({ children }: { children: ReactNode }) {
     const stop = onFx((e) => {
       if (e.kind === 'popup') {
         const id = nextId.current++;
-        setPopups((list) => [...list.slice(-(MAX_POPUPS - 1)), { id, text: e.text, tone: e.tone, x: e.x, y: e.y, size: e.size ?? 1 }]);
+        const size = e.size ?? 1;
+        // Keep the whole text on screen: half its (approximate) width from each edge.
+        const half = Math.min(window.innerWidth / 2, (e.text.length * size * POPUP_FONT_PX * 0.62) / 2 + 8);
+        const x = Math.min(window.innerWidth - half, Math.max(half, e.x));
+        const y = Math.min(window.innerHeight - 30, Math.max(60, e.y));
+        setPopups((list) => [...list.slice(-(MAX_POPUPS - 1)), { id, text: e.text, tone: e.tone, x, y, size }]);
         return;
       }
       if (reducedMotion()) return;
@@ -142,7 +149,7 @@ export function FxRoot({ children }: { children: ReactNode }) {
           <span
             key={p.id}
             className={`fx-popup fx-popup--${p.tone}`}
-            style={{ left: p.x, top: p.y, fontSize: `${(p.size * 22).toFixed(0)}px` }}
+            style={{ left: p.x, top: p.y, fontSize: `${(p.size * POPUP_FONT_PX).toFixed(0)}px` }}
             onAnimationEnd={() => setPopups((list) => list.filter((x) => x.id !== p.id))}
           >
             {p.text}
