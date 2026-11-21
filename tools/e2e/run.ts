@@ -52,12 +52,12 @@ const overrides: DeepPartial<GameConfig> = {
   phaseMs: PHASE_MS,
   lobby: { minPlayers: 2 },
   ...(earningsOnly ? {
-    news: { randomHeadlinesPerQuarter: 3, scheduledBeatsPerQuarter: 0, noiseShare: 1, quietDays: 0 },
+    news: { randomHeadlinesPerQuarter: 3, scheduledBeatsPerQuarter: 0, noiseShare: 1, quietDays: 0, maxGapMs: 0 },
     earnings: { leaksPerQuarter: 0 },
   } : {
-    // Short quarters: a few more headlines and a shorter gap than the real pace, so the news checks
-    // never wait long, yet every move settles before the close (none may carry into the next open).
-    news: { randomHeadlinesPerQuarter: 4, minGapMs: 2_000 },
+    // Short quarters: a faster pace than the real one (2-6 s, 4 s on average), so the news checks never
+    // wait long, yet every move settles before the close (none may carry into the next open).
+    news: { minGapMs: 2_000, meanGapMs: 4_000, maxGapMs: 6_000 },
   }),
 };
 const GAME_MS = QUARTERS * (PHASE_MS.BRIEFING + TRADING_MS + PHASE_MS.EARNINGS)
@@ -1112,11 +1112,11 @@ async function main(): Promise<void> {
       await waitFor('the closed paper to leave', async () => (await a.locator(`${tid('headline')}[data-id="${closedId}"]`).count()) === 0);
       check(true, `the x threw paper ${closedId} away`);
       await a.mouse.move(5, 5);
-      // Pace: 2 to 10 s of game time between two public headlines.
+      // Pace (this run's faster setting): 2 to 6 s of game time between two public headlines.
       const pub = headlineFrames('A').filter((h) => !h.early);
       const gaps = pub.slice(1).map((h, i) => (h.ts - pub[i]!.ts) * DAY_MS);
       const minGap = 2_000;
-      const maxGap = defaultConfig.news.maxGapMs;
+      const maxGap = 6_000;
       check(gaps.length > 0 && gaps.every((g) => g >= minGap - 1 && g <= maxGap + 2 * minGap),
         `headlines come ${minGap / 1000}-${maxGap / 1000} s apart (gaps ${gaps.map((g) => (g / 1000).toFixed(1)).join(', ')} s)`);
 

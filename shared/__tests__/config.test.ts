@@ -13,12 +13,13 @@ describe('config', () => {
     expect(quarterTicks(defaultConfig)).toBe(1500);
   });
 
-  it('paces the news (a headline every 2 to 10 s) with time to react', () => {
+  it('paces the news (a headline every 5 to 20 s, 10 s on average) with time to react', () => {
     // 8 to 11 s between an engine headline and its move: time to read it, find the stock and act.
     expect(defaultConfig.news.randomHeadlinesPerQuarter).toBe(1);
     expect(defaultConfig.news.scheduledBeatsPerQuarter).toBe(1);
-    expect(defaultConfig.news.minGapMs).toBe(2_000);
-    expect(defaultConfig.news.maxGapMs).toBe(10_000);
+    expect(defaultConfig.news.minGapMs).toBe(5_000);
+    expect(defaultConfig.news.maxGapMs).toBe(20_000);
+    expect(defaultConfig.news.meanGapMs).toBe(10_000);
     // The filler is mostly noise and never huge: frequent news, not a wild market.
     expect(defaultConfig.news.filler.noiseShare).toBeGreaterThanOrEqual(0.5);
     expect(defaultConfig.news.filler.magnitudeWeights.huge).toBe(0);

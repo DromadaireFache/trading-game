@@ -190,10 +190,16 @@ export interface GameConfig {
     minGapMs: number;
     /**
      * Longest wait for the next headline: each quarter a chain of filler headlines runs through the
-     * whole trading window, each one minGapMs to maxGapMs after the previous (uniform), so there is
-     * always news on the desk. 0 turns the chain off.
+     * whole trading window, each one minGapMs to maxGapMs after the previous, so there is always news
+     * on the desk. 0 turns the chain off.
      */
     maxGapMs: number;
+    /**
+     * Average time between two headlines over a quarter, all of them counted (the planned ones too):
+     * the chain's gaps are skewed toward minGapMs (gap = min + (max - min) * u^k, u uniform) with k set
+     * so the whole quarter averages this.
+     */
+    meanGapMs: number;
     /** The filler chain: mostly noise and small moves, so frequent news does not mean a wild market. */
     filler: {
       noiseShare: number;
@@ -458,9 +464,10 @@ export const defaultConfig: GameConfig = {
     shock: { small: 0.02, medium: 0.05, large: 0.12, huge: 0.5 },
     rampMs: 3_000,
     overshoot: 0.15,
-    // A headline every 2 to 10 s (about 15 a quarter): the filler chain plus the planned ones below.
-    minGapMs: 2_000,
-    maxGapMs: 10_000,
+    // A headline every 5 to 20 s, 10 s on average (about 9 a quarter): the filler chain plus the planned ones below.
+    minGapMs: 5_000,
+    maxGapMs: 20_000,
+    meanGapMs: 10_000,
     filler: {
       noiseShare: 0.6,
       magnitudeWeights: { small: 0.55, medium: 0.35, large: 0.1, huge: 0 },
@@ -703,6 +710,7 @@ export function validateConfig(config: GameConfig): GameConfig {
     const n = config.news;
     if (n.leadMinMs <= 0 || n.leadMinMs > n.leadMaxMs) problems.push('config.news.leadMinMs must be > 0 and <= leadMaxMs');
     if (n.maxGapMs !== 0 && n.maxGapMs < Math.max(n.minGapMs, config.time.tickMs)) problems.push('config.news.maxGapMs must be 0 or >= minGapMs');
+    if (n.maxGapMs !== 0 && (n.meanGapMs <= n.minGapMs || n.meanGapMs > n.maxGapMs)) problems.push('config.news.meanGapMs must be > minGapMs and <= maxGapMs');
     if (n.filler.noiseShare > 1) problems.push('config.news.filler.noiseShare must be <= 1');
     if (Object.values(n.filler.magnitudeWeights).every((w) => w === 0)) problems.push('config.news.filler.magnitudeWeights must not all be 0');
     if (n.shockJitter > 1) problems.push('config.news.shockJitter must be <= 1');

@@ -1,0 +1,1694 @@
+[
+  {
+    "id": "h_absurd_0001",
+    "text": "A psychic octopus at the {CITY} aquarium predicts {COMPANY} will narrowly beat estimates",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0002",
+    "text": "{COMPANY}'s finance chief is heard humming a victory march in the elevator before earnings",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0003",
+    "text": "A time traveler leaks {COMPANY}'s earnings early: a solid beat",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0004",
+    "text": "The ghost of {COMPANY}'s founder reportedly gives the quarterly numbers a thumbs up",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0005",
+    "text": "Spy photos show {COMPANY} accountants throwing a champagne party ahead of earnings",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0006",
+    "text": "{COMPANY}'s in-house fortune teller quits to buy more {TICKER} before the report",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0007",
+    "text": "Aliens intercept {COMPANY}'s earnings draft and send back a single word: wow",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0008",
+    "text": "{CEO} accidentally sends {COMPANY}'s earnings to a dinosaur fan club early; the numbers are enormous",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0009",
+    "text": "The psychic octopus at the {CITY} aquarium refuses to touch the {COMPANY} earnings bowl",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0010",
+    "text": "{COMPANY}'s finance chief is seen buying a single sad sandwich ahead of earnings",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0011",
+    "text": "A time traveler winces when asked about {COMPANY}'s upcoming earnings",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0012",
+    "text": "A {RIVAL} spy reports {COMPANY} accountants crying in the stairwell before the report",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0013",
+    "text": "{COMPANY}'s finance team is seen digging a tunnel out of the office ahead of earnings",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0014",
+    "text": "The fortune teller hired by {COMPANY} draws the ruin card three times before earnings",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0015",
+    "text": "Leaked memo: {COMPANY} plans to blame its earnings on a dinosaur that ate the ledger",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0016",
+    "text": "{CEO} books a one-way trip to the moon base just before {COMPANY} reports earnings",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "earnings_leak",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0017",
+    "text": "Central bank trims rates after its new governor, a time traveler, says it all works out",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0018",
+    "text": "Rate cut: central bankers say a friendly alien showed them a better spreadsheet",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0019",
+    "text": "Central bank slashes rates after a wizard proves inflation was a curse all along",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0020",
+    "text": "Shock rate cut as central bankers return through a portal with a cheaper money printer",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0021",
+    "text": "Central bank hikes rates after the governor's affair with an inflation hawk goes public",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0022",
+    "text": "Rate hike: central bankers blame a dinosaur that keeps eating the cheap money",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0023",
+    "text": "Central bank hikes rates hard after spies find inflation hiding in the vault",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0024",
+    "text": "Shock rate hike as aliens demand interest on the planet's overdue loan",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "macro",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0025",
+    "text": "{COMPANY} sells a modest batch of {PRODUCT} to a visiting alien who paid in exact change",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0026",
+    "text": "Small bump for {COMPANY} after a time traveler from 2091 is seen buying {PRODUCT} in bulk",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0027",
+    "text": "{COMPANY} earns a little extra renting its parking lot to a cult waiting for the mothership",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0028",
+    "text": "{TICKER} ticks up after the ghost in the {CITY} office starts doing unpaid overtime",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0029",
+    "text": "{COMPANY} catches a {RIVAL} spy in the air vents and charges admission to watch him climb out",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0030",
+    "text": "A friendly velociraptor joins the {COMPANY} night shift for snacks, trimming security costs a bit",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0031",
+    "text": "{COMPANY} lands a fat contract after aliens pick {PRODUCT} as the official gadget of their invasion",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0032",
+    "text": "Portal opens in {COMPANY}'s warehouse; deliveries to {CITY} now take four seconds",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0033",
+    "text": "Cloned dinosaurs at a theme park eat everything except {COMPANY}'s {PRODUCT}; orders pour in",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0034",
+    "text": "{CEO}'s affair with a {RIVAL} executive ends with {RIVAL}'s best engineers defecting to {COMPANY}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0035",
+    "text": "{COMPANY} spy steals {RIVAL}'s secret recipe, which turns out to be a big upgrade on its own",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0036",
+    "text": "Time traveler warns {GOV_AGENCY} to stock up on {PRODUCT}; {COMPANY}'s order book swells",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0037",
+    "text": "{COMPANY} signs exclusive trade deal with a peaceful alien civilization that cannot get enough {PRODUCT}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0038",
+    "text": "Wizard hired as a consultant turns {COMPANY}'s worst factory into a gold mine, literally",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0039",
+    "text": "{COMPANY} finds a dinosaur fossil field under its headquarters and sells tickets for years",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0040",
+    "text": "Leaked dossier: {RIVAL}'s board was quietly replaced by {COMPANY} spies months ago, and nobody noticed",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0041",
+    "text": "{COMPANY} patents the portal it found in the break room and starts licensing it worldwide",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0042",
+    "text": "Traveling witch lifts the ancient curse on {COMPANY}; profits jump in the first week",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0043",
+    "text": "Aliens land in {CITY}, ask to speak to {CEO}, and offer to buy {COMPANY} at a ridiculous premium",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0044",
+    "text": "{COMPANY} opens a portal to a parallel world with no competitors and a billion customers",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0045",
+    "text": "Time traveler confirms {COMPANY} becomes the most valuable company in history; buyers stampede",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0046",
+    "text": "{COMPANY} finds a living dinosaur on its land and signs a streaming deal worth more than the company",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0047",
+    "text": "{LEADER} names {COMPANY} sole supplier of {PRODUCT} after {CEO} personally fights off a kraken",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0048",
+    "text": "{RIVAL}'s CEO is unmasked as three raccoons in a trench coat; customers flee to {COMPANY}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0049",
+    "text": "{COMPANY} pays a small fine after its mascot is caught spying on {RIVAL} from a hot air balloon",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0050",
+    "text": "A pterodactyl nests on {COMPANY}'s main antenna, causing minor hiccups in {CITY}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0051",
+    "text": "{COMPANY} refunds a handful of customers whose {PRODUCT} now only speaks Ancient Sumerian",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0052",
+    "text": "The ghost in {COMPANY}'s accounting department keeps rounding everything down",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0053",
+    "text": "{TICKER} slips after {CEO} is seen at a seance asking dead investors for advice",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0054",
+    "text": "A small portal in {COMPANY}'s mailroom keeps eating invoices",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0055",
+    "text": "{COMPANY} reels as {CEO}'s secret affair with a {RIVAL} executive leaks; strategy decks were shared in bed",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0056",
+    "text": "{COMPANY} loses a big order after a time traveler warns the buyer about {PRODUCT}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0057",
+    "text": "{RIVAL} spy posing as an intern walks out of {COMPANY} with the {PRODUCT} blueprints in a lunchbox",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0058",
+    "text": "Escaped dinosaurs trample {COMPANY}'s {CITY} plant; insurer cites an act of prehistory",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0059",
+    "text": "Aliens return {PRODUCT} to {COMPANY} with a one-star review written in crop circles",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0060",
+    "text": "{COMPANY} production stalls after workers refuse to go near the portal in Building C",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0061",
+    "text": "{GOV_AGENCY} raids {COMPANY} after finding its entire sales team are clones of the same guy",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0062",
+    "text": "{COMPANY} loses its biggest client after {CEO} is found dating three of the client's executives",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0063",
+    "text": "{COMPANY} learns its only real customer is a cult that worships {PRODUCT}",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0064",
+    "text": "{COMPANY}'s main warehouse falls through a portal; inventory now in another dimension, uninsured",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0065",
+    "text": "Mummy's curse hits {COMPANY} after it builds its new headquarters on a pharaoh's tomb",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0066",
+    "text": "{RIVAL} reveals its spies have been running {COMPANY}'s research lab for two years",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0067",
+    "text": "Aliens reveal {COMPANY} was a front for an intergalactic pyramid scheme; {GOV_AGENCY} freezes it",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0068",
+    "text": "{COMPANY} accidentally opens a portal to the age of dinosaurs; head office is now a buffet",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0069",
+    "text": "{CEO} vanishes through a time portal with the pension fund; {COMPANY} weighs bankruptcy",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0070",
+    "text": "{LEADER} shuts {COMPANY} after it sold {PRODUCT} secrets to a hostile alien fleet",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0071",
+    "text": "{COMPANY} faces collapse as its entire customer base turns out to be one very persistent ghost",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0072",
+    "text": "Auditors find {COMPANY}'s gold reserves are chocolate coins wrapped in foil",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0073",
+    "text": "{COMPANY} denies its new head of security is a velociraptor in a blazer",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0074",
+    "text": "{CEO} insists the glowing portal in the {COMPANY} lobby is just modern art",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0075",
+    "text": "Alien spotted in the {COMPANY} cafeteria praises the soup, buys nothing",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0076",
+    "text": "{COMPANY} confirms its office ghost has been promoted to middle management",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0077",
+    "text": "{TICKER} shareholders vote down a proposal to rename the company Dinosaur Company",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0078",
+    "text": "{COMPANY} intern claims to be a time traveler, mostly just wants a parking spot",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0079",
+    "text": "{COMPANY} boss {CEO} and a {RIVAL} executive deny affair rumors after matching tattoos are spotted",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0080",
+    "text": "{COMPANY} expels a {RIVAL} spy, who leaves with nothing but a bag of free pens",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0081",
+    "text": "{COMPANY} keeps its outlook unchanged after a stray mammoth interrupts the board meeting",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0082",
+    "text": "{COMPANY} says the UFO hovering over its campus has no material impact on operations",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0083",
+    "text": "{COMPANY} holds its annual meeting in a haunted castle; the ghosts abstain on every vote",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0084",
+    "text": "{CEO} returns from a weekend in another dimension; {COMPANY} declines to update guidance",
+    "scope": "stock",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0085",
+    "text": "{SECTOR} stocks perk up as aliens leave five-star reviews on every company in the industry",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0086",
+    "text": "A friendly ghost haunting {SECTOR} trade shows nudges attendance up a little",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0087",
+    "text": "{SECTOR} gets a small lift after a time traveler is seen buying a bit of everything",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0088",
+    "text": "A dinosaur cosplay craze gives {SECTOR} a modest sales bump",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0089",
+    "text": "{SECTOR} firms save a little after spies from {COUNTRY} fix their printers by mistake",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0090",
+    "text": "{SECTOR} wins a bonanza of orders after aliens call it the only good thing on this planet",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0091",
+    "text": "A portal network opens between {CITY} and the moon; {SECTOR} firms line up for contracts",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0092",
+    "text": "{LEADER}'s affair with a {SECTOR} lobbyist ends in surprisingly generous subsidies",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0093",
+    "text": "Cloned mammoths need everything; {SECTOR} suppliers report a rush of orders",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0094",
+    "text": "Spies from {COUNTRY} defect and hand {SECTOR} a decade of free research",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0095",
+    "text": "{GOV_AGENCY} hires the whole {SECTOR} industry to build defenses against the incoming dinosaurs",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0096",
+    "text": "Alien trade fleet arrives with empty cargo holds and a shopping list full of {SECTOR}",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0097",
+    "text": "Time travelers from the future pour money into {SECTOR} and refuse to say why",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0098",
+    "text": "{SECTOR} windfall as a portal to a resource-rich dimension opens in {COUNTRY}",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0099",
+    "text": "Wizard council blesses {SECTOR}; regulators cannot find any rule against it",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0100",
+    "text": "Aliens offer to buy the entire {SECTOR} industry for a planet's worth of gold",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0101",
+    "text": "{LEADER} declares {SECTOR} a sacred industry after a prophecy is found carved on a meteor",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0102",
+    "text": "Interdimensional empire signs an eternal supply deal with every {SECTOR} company",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0103",
+    "text": "{SECTOR} becomes the official industry of the newly discovered dinosaur continent",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0104",
+    "text": "Minor delays across {SECTOR} as a confused alien keeps parking its saucer in loading docks",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0105",
+    "text": "{SECTOR} trade show cut short when a pterodactyl steals the keynote speaker's notes",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0106",
+    "text": "A small dip for {SECTOR} after a time traveler calls the whole industry a bit retro",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0107",
+    "text": "Ghosts unionize at {SECTOR} warehouses; demands include more candles",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0108",
+    "text": "{SECTOR} firms pay small fines after spies from {COUNTRY} are found hiding in the office fridge",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0109",
+    "text": "{SECTOR} rattled as a dinosaur stampede through {CITY} wrecks several key sites",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0110",
+    "text": "{GOV_AGENCY} probes {SECTOR} after a lobbyist's affair with a regulator spills into the minutes",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0111",
+    "text": "Spies from {COUNTRY} steal {SECTOR} trade secrets by posing as a delegation of mimes",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0112",
+    "text": "Portal outages ripple through {SECTOR} supply chains; half the parts are now in 1887",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0113",
+    "text": "Alien tourists boycott {SECTOR} after one bad experience with customer service",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0114",
+    "text": "{SECTOR} hit hard as a kraken blockades every port near {CITY}",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0115",
+    "text": "A cursed shipment spreads bad luck through the whole {SECTOR} supply chain",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0116",
+    "text": "{LEADER} bans {SECTOR} products after an affair scandal involving three executives and the royal astrologer",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0117",
+    "text": "Aliens declare {SECTOR} products illegal across the galaxy; export orders vanish",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0118",
+    "text": "Time traveler proves {SECTOR} is obsolete within five years; buyers flee",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0119",
+    "text": "Alien overlords seize every {SECTOR} company for safekeeping",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0120",
+    "text": "A portal to the void opens under the main {SECTOR} hub and will not close",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0121",
+    "text": "{GOV_AGENCY} nationalizes {SECTOR} after uncovering a cult running half the industry",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0122",
+    "text": "A meteor carrying a dinosaur army lands in the heart of the {SECTOR} industry",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0123",
+    "text": "{SECTOR} convention welcomes its first alien delegate, who mostly eats the shrimp",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0124",
+    "text": "{SECTOR} executives deny rumors of a secret underground dinosaur club",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0125",
+    "text": "A ghost tour of {SECTOR} headquarters sells out; no financial impact expected",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0126",
+    "text": "{SECTOR} lobby group adopts a portal as its new logo, insists it is decorative",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0127",
+    "text": "{SECTOR} leaders meet a time traveler and learn nothing useful about the future",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0128",
+    "text": "{GOV_AGENCY} confirms the spies inside {SECTOR} firms were just very lost tourists",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0129",
+    "text": "Affair rumors rock the {SECTOR} gala; both parties say they were only discussing margins",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0130",
+    "text": "{SECTOR} awards night delayed by a polite UFO; nobody's numbers change",
+    "scope": "sector",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0131",
+    "text": "Markets edge up after aliens confirm they find human economics adorable",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0132",
+    "text": "Shoppers splurge a little after a time traveler promises great weather this weekend",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0133",
+    "text": "Consumer mood lifts after a dinosaur is seen happily paying its taxes in {CITY}",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0134",
+    "text": "A small rally after {LEADER} denies being a lizard person, convincingly",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0135",
+    "text": "Stocks climb as {GOV_AGENCY} reveals it has a working portal and plans to share it",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0136",
+    "text": "Spies uncover {COUNTRY}'s secret plan to stop being annoying; markets cheer",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0137",
+    "text": "Rally as {LEADER}'s affair scandal ends with a surprise tax cut by way of apology",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0138",
+    "text": "Aliens open their first embassy in {CITY} and immediately go shopping",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0139",
+    "text": "Global rally as aliens share free energy technology in exchange for pizza recipes",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0140",
+    "text": "Markets soar after a time traveler leaks the next ten years of good news",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0141",
+    "text": "Portal to a gold planet opens in {COUNTRY}; central banks scramble to buy shovels",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0142",
+    "text": "Dinosaurs return and turn out to be excellent, highly productive workers",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0143",
+    "text": "First contact: an alien empire joins the world economy and opens its wallet",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0144",
+    "text": "Time travelers confirm the economy is about to have its best century ever",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0145",
+    "text": "Wizards end scarcity by enchanting the world's grain silos to refill themselves",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0146",
+    "text": "Stocks dip slightly as a UFO lingers ominously over {CITY}",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0147",
+    "text": "Traders get nervous after {LEADER} is spotted whispering to a crystal ball",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0148",
+    "text": "A minor dip as spies from {COUNTRY} are caught counting everyone's money",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0149",
+    "text": "Markets slip after a portal sneezes a herd of goats onto the trading floor",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0150",
+    "text": "Stocks slide as {LEADER}'s affair with a foreign spy becomes the scandal of the year",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0151",
+    "text": "Dinosaurs escape a theme park near {CITY}; shoppers stay home",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0152",
+    "text": "Markets fall after a time traveler shows up, looks around, and says oh no",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0153",
+    "text": "Selloff as {GOV_AGENCY} admits it lost the keys to the portal vault",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0154",
+    "text": "Global selloff as aliens announce a surprise tariff on the entire planet",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0155",
+    "text": "A kraken sinks a major trade fleet off {COUNTRY}; supply chains snap",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0156",
+    "text": "Panic as {GOV_AGENCY} confirms the central bank's vault is haunted and the gold walks at night",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0157",
+    "text": "Spy ring found inside the central bank; nobody knows which interest rate is real",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0158",
+    "text": "Alien invasion fleet parks over every major city; markets in free fall",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0159",
+    "text": "A portal to the dinosaur age opens worldwide and will not close",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0160",
+    "text": "Time travelers confirm the economy does not exist next year; investors flee",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0161",
+    "text": "{GOV_AGENCY} says the UFO over {CITY} is just a weather balloon from another galaxy",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0162",
+    "text": "{LEADER} denies an affair with a time traveler, says they only meet later",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0163",
+    "text": "Dinosaur spotted at the {CITY} airport has a valid passport, officials say",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0164",
+    "text": "A ghost found in the central bank archives only reads, officials say",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "small",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0165",
+    "text": "Central bank leaves rates unchanged after a wizard's forecast is ruled inadmissible",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0166",
+    "text": "{COUNTRY} and {GOV_AGENCY} swap spies back; both sides call it a fair trade",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0167",
+    "text": "Aliens attend the world economic summit, nod politely and leave early",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0168",
+    "text": "Time traveler testifies before lawmakers, reveals nothing, steals the microphone",
+    "scope": "market",
+    "direction": "neutral",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "real"
+  },
+  {
+    "id": "h_absurd_0169",
+    "text": "Sources: aliens about to sign an exclusive deal with {COMPANY}",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_absurd_0170",
+    "text": "Rumor: {COMPANY} boss {CEO} is secretly a {RIVAL} spy, insiders whisper",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_absurd_0171",
+    "text": "Leaked photos appear to show {COMPANY}'s {CEO} having an affair with the {RIVAL} chair",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_absurd_0172",
+    "text": "Unconfirmed: a portal to a gold planet found under {SECTOR} headquarters",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_absurd_0173",
+    "text": "Rumor: cloned dinosaurs have escaped from {SECTOR} labs, sources say",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_absurd_0174",
+    "text": "BREAKING: alien fleet heading for the planet, unnamed officials claim",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_absurd_0175",
+    "text": "Rumor: a time traveler says markets will double by Friday",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "fake_template"
+  },
+  {
+    "id": "h_absurd_0176",
+    "text": "{COMPANY} admits the alien deal was a man in a very good costume",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_absurd_0177",
+    "text": "{COMPANY} proves {CEO} is not a spy, shows a very boring diary",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_absurd_0178",
+    "text": "{COMPANY}: {CEO} and the {RIVAL} chair say the affair photos show a business lunch",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_absurd_0179",
+    "text": "Geologists confirm no portal under {SECTOR} headquarters, just a big puddle",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_absurd_0180",
+    "text": "{GOV_AGENCY}: no cloned dinosaurs escaped from {SECTOR} labs, it was a large lizard",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_absurd_0181",
+    "text": "{GOV_AGENCY} confirms the alien fleet was a flock of very shiny geese",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "huge",
+    "category": "absurd",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_absurd_0182",
+    "text": "Time traveler arrested for fraud, admits he has never left {CITY}",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "debunk"
+  },
+  {
+    "id": "h_absurd_0183",
+    "text": "Benevolent aliens beam a crate of gold bars straight into {COMPANY}'s vault",
+    "scope": "stock",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_absurd_0184",
+    "text": "A portal swallows {COMPANY}'s flagship factory in {CITY} overnight",
+    "scope": "stock",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_absurd_0185",
+    "text": "A wandering dinosaur herd fertilizes every {SECTOR} site in {COUNTRY}, somehow helping",
+    "scope": "sector",
+    "direction": "up",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_absurd_0186",
+    "text": "A kraken wraps itself around the main {SECTOR} hub near {CITY}",
+    "scope": "sector",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_absurd_0187",
+    "text": "A time storm scrambles every clock on the planet; markets halt in confusion",
+    "scope": "market",
+    "direction": "down",
+    "magnitude": "large",
+    "category": "absurd",
+    "kind": "event"
+  },
+  {
+    "id": "h_absurd_0188",
+    "text": "A UFO drops free coupons over {CITY}; shoppers flood the malls",
+    "scope": "market",
+    "direction": "up",
+    "magnitude": "medium",
+    "category": "absurd",
+    "kind": "event"
+  }
+]

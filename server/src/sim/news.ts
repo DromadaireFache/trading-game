@@ -15,8 +15,9 @@
  *   - random headlines: randomHeadlinesPerQuarter, of which noiseShare are neutral (no move); the rest
  *     draw scope, magnitude and direction from config.news, at a random tick after quietDays;
  *   - filler: a chain of random headlines through the whole trading window, each news.minGapMs to
- *     news.maxGapMs after the previous one, drawn from news.filler (mostly noise and small moves). Those
- *     too close to the close for a move to settle are noise. So the news never stops for long.
+ *     news.maxGapMs after the previous one, skewed so the quarter (planned headlines included) averages
+ *     news.meanGapMs, drawn from news.filler (mostly noise and small moves). Those too close to the
+ *     close for a move to settle are noise. So the news never stops for long.
  * Every TRADING tick (beforeStep): publish at most ONE due item, and only when news.minGapMs has
  * passed since the last headline (the global queue; later items wait; a due card or regime item goes
  * before any backlog of engine headlines). Engine news shocks and rate changes start after a seeded
@@ -385,12 +386,20 @@ export function createNews(deps: NewsDeps): News {
         queue.push({ tick, source: 'random', query: { kind: 'real', scope, direction, magnitude }, target, logReturn: shockSize(config, magnitude, direction) * jitter });
       }
 
-      // 4. The filler chain: never more than maxGapMs without news.
+      // 4. The filler chain: never more than maxGapMs without news, meanGapMs on average overall.
       if (n.maxGapMs > 0) {
         const gapMin = Math.max(1, minGapTicks);
         const gapMax = Math.max(gapMin, Math.floor(n.maxGapMs / config.time.tickMs));
         const end = tradingStartTick + tradingTicks;
-        const gap = () => gapMin + rng.int(gapMax - gapMin + 1);
+        // The planned headlines count toward the average: the chain fills in the rest. A quarter of
+        // T seconds averaging g between headlines holds about T / g - 1 of them (the open and the close
+        // are not headlines).
+        const planned = count + n.randomHeadlinesPerQuarter + currentPlan.leaks.length;
+        const chainCount = Math.max(1, tradingTicks / (n.meanGapMs / config.time.tickMs) - 1 - planned);
+        const chainMean = Math.min(gapMax - 0.5, Math.max(gapMin + 0.5, tradingTicks / chainCount));
+        // gap = min + (max - min) * u^k has mean min + (max - min) / (k + 1).
+        const k = gapMax > gapMin ? (gapMax - gapMin) / (chainMean - gapMin) - 1 : 1;
+        const gap = () => gapMin + Math.round((gapMax - gapMin) * rng.next() ** k);
         for (let tick = tradingStartTick + gap(); tick < end; tick += gap()) {
           const scope = weighted(rng, n.scopeWeights);
           const target = randomTarget(scope);

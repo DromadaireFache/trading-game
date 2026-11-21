@@ -8,6 +8,11 @@ import type { HeadlineTemplate } from '../../shared/types.ts';
 
 export const HEADLINE_SEED = fileURLToPath(new URL('../../shared/data/headlines.seed.json', import.meta.url));
 export const GENERATED_HEADLINES = fileURLToPath(new URL('../../shared/data/headlines.generated.json', import.meta.url));
+/**
+ * Hand-written absurd headlines (aliens, dinosaurs, portals, time travelers, affairs, spies...). Like
+ * the seed they carry no sector: each fits every sector.
+ */
+export const ABSURD_HEADLINES = fileURLToPath(new URL('../../shared/data/headlines.absurd.json', import.meta.url));
 /** Funnier headlines written by Claude Haiku (tools/generate-headlines/claude.ts); optional. */
 export const CLAUDE_HEADLINES = fileURLToPath(new URL('../../shared/data/headlines.claude.json', import.meta.url));
 
