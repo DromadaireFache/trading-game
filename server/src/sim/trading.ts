@@ -71,6 +71,8 @@ export interface Trading {
   afterStep(dayClosed: boolean): TradingEvent[];
   /** The player's portfolio at current prices. */
   portfolio(id: PlayerId): SimEventOf<'portfolio'> | undefined;
+  /** Takes `amount` dollars out of the player's cash (card purchases, SEC fines). */
+  charge(id: PlayerId, amount: number): void;
 }
 
 export function createTrading(deps: TradingDeps): Trading {
@@ -301,6 +303,11 @@ export function createTrading(deps: TradingDeps): Trading {
     portfolio(id) {
       const account = accounts.get(id);
       return account === undefined ? undefined : portfolio(account);
+    },
+
+    charge(id, amount) {
+      const account = accounts.get(id);
+      if (account !== undefined && Number.isFinite(amount) && amount > 0) account.cash -= amount;
     },
   };
 }

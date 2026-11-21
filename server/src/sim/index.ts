@@ -22,6 +22,8 @@
 import type { GameConfig, Phase } from '@tg/shared';
 import { createMarket } from './market.ts';
 import { nextPhase, phaseLength } from './phases.ts';
+import { createCardEngine } from './cardEngine.ts';
+import { DEFAULT_CATALOG } from './data/cardData.ts';
 import { DEFAULT_HEADLINES, DEFAULT_PLACEHOLDERS } from './data/headlineData.ts';
 import { createHeadlineBook } from './headlines.ts';
 import { createNews } from './news.ts';
@@ -45,6 +47,8 @@ export type { Account, Holding, OrderResult, Trading, TradingDeps, TradingEvent 
 export { createHeadlineBook, fillHeadline, MAGNITUDES } from './headlines.ts';
 export type { FillContext, HeadlineBook, HeadlineQuery, PlaceholderLists } from './headlines.ts';
 export { createNews } from './news.ts';
+export { createCardEngine } from './cardEngine.ts';
+export type { CardEngine, CardEngineDeps, CardResult, QuarterClose } from './cardEngine.ts';
 export type { HeadlineEvent, News, NewsDeps, NewsItem, NewsSource, PublishedHeadline } from './news.ts';
 
 export function createSim(seed: number, config: GameConfig, options: SimOptions = {}): Sim {
@@ -76,6 +80,25 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   const tpc = config.time.ticksPerCandle;
   /** Market tick of the step about to be made (shocks.ts / news.ts time). */
   const marketTick = () => market.getDay() * tpc + market.getTickOfDay();
+  // Milestone 5 streams, appended after the news ones.
+  const cards = createCardEngine({
+    config,
+    universe,
+    catalog: options.catalog ?? DEFAULT_CATALOG,
+    news,
+    trading,
+    shopRng: rng.fork(),
+    secRng: rng.fork(),
+    regimeRng: rng.fork(),
+    marketTick,
+    quarterEndTick: () => quarter * config.time.daysPerQuarter * tpc - 1,
+  });
+  /** Net worth of each player when the quarter's BRIEFING began (statements, P&L). */
+  const startEquity = new Map<string, number>();
+  const portfolioOf = (id: string) => {
+    const p = trading.portfolio(id);
+    return p === undefined ? undefined : cards.decorate(p);
+  };
 
   const queue: SimIntent[] = [];
   const players: SimPlayer[] = [];
@@ -92,8 +115,49 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     quarter = next.quarter;
     phaseTick = 0;
     events.push({ e: 'phase', phase, quarter, durationTicks: phaseLength(config, phase) });
-    if (phase === 'BRIEFING') events.push({ e: 'briefing', ...news.startQuarter(quarter, marketTick(), market.getRate()) });
+    if (phase === 'BRIEFING') {
+      cards.startQuarter();
+      for (const p of players) startEquity.set(p.id, trading.portfolio(p.id)?.equity ?? 0);
+      const briefing = news.startQuarter(quarter, marketTick(), market.getRate());
+      briefing.regimes = cards.activeRegimeNames();
+      events.push({ e: 'briefing', ...briefing });
+    }
     if (phase === 'EARNINGS') events.push({ e: 'earnings', quarter, reports: news.closeQuarter() });
+    if (phase === 'RESULTS') events.push(...results());
+    if (phase === 'SHOP') events.push(...cards.openShop(quarter));
+  }
+
+  /** RESULTS: regimes count down, the SEC rolls, then the quarter's results (M6 adds the recap). */
+  function results(): SimEvent[] {
+    const nextTradingDay = quarter * config.time.daysPerQuarter;
+    const close = cards.closeQuarter(quarter, nextTradingDay);
+    const rows = players.map((p) => ({ p, pf: trading.portfolio(p.id)! })).sort((a, b) => b.pf.equity - a.pf.equity);
+    const out: SimEvent[] = [
+      {
+        e: 'results',
+        leaderboard: rows.map(({ p, pf }, i) => ({
+          rank: i + 1,
+          playerId: p.id,
+          name: p.name,
+          netWorth: pf.equity,
+          pnl: pf.equity - (startEquity.get(p.id) ?? pf.equity),
+          eliminated: pf.eliminated === true,
+          jailed: cards.isJailed(p.id, nextTradingDay),
+        })),
+        statements: rows.map(({ p, pf }) => {
+          const ledger = cards.ledger(p.id);
+          const start = startEquity.get(p.id) ?? pf.equity;
+          return { playerId: p.id, startEquity: start, endEquity: pf.equity, pnl: pf.equity - start, fines: ledger.fines, cardSpend: ledger.spend };
+        }),
+        recap: { quarter, topMoves: [], cardAuthors: close.reveals },
+        arrests: close.arrests,
+        ...(quarter >= config.time.quarters ? { final: true } : {}),
+      },
+      ...close.moments,
+    ];
+    // Fines and heat changed: everybody gets a fresh portfolio.
+    for (const p of players) out.push(portfolioOf(p.id)!);
+    return out;
   }
 
   function reject(intent: SimIntent, code: SimRejectCode, message: string): void {
@@ -114,6 +178,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         if (players.length >= config.lobby.maxPlayers) return reject(intent, 'game_full', 'the game is full'), false;
         players.push({ id: intent.playerId, name: intent.name });
         trading.addAccount(intent.playerId);
+        cards.addPlayer(intent.playerId, intent.name);
         return false;
       }
       case 'remove_player': {
@@ -122,6 +187,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         if (index < 0) return reject(intent, 'unknown_player', 'unknown player'), false;
         players.splice(index, 1);
         trading.removeAccount(intent.playerId);
+        cards.removePlayer(intent.playerId);
         return false;
       }
       case 'start': {
@@ -132,21 +198,36 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         }
         enter(nextPhase(config, { phase, quarter }));
         // Everybody learns their starting cash right away.
-        for (const p of players) events.push(trading.portfolio(p.id)!);
+        for (const p of players) events.push(portfolioOf(p.id)!);
         return true;
       }
       case 'order': {
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
         if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'the market is closed'), false;
+        if (cards.isJailed(intent.playerId, market.getDay())) return reject(intent, 'jailed', 'you are in jail: no trading until you are out'), false;
         const result = trading.order(intent.playerId, intent.symbol, intent.qty);
+        if (!result.ok) return reject(intent, result.code, result.message), false;
+        cards.onOrder(intent.playerId, intent.symbol);
+        for (const event of result.events) events.push(event);
+        return false;
+      }
+      case 'buy_card': {
+        if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
+        if (phase !== 'SHOP') return reject(intent, 'wrong_phase', 'cards can only be bought in the SHOP phase'), false;
+        const result = cards.buy(intent.playerId, intent.offerId);
         if (!result.ok) return reject(intent, result.code, result.message), false;
         for (const event of result.events) events.push(event);
         return false;
       }
-      case 'buy_card':
       case 'play_card': {
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
-        return reject(intent, 'not_implemented', `${intent.kind} is not implemented yet`), false;
+        if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'cards can only be played while the market is open'), false;
+        if (trading.portfolio(intent.playerId)?.eliminated) return reject(intent, 'eliminated', 'you have been eliminated'), false;
+        if (cards.isJailed(intent.playerId, market.getDay())) return reject(intent, 'jailed', 'you are in jail: no cards until you are out'), false;
+        const result = cards.play(intent.playerId, intent.cardId, intent.target, intent.direction, quarter);
+        if (!result.ok) return reject(intent, result.code, result.message), false;
+        for (const event of result.events) events.push(event);
+        return false;
       }
     }
   }
@@ -177,12 +258,16 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         // Later milestones add regimes / news to the step input next to the price impact.
         if (phase === 'TRADING') {
           const impact = trading.stepInput();
+          for (const event of cards.beforeStep(marketTick())) events.push(event); // insider previews first
           const headlines = news.beforeStep(marketTick(), market.getRate());
           for (const event of headlines.events) events.push(event);
           const symbolReturn = impact && headlines.symbolReturn ? addReturns(impact, headlines.symbolReturn) : (impact ?? headlines.symbolReturn);
+          const { dRate: regimeDRate = 0, ...regimeInput } = cards.marketInput();
+          const dRate = headlines.dRate + regimeDRate;
           const input = {
+            ...regimeInput,
             ...(symbolReturn === undefined ? {} : { symbolReturn }),
-            ...(headlines.dRate === 0 ? {} : { dRate: headlines.dRate }),
+            ...(dRate === 0 ? {} : { dRate }),
           };
           let dayClosed = false;
           for (const event of market.step(input)) {
@@ -196,7 +281,8 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       }
 
       tick += 1;
-      return events;
+      // Every portfolio carries the player's hand, heat and jail.
+      return events.map((e) => (e.e === 'portfolio' ? cards.decorate(e) : e));
     },
     getState(): SimState {
       const length = phaseLength(config, phase);
@@ -212,7 +298,9 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     },
     getUniverse: () => universe,
     getMarketSnapshot: () => market.getSnapshot(),
-    getPortfolio: (playerId) => trading.portfolio(playerId),
+    getPortfolio: (playerId) => portfolioOf(playerId),
+    getShop: (playerId) => (phase === 'SHOP' ? cards.offersOf(playerId) : null),
+    cards,
     getNewsSnapshot() {
       const briefing = news.briefing();
       const earnings = news.earnings();

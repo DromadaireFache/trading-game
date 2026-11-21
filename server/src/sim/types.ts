@@ -33,6 +33,8 @@ import type {
 import type { HeadlineTemplate } from '@tg/shared';
 import type { PlaceholderLists } from './headlines.ts';
 import type { News } from './news.ts';
+import type { CardEngine } from './cardEngine.ts';
+import type { CardCatalogEntry } from '@tg/shared/cards';
 import type { Universe } from './universe.ts';
 
 // ---------------------------------------------------------------------------
@@ -67,6 +69,13 @@ export type SimRejectCode =
   | 'unknown_symbol'
   | 'insufficient_buying_power'
   | 'eliminated'
+  | 'jailed'
+  | 'hand_full'
+  | 'insufficient_funds'
+  | 'unknown_card'
+  | 'no_target'
+  | 'regime_cap'
+  | 'nothing_to_tip'
   | 'not_implemented';
 
 export type SimEvent =
@@ -189,6 +198,10 @@ export interface Sim {
   };
   /** The news engine (published headlines with their causes, the queue, earnings plan). */
   readonly news: News;
+  /** This player's shop offers while the phase is SHOP (reconnect), else null. */
+  getShop(playerId: PlayerId): SimEventOf<'shop'> | null;
+  /** Hands, heat, jail, regimes (M5). */
+  readonly cards: CardEngine;
 }
 
 export interface SimOptions {
@@ -196,6 +209,8 @@ export interface SimOptions {
   headlines?: readonly HeadlineTemplate[];
   /** Placeholder fill lists (default: shared/data/placeholders.json). */
   placeholders?: PlaceholderLists;
+  /** Card catalog (default: shared/data/cards.json). */
+  catalog?: readonly CardCatalogEntry[];
 }
 
 export type CreateSim = (seed: number, config: GameConfig, options?: SimOptions) => Sim;

@@ -232,6 +232,9 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     // A player who reconnects mid-game gets cash and positions back at once (none yet in the lobby).
     const portfolio = session.role === 'player' ? sim.getPortfolio(session.id) : undefined;
     if (portfolio !== undefined) send(socket, portfolioMsg(portfolio));
+    // In SHOP, the offers this player was shown.
+    const shop = session.role === 'player' ? sim.getShop(session.id) : null;
+    if (shop !== null) send(socket, { t: 'shop', offers: shop.offers });
     // The news so far: this quarter's briefing, the latest earnings, the recent headlines (oldest first).
     const news = sim.getNewsSnapshot();
     if (news.briefing !== null) dispatchTo(socket, news.briefing);
