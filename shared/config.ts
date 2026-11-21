@@ -167,6 +167,9 @@ export interface GameConfig {
     /** Price gap = gapFactor * (true_surprise - priced_in). */
     gapFactor: number;
     leaksPerQuarter: number;
+    /** A leak prices in a share, drawn in [leakShareMin, leakShareMax], of the surprise not yet priced in. */
+    leakShareMin: number;
+    leakShareMax: number;
   };
   cards: {
     handLimit: number;
@@ -333,6 +336,8 @@ export const defaultConfig: GameConfig = {
     surpriseSigma: 0.08,
     gapFactor: 1,
     leaksPerQuarter: 4,
+    leakShareMin: 0.3,
+    leakShareMax: 0.6,
   },
   cards: {
     handLimit: 3,
@@ -508,6 +513,8 @@ export function validateConfig(config: GameConfig): GameConfig {
         if (position > 1) problems.push(`config.market.sectorProfiles.${sector}.${key} must be a position 0..1, got ${position}`);
       }
     }
+    const e = config.earnings;
+    if (e.leakShareMin > e.leakShareMax || e.leakShareMax > 1) problems.push('config.earnings.leakShareMin must be <= leakShareMax <= 1');
     for (const sector of m.rateLovingSectors) {
       if (!SECTORS.includes(sector)) problems.push(`config.market.rateLovingSectors: unknown sector "${String(sector)}"`);
     }
