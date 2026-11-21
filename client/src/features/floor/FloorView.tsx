@@ -9,16 +9,18 @@ import { useGame } from '../../net/GameProvider.tsx';
 import { useSymbols } from '../../net/marketHooks.ts';
 import { CandleChart } from '../market/CandleChart.tsx';
 import { SymbolHeader } from '../market/SymbolHeader.tsx';
+import { FloorResults, MomentBanner } from '../results/FloorResults.tsx';
 import '../market/market.css';
 
 /**
  * Projector view: phase, countdown and roster, readable from the back of the room. In the lobby the
  * phase and the join address fill the screen; once the game runs they shrink to a status line and
  * the index fund chart takes the space.
- * Later: ticker tape, leaderboard and full-screen BREAKING moments slot into floor__main.
+ * Between quarters and at the end the standings replace the chart (FloorResults); a `moment` shows a
+ * full-screen BREAKING banner over everything (MomentBanner).
  */
 export function FloorView() {
-  const { phase, lobby, config, joinUrls, replaced } = useGame();
+  const { phase, lobby, config, joinUrls, replaced, results } = useGame();
   const countdown = useCountdown();
   const current = phase?.phase ?? 'LOBBY';
   const totalQuarters = phase?.totalQuarters ?? config.time.quarters;
@@ -30,6 +32,8 @@ export function FloorView() {
   // The index fund is the market on the projector.
   const index = useSymbols().find((s) => s.kind === 'index')?.symbol ?? null;
   const showMarket = current !== 'LOBBY' && index !== null;
+  // RESULTS and FINAL: the standings take the chart's place. SHOP goes back to the market.
+  const showResults = (current === 'RESULTS' ? results?.final !== true : current === 'FINAL' ? results?.final === true : false) && results !== null;
 
   if (replaced) return <SeatTaken />;
 
@@ -67,7 +71,9 @@ export function FloorView() {
         <div className="floor__progress" aria-hidden="true">
           <div className="floor__progress-bar" style={{ transform: `scaleX(${countdown.progress ?? 0})` }} />
         </div>
-        {showMarket && (
+        {showResults ? (
+          <FloorResults />
+        ) : showMarket && (
           <section className="floor__market" data-testid="floor-market">
             <SymbolHeader symbol={index} size="large" />
             <CandleChart symbol={index} size="large" />
@@ -75,6 +81,7 @@ export function FloorView() {
         )}
         <ErrorBanner />
       </main>
+      <MomentBanner />
 
       <aside className="floor__side">
         <h2 className="floor__side-title">

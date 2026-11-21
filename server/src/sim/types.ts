@@ -188,6 +188,11 @@ export interface Sim {
    */
   getPortfolio(playerId: PlayerId): SimEventOf<'portfolio'> | undefined;
   /**
+   * The latest `results` event (a quarter's, or the final one with awards), or null before the first
+   * RESULTS. The shell sends it to a player who (re)joins during RESULTS, SHOP or FINAL.
+   */
+  getResults(): SimEventOf<'results'> | null;
+  /**
    * What a (re)joining client needs to show the news: this quarter's briefing, the latest earnings
    * (until the next BRIEFING) and the last config.news.replayHeadlines public headlines, oldest first.
    */

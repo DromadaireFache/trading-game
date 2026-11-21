@@ -77,6 +77,8 @@ interface PlayerCards {
   spend: number;
   /** Fines paid at the last RESULTS. */
   fines: number;
+  /** Jail days sentenced over the whole game ("Longest sentence"). */
+  jailDays: number;
   /** This quarter's offers: offerId -> entry, price, bought. */
   offers: Map<string, { entry: CardCatalogEntry; price: number; bought: boolean }>;
   offerList: SimEventOf<'shop'>['offers'];
@@ -87,7 +89,10 @@ interface PlayerCards {
 
 export interface QuarterClose {
   arrests: Arrest[];
-  /** Cards played this quarter, revealed at RESULTS. */
+  /**
+   * Cards played this quarter that published no headline (insider tips, earnings peeks). Cards with a
+   * headline are revealed by results.ts from the news log (ownerId + cardName).
+   */
   reveals: CardReveal[];
   moments: SimEventOf<'moment'>[];
 }
@@ -116,8 +121,8 @@ export interface CardEngine {
   /** At BRIEFING: per-quarter counters start over. */
   startQuarter(): void;
   activeRegimeNames(): string[];
-  /** Card spend this quarter and fines at the last RESULTS (statements). */
-  ledger(id: PlayerId): { spend: number; fines: number };
+  /** Card spend this quarter, fines at the last RESULTS, jail days over the game (statements, awards). */
+  ledger(id: PlayerId): { spend: number; fines: number; jailDays: number };
 }
 
 export function createCardEngine(deps: CardEngineDeps): CardEngine {
@@ -130,15 +135,13 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
   let cardSeq = 0;
   let previewSeq = 0;
   let regimeSeq = 0;
-  let moments = 0;
   let reveals: CardReveal[] = [];
   const previews: Array<{ playerId: PlayerId; atTick: number; headline: Omit<SimEventOf<'headline'>, 'id'> }> = [];
 
   const fail = (code: SimRejectCode, message: string): CardResult => ({ ok: false, code, message });
 
+  /** A projector moment; the per-game budget is applied by the caller (results.addMoment). */
   function moment(kind: SimEventOf<'moment'>['kind'], text: string): SimEventOf<'moment'>[] {
-    if (moments >= config.presentation.maxMomentsPerGame) return [];
-    moments += 1;
     return [{ e: 'moment', kind, text }];
   }
 
@@ -197,7 +200,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
   return {
     addPlayer(id, name) {
       if (players.has(id)) return;
-      players.set(id, { id, name, hand: [], heat: 0, sources: {}, spend: 0, fines: 0, offers: new Map(), offerList: [], manipulated: new Set(), heated: new Set() });
+      players.set(id, { id, name, hand: [], heat: 0, sources: {}, spend: 0, fines: 0, jailDays: 0, offers: new Map(), offerList: [], manipulated: new Set(), heated: new Set() });
     },
     removePlayer: (id) => void players.delete(id),
     decorate,
@@ -277,7 +280,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
 
       const now = deps.marketTick();
       const events: CardEvent[] = [];
-      const owner = { ownerId: id };
+      const owner = { ownerId: id, cardName: entry.name };
       let revealed = `${entry.name}${shockTarget.scope === 'market' ? '' : ` on ${targetLabel(shockTarget)}`}${direction ? ` (${direction})` : ''}`;
 
       switch (fx.kind) {
@@ -355,16 +358,17 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           }
           regimes = started.state;
           pendingDRate += started.dRate;
-          const headline = (templateId: string, tick: number): NewsItem => ({
+          // Only the start headline carries the author (one reveal per card); the rest are its follow-ups.
+          const headline = (templateId: string, tick: number, first = false): NewsItem => ({
             tick,
             source: 'regime',
             templateId,
             query: { kind: 'real', scope: 'market', direction: 'neutral' },
             target: shockTarget,
             logReturn: 0,
-            ...owner,
+            ...(first ? owner : {}),
           });
-          news.enqueue(headline(started.startHeadline, now));
+          news.enqueue(headline(started.startHeadline, now, true));
           const during = started.regime.regime.headlines;
           const span = Math.max(1, deps.quarterEndTick() - now);
           during.forEach((templateId, k) => news.enqueue(headline(templateId, now + Math.round(((k + 1) * span) / (during.length + 1)))));
@@ -379,7 +383,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
 
       heat(p, entry);
       p.hand.splice(index, 1);
-      reveals.push({ playerId: id, name: p.name, cardName: entry.name, text: revealed });
+      if (fx.kind === 'insider_tip' || fx.kind === 'earnings_peek') reveals.push({ playerId: id, name: p.name, cardName: entry.name, text: revealed });
       events.push(...portfolioOf(id));
       return { ok: true, events };
     },
@@ -442,6 +446,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
         if (outcome.caught) {
           trading.charge(p.id, outcome.fine);
           p.jailedUntil = outcome.jailedUntil;
+          p.jailDays += outcome.jailDays;
           // The richest player behind bars is a projector moment.
           if (outcome.rank === 0) out.push(...moment('arrest', outcome.arrest!.text));
         }
@@ -467,7 +472,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
     activeRegimeNames: () => regimes.active.map((r) => r.regime.name),
     ledger(id) {
       const p = players.get(id);
-      return { spend: p?.spend ?? 0, fines: p?.fines ?? 0 };
+      return { spend: p?.spend ?? 0, fines: p?.fines ?? 0, jailDays: p?.jailDays ?? 0 };
     },
   };
 }

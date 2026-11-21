@@ -1,6 +1,6 @@
 # Status (2026-11-21)
 
-Milestones 1–5 of 7 are done (M6 and M7 belong to teammates); `impl/mvp` and `main` are kept in sync. A full game is playable on the LAN with live news and cards.
+Milestones 1–6 are done and M7 has its first tuning pass (M6 and M7 by julien); `impl/mvp` and `main` are kept in sync. A full game is playable on the LAN with live news, cards, results and a final screen.
 
 ## How to run it
 
@@ -29,13 +29,13 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 - **No second machine tested.** A connection from another physical machine on the LAN is untested. Only this host was used, with the server bound to all interfaces.
 - **No restart.** Starting a new game needs a server restart.
 
-## Next (M6–M7, teammates)
+## M6–M7 (julien)
 
-1. **M6 Results, final and floor.** Recap with causes, awards, and BREAKING moments.
+1. **M6 Results, final and floor.** Done (julien), and wired to M5: `server/src/sim/results.ts` builds the leaderboard, per-player statements (best and worst trade), the market recap (top 3 moves in different sectors, each with the headline, earnings gap, card or regime that caused it), the final awards (best trade, best short, bag holder, comeback, most chaos, busiest trader, margin call magnet, longest sentence) and crash moments (at most one per quarter, `presentation.maxMomentsPerGame` per game). /play shows real RESULTS and FINAL screens; /floor shows the standings in RESULTS and FINAL and a full-screen BREAKING banner for `presentation.momentVisibleMs`. A reconnect during RESULTS, SHOP or FINAL gets the latest results. **For M5:** pass arrests, fines, card spend, jail and card names to `closeQuarter` / `final` as their `extra` (see the comment in `createSim`), and call `results.addMoment` for regime starts and the leader's arrest. Not done: sound sting and screen shake (design track).
 2. **M7 Balance.** First tuning pass done (see docs/BALANCE.md). A news-trader bot (a fast, news-reading human) was added, and huge shocks, magnitude/scope weights and daily volume were retuned. Over 50 games the median winner is $631M (p10 $199M, p90 $2.84B), short of $1B on purpose because cards are not in yet. Next: card-using bots and another pass once M5 lands.
 
 ## Suggested split
 
 - **Sim / balance (julien):** M7 tuning with the harness, now with headlines, earnings, cards and regimes in the sim. Bots could start buying and playing cards (`buy_card` / `play_card` intents).
-- **Server + client (M6 owner):** the RESULTS screen (leaderboard, statements, arrests, card authors are already in the `results` event; `recap.topMoves` needs filling from `sim.news.log()`, which records the cause of every move), the FINAL screen with awards, and `/floor` (index chart, headline tape, leaderboard, BREAKING banners from `moment` events). After the last quarter, mark the final leaderboard with `sim.news.pendingGap()`.
+- **Client / design:** polish of the shop, hand, results and floor screens; sounds and effects.
 - **Design:** headline content and generator runs, card catalog balance, `/floor` layout, sounds and effects, and company/fund names (`server/src/sim/data/names.ts`). Colors and fonts are in `client/src/theme.ts`.

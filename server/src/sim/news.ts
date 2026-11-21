@@ -54,6 +54,8 @@ export interface NewsItem {
   dRate?: number;
   /** Who played it (cards); revealed at RESULTS. */
   ownerId?: string;
+  /** Name of the card that made it (results.ts reveals it next to the author). */
+  cardName?: string;
   /** Earnings leak: surprise units it prices in. */
   leakAmount?: number;
   /**
@@ -88,6 +90,8 @@ export interface PublishedHeadline {
   fake?: boolean;
   /** A debunk: the id of the fake it reverted. */
   reverts?: string;
+  /** Card that made it. */
+  cardName?: string;
 }
 
 export type HeadlineEvent = SimEventOf<'headline'>;
@@ -225,7 +229,6 @@ export function createNews(deps: NewsDeps): News {
         logReturn: 0,
         reverts: id,
         carry: true,
-        ...(item.ownerId === undefined ? {} : { ownerId: item.ownerId }),
       });
       sortQueue();
     }
@@ -242,6 +245,7 @@ export function createNews(deps: NewsDeps): News {
       target,
       logReturn: item.logReturn,
       ...(item.ownerId === undefined ? {} : { ownerId: item.ownerId }),
+      ...(item.cardName === undefined ? {} : { cardName: item.cardName }),
       ...(newRate === undefined ? {} : { rate: newRate }),
       ...(item.fake ? { fake: true } : {}),
       ...(item.reverts === undefined ? {} : { reverts: item.reverts }),

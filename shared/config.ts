@@ -247,6 +247,8 @@ export interface GameConfig {
     countdownRefreshMs: number;
     /** Client: how long a server error stays on screen before it dismisses itself. */
     errorVisibleMs: number;
+    /** Projector: how long a BREAKING moment banner stays on screen. */
+    momentVisibleMs: number;
   };
   net: {
     serverPort: number;
@@ -418,6 +420,7 @@ export const defaultConfig: GameConfig = {
     countdownUrgentMs: 5_000,
     countdownRefreshMs: 200,
     errorVisibleMs: 6_000,
+    momentVisibleMs: 6_000,
   },
   net: {
     serverPort: 8787,
