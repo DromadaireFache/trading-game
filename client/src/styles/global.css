@@ -637,8 +637,9 @@ ol {
 .desk__chart {
   grid-area: chart;
 }
+/* Headline papers land on top of the side column's cards (bottom right), not over the chart. */
 .desk__pops {
-  grid-area: chart;
+  grid-area: side;
 }
 /* The earnings report (BRIEFING, EARNINGS, FINAL): over the chart, or under the final standings. */
 .desk__earnings {

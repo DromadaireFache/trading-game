@@ -83,7 +83,8 @@
 }
 .sym-row__ticker {
   font-weight: 700;
-  color: var(--tg-color-text-bright);
+  /* The stock's sector color: the same color as its ticker on a newspaper. */
+  color: var(--sector, var(--tg-color-text-bright));
   overflow: hidden;
 }
 .sym-row__price {

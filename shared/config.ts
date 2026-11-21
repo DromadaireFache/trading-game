@@ -442,9 +442,9 @@ export const defaultConfig: GameConfig = {
     // Headlines pop up on every desk; the price starts moving 4-6 s later, time to find the ticker.
     leadMinMs: 4_000,
     leadMaxMs: 6_000,
-    // About 5 headlines a quarter: 1 scheduled beat (the rate decision), 2 random, 2 earnings leaks.
+    // About 3 headlines a quarter: 1 scheduled beat (the rate decision), 1 random, 1 earnings leak.
     scheduledBeatsPerQuarter: 1,
-    randomHeadlinesPerQuarter: 2,
+    randomHeadlinesPerQuarter: 1,
     noiseShare: 0.25,
     scopeWeights: { market: 0.05, sector: 0.3, stock: 0.65 },
     magnitudeWeights: { small: 0.3, medium: 0.3, large: 0.2, huge: 0.2 },
@@ -471,7 +471,7 @@ export const defaultConfig: GameConfig = {
   earnings: {
     surpriseSigma: 0.08,
     gapFactor: 1,
-    leaksPerQuarter: 2,
+    leaksPerQuarter: 1,
     // Leaks hint at direction while leaving most of the move for the reported beat or miss.
     leakShareMin: 0.05,
     leakShareMax: 0.1,

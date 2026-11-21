@@ -1012,6 +1012,13 @@ async function main(): Promise<void> {
       const latest = headlineFrames('A').at(-1)!;
       const ticker = (await a.locator(tid('news-pop-ticker')).last().textContent())?.trim() ?? '';
       check(ticker.length > 0 && (latest.symbol === undefined || ticker === latest.symbol), `the headline pops up as a paper with its ticker (${ticker}): "${latest.text}"`);
+      // The paper lands on top of the cards in the side column (bottom right), not over the chart.
+      const [paperBox, sideBox] = [await a.locator(tid('news-pop')).last().boundingBox(), await a.locator('.desk__side').boundingBox()];
+      check(paperBox !== null && sideBox !== null && paperBox.x >= sideBox.x - 12 && paperBox.y + paperBox.height > sideBox.y + sideBox.height / 2,
+        'the paper lands over the cards in the side column');
+      const sectorLabel = (await a.locator(tid('news-pop-sector')).last().textContent())?.trim() ?? '';
+      check(sectorLabel.length > 0, `the paper names its sector: ${sectorLabel}`);
+      await shot(a, '20-play-news-paper');
       check((await a.evaluate(`getComputedStyle(document.querySelector('[data-testid=news-pops]')).pointerEvents`)) === 'none', 'the pile around the papers lets clicks through');
       const selectedBefore = await a.getAttribute(tid('selected-symbol'), 'data-symbol');
       await a.locator(tid('news-pop')).last().click({ position: { x: 60, y: 70 } });
@@ -1157,6 +1164,8 @@ async function main(): Promise<void> {
       const handBefore = await a.locator(tid('hand-card')).count();
       check(handBefore > 0, `A still holds ${handBefore} cards in Q2`);
       for (let i = 0; i < handBefore; i++) {
+        // Headline papers land on top of the cards: put them away first, as a player would.
+        while ((await a.locator(tid('news-pop')).count()) > 0) await a.locator(tid('news-pop-close')).last().click();
         const cardEl = a.locator(tid('hand-card')).first();
         const button = cardEl.locator(`${tid('play')}, ${tid('play-up')}`).first();
         if (await button.isDisabled()) break; // e.g. a sector card with the index fund selected

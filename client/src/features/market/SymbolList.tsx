@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+import { symbolColor } from '../../lib/sectorColor.ts';
 import { memo, useEffect, useMemo, useRef } from 'react';
 import type { SymbolId, SymbolInfo } from '@tg/shared';
 import { changeDirection, formatPercent, formatPrice } from '../../lib/format.ts';
@@ -106,6 +108,7 @@ const SymbolRow = memo(function SymbolRow({ info, decimals, selected, onSelect, 
     <button
       type="button"
       className={`sym-row${selected ? ' sym-row--selected' : ''}`}
+      style={{ '--sector': symbolColor(info) } as CSSProperties}
       data-testid="symbol-row"
       data-symbol={symbol}
       data-kind={info.kind}

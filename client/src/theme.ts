@@ -41,6 +41,18 @@ export const theme = {
     /** Playing-card face and ink. */
     cardFace: '#f6efdc',
     cardText: '#1d1b16',
+    /**
+     * One color per sector (and one for market-wide news): a stock always wears its sector's color, on
+     * the newspaper, in the stock list and in the chart header, so news and stock match at a glance.
+     * Keys are sector<Id> for the ids in shared/types.ts SECTORS.
+     */
+    sectorTech: '#4fb3ff',
+    sectorEnergy: '#ff9f40',
+    sectorDefense: '#a9c46c',
+    sectorAirlines: '#7fe0ee',
+    sectorFinance: '#c9a2ff',
+    sectorHealth: '#ff7aa2',
+    sectorMarket: '#e8e2cf',
   },
   font: {
     mono: 'ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, "SF Mono", Menlo, monospace',

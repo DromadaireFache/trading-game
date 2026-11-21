@@ -3,21 +3,20 @@
  * The pile ignores the mouse; a paper can be dragged and dismissed, but nothing on it links to the
  * stock: you have to find its ticker in the list.
  */
+/* The pile sits on top of the side column's cards (Your cards), bottom-aligned, older papers higher. */
 .news-pops {
   position: relative;
   z-index: 5;
   pointer-events: none;
-  align-self: start;
-  justify-self: center;
-  /* Fixed width: on a narrow chart the paper simply floats over its neighbors (it ignores the mouse). */
-  width: 440px;
-  max-width: calc(100vw - 32px);
-  margin-top: 36px;
+  align-self: end;
+  justify-self: stretch;
+  height: 0;
+  margin-bottom: 10px;
 }
 
 .paper {
   position: absolute;
-  top: 0;
+  bottom: 0;
   left: 0;
   right: 0;
   display: flex;
@@ -31,8 +30,10 @@
   box-shadow:
     0 6px 0 var(--tg-color-shadow),
     0 14px 28px color-mix(in srgb, var(--tg-color-shadow) 70%, transparent);
-  /* Older papers slide down and back in the pile; a dragged paper adds its own offset. */
-  transform: translate(calc(var(--pop-depth) * 14px + var(--drag-x, 0px)), calc(var(--pop-depth) * 26px + var(--drag-y, 0px)))
+  /* The sector's color runs down the left edge of the paper. */
+  border-left: 8px solid var(--sector);
+  /* Older papers slide up and back in the pile; a dragged paper adds its own offset. */
+  transform: translate(calc(var(--pop-depth) * -8px + var(--drag-x, 0px)), calc(var(--pop-depth) * -30px + var(--drag-y, 0px)))
     rotate(var(--pop-tilt));
   animation: paper-drop 380ms cubic-bezier(0.2, 1.4, 0.4, 1) backwards;
   transition: transform 250ms ease, opacity 250ms ease;
@@ -104,25 +105,40 @@
 
 .paper__body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px;
+  grid-template-columns: minmax(0, 1fr) 104px;
   gap: 10px;
   align-items: start;
 }
 .paper__headline {
   margin: 0;
   font-family: var(--tg-font-serif);
-  font-size: 20px;
+  font-size: 17px;
   font-weight: 900;
   line-height: 1.15;
 }
 .paper__art {
   margin: 0;
   color: var(--tg-color-card-text);
+  /* The drawing sits on the sector's color: same sector, same picture, same color. */
+  background: color-mix(in srgb, var(--sector) 45%, var(--tg-color-card-face));
+  border: 2px solid var(--tg-color-card-text);
 }
 .news-art {
   display: block;
-  width: 120px;
-  height: 84px;
+  width: 100px;
+  height: 70px;
+}
+.paper__sector {
+  padding: 1px 4px;
+  font-family: var(--tg-font-display);
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tg-color-card-text);
+  background: var(--sector);
+  border-top: 2px solid var(--tg-color-card-text);
 }
 
 .paper__foot {
@@ -138,16 +154,32 @@
   font-size: 11px;
   font-style: italic;
 }
+.paper__stock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.paper__company {
+  font-family: var(--tg-font-serif);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The ticker wears the stock's sector color, as it does in the stock list. */
 .paper__ticker {
   flex: none;
   padding: 2px 8px;
   font-family: var(--tg-font-mono);
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 17px;
+  font-weight: 900;
   letter-spacing: 0.06em;
-  color: var(--tg-color-card-face);
-  background: var(--tg-color-card-text);
-  border-radius: 2px;
+  color: var(--tg-color-card-text);
+  background: var(--sector);
+  border: 2px solid var(--tg-color-card-text);
+  border-radius: 4px;
   transform: rotate(-2deg);
 }
 
