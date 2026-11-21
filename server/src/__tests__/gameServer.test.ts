@@ -696,13 +696,17 @@ describe('market', () => {
   });
 
   it('sends a consistent snapshot between quarters, when no day is in progress', async () => {
-    const s = await start({ phaseMs: { EARNINGS: 40 * TICK_MS } });
+    const s = await start({ time: { daysPerQuarter: 10 }, phaseMs: { EARNINGS: 40 * TICK_MS } });
     const { daysPerQuarter } = s.sim.config.time;
     const ann = await open(s);
     await ann.join('player', 'Ann');
     const floor = await open(s);
     ann.send({ t: 'start' });
     await ann.next('phase', (m) => m.phase === 'EARNINGS' && m.quarter === 1);
+    const report = await ann.next('earnings');
+    expect(report.quarter).toBe(1);
+    expect(report.reports).toHaveLength(s.sim.getUniverse().companies.length);
+    for (const row of report.reports) expect(Object.keys(row).sort()).toEqual(['surprise', 'symbol']);
 
     const welcome = await floor.join('spectator');
     expect(welcome.phase.phase).toBe('EARNINGS');
@@ -712,10 +716,16 @@ describe('market', () => {
     // Prices are frozen at the last close.
     const lastClose = Object.fromEntries(Object.entries(snapshot.candles).map(([id, flat]) => [id, flat.at(-1)]));
     expect(snapshot.prices).toEqual(lastClose);
+    expect(await floor.next('earnings')).toEqual(report);
 
     // The next quarter continues the day count right where the snapshot ends.
     const next = await floor.next('tick');
     expect({ day: next.day, tickOfDay: next.tickOfDay }).toEqual({ day: daysPerQuarter, tickOfDay: 1 });
+
+    const reconnected = await open(s);
+    const reopened = await reconnected.join('spectator', undefined, welcome.token);
+    expect(reopened.phase).toMatchObject({ phase: 'TRADING', quarter: 2 });
+    expect(await reconnected.next('earnings')).toEqual(report);
   });
 });
 

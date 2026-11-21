@@ -13,7 +13,6 @@ import type {
   Award,
   Briefing,
   Card,
-  EarningsReport,
   CardDirection,
   CardOffer,
   ForcedFillReason,
@@ -33,6 +32,7 @@ import type {
   SymbolId,
 } from '@tg/shared';
 import type { HeadlineTemplate } from '@tg/shared';
+import type { EarningsImpactReport } from './earnings.ts';
 import type { PlaceholderLists } from './headlines.ts';
 import type { News } from './news.ts';
 import type { CardEngine } from './cardEngine.ts';
@@ -99,8 +99,8 @@ export type SimEvent =
   | { e: 'headline'; to?: PlayerId; id: string; text: string; symbol?: SymbolId; sector?: Sector; ts: number; early?: boolean; rate?: number }
   /** Milestone 4: right after the BRIEFING phase event. */
   | ({ e: 'briefing' } & Briefing)
-  /** Milestone 4: right after the EARNINGS phase event. Gaps show at the next quarter's first tick. */
-  | { e: 'earnings'; quarter: number; reports: EarningsReport[] }
+  /** Right after the EARNINGS phase event. The price impact is server-only. */
+  | { e: 'earnings'; quarter: number; reports: EarningsImpactReport[] }
   /** Milestone 3: a market order (or a forced close) was filled. Price unrounded. */
   | { e: 'fill'; playerId: PlayerId; symbol: SymbolId; qty: number; price: number; ts: number; reason?: ForcedFillReason }
   | {
@@ -203,7 +203,7 @@ export interface Sim {
   getResults(): SimEventOf<'results'> | null;
   /**
    * What a (re)joining client needs to show the news: this quarter's briefing, the latest earnings
-   * (until the next BRIEFING) and the last config.news.replayHeadlines public headlines, oldest first.
+   * report and the last config.news.replayHeadlines public headlines, oldest first.
    */
   getNewsSnapshot(): {
     briefing: SimEventOf<'briefing'> | null;

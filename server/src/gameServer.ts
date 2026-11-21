@@ -181,7 +181,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       return { t: 'briefing', ...rest };
     }
     const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
-    return { t: 'earnings', quarter: event.quarter, reports: event.reports.map((r) => ({ symbol: r.symbol, surprise: round4(r.surprise), gap: round4(r.gap) })) };
+    return { t: 'earnings', quarter: event.quarter, reports: event.reports.map(({ symbol, surprise }) => ({ symbol, surprise: round4(surprise) })) };
   }
 
   /** Replays a public news event to one socket (join / reconnect). */

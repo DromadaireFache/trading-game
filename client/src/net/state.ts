@@ -197,8 +197,7 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
     }
     case 'briefing': {
       const { t: _t, ...briefing } = msg;
-      // A new quarter: last quarter's earnings are history.
-      return { ...state, briefing, earnings: null };
+      return { ...state, briefing };
     }
     case 'earnings': {
       const { t: _t, ...earnings } = msg;

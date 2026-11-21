@@ -26,7 +26,7 @@ LOBBY → [ BRIEFING → TRADING → EARNINGS → RESULTS → SHOP ] × (N − 1
 |---|---|---|
 | **BRIEFING** | 5 s | Macro outlook (rates, Fed meeting date), active regimes, earnings consensus, the quarter's **scheduled beats**. Trading is closed. |
 | **TRADING** | 90 s | Prices tick live. Headlines drop throughout the quarter (scheduled, random, and from cards). Players trade and play cards. |
-| **EARNINGS** | 5 s | Quarter closes. Each company reports EPS against consensus, and prices gap on the surprise. |
+| **EARNINGS** | 5 s | Quarter closes. Each company reports EPS against consensus. |
 | **RESULTS** | Up to 20 s | Leaderboard, P&L, statements, market recap, arrests, and card authors revealed. When every player selects **Ready Up**, the shop or final standings open. |
 | **SHOP** | Up to 30 s | Buy cards for the next quarter. When every player on the roster selects **Ready Up**, the next briefing starts. |
 
@@ -85,7 +85,9 @@ The first buyer gets the best price. Whoever piles in last buys the top.
 
 ### Earnings
 At BRIEFING each company secretly draws `true_surprise`. Some headlines during the quarter are **leaks**
-that hint at it. At EARNINGS the price gaps by `g · (true_surprise − priced_in)`.
+that hint at it. The earnings report shows the surprise against consensus. The remaining price move,
+`g · (true_surprise − priced_in)`, lands 1–5 seconds after trading opens the next quarter. The final
+quarter's move settles directly into the final standings.
 
 ---
 

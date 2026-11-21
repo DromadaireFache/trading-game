@@ -4,7 +4,7 @@
  * createSim feeds it:
  *   startQuarter(q)       at BRIEFING: quarter-open prices, equity and positions
  *   recordFill(fill)      every fill (orders and forced closes)
- *   recordEarnings(...)   at EARNINGS: the gaps land at the NEXT quarter's open, so they explain its moves
+ *   recordEarnings(...)   at EARNINGS: the gaps land early in the next quarter, so they explain its moves
  *   onCandle(...)         every closed day: may return a crash moment
  *   closeQuarter(...)     at RESULTS: the `results` event (leaderboard, statements, recap)
  *   final(...)            at FINAL: the `results` event with final: true and awards
@@ -24,7 +24,6 @@ import type {
   Arrest,
   Award,
   CardReveal,
-  EarningsReport,
   GameConfig,
   LeaderboardEntry,
   PlayerId,
@@ -37,6 +36,7 @@ import type {
   TradeSummary,
 } from '@tg/shared';
 import { SECTOR_LABELS } from '@tg/shared';
+import type { EarningsImpactReport } from './earnings.ts';
 import type { PublishedHeadline } from './news.ts';
 import type { SimEventOf, SimPlayer } from './types.ts';
 import type { Universe } from './universe.ts';
@@ -85,7 +85,7 @@ interface Trade {
 export interface Results {
   startQuarter(quarter: number): void;
   recordFill(fill: SimEventOf<'fill'>): void;
-  recordEarnings(reports: readonly EarningsReport[]): void;
+  recordEarnings(reports: readonly EarningsImpactReport[]): void;
   /** After a closed day; `close` = closing price per symbol. Returns a crash moment at most once per quarter. */
   onCandle(day: number, close: Record<SymbolId, number>): MomentEvent | null;
   /** Records a moment made elsewhere (regime start, arrest of the leader) if the game budget allows. */
@@ -116,9 +116,9 @@ export function createResults(deps: ResultsDeps): Results {
   let openEquity = new Map<PlayerId, number>();
   /** Per player, per symbol: qty at the quarter open, current qty, cash spent, ever short. */
   let book = new Map<PlayerId, Map<SymbolId, { startQty: number; qty: number; spent: number; wasShort: boolean }>>();
-  /** Gaps from the last EARNINGS: they show at the open of the quarter that follows. */
-  let pendingGaps: EarningsReport[] = [];
-  let gapsThisQuarter: EarningsReport[] = [];
+  /** Gaps from the last EARNINGS, attributed to the quarter in which they land. */
+  let pendingGaps: EarningsImpactReport[] = [];
+  let gapsThisQuarter: EarningsImpactReport[] = [];
   let crashThisQuarter = false;
   let previousClose: number | undefined;
   let momentsLeft = config.presentation.maxMomentsPerGame;

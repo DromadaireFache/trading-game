@@ -214,13 +214,12 @@ export interface BriefingMsg extends Briefing {
 }
 
 /**
- * Broadcast when EARNINGS starts (and replayed after `welcome` until the next BRIEFING). Prices are
- * frozen outside TRADING, so the gaps show at the next quarter's first tick.
+ * Broadcast when EARNINGS starts. The latest report is replayed after `welcome`.
  */
 export interface EarningsMsg {
   t: 'earnings';
   quarter: number;
-  /** Every company, sorted by |gap|, largest first. */
+  /** Every company, in the same shuffled order on broadcast and reconnect. */
   reports: EarningsReport[];
 }
 

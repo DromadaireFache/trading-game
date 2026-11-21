@@ -255,8 +255,6 @@ export interface EarningsReport {
   symbol: SymbolId;
   /** EPS against consensus: +0.08 = beat by 8%. */
   surprise: number;
-  /** Log-return still to come at the next open: gapFactor * (surprise - what leaks priced in). */
-  gap: number;
 }
 
 /** One entry of headlines.json. `text` may contain placeholders such as {COMPANY}. */

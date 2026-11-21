@@ -78,9 +78,14 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     advOf: (symbol) => advBySymbol.get(symbol),
     now: () => market.getDay() + market.getTickOfDay() / config.time.ticksPerCandle,
   });
-  // Milestone 4 streams, appended after the market's so universes and price paths stay the same.
+  // Keep existing streams in their original order and append new ones.
   const newsRng = rng.fork();
   const earningsRng = rng.fork();
+  const shopRng = rng.fork();
+  const secRng = rng.fork();
+  const regimeRng = rng.fork();
+  const earningsLeadRng = rng.fork();
+  const earningsOrderRng = rng.fork();
   const news = createNews({
     config,
     universe,
@@ -88,6 +93,8 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     lists: options.placeholders ?? DEFAULT_PLACEHOLDERS,
     rng: newsRng,
     earningsRng,
+    earningsLeadRng,
+    earningsOrderRng,
   });
   // Milestone 6: leaderboard, statements, recap, awards, projector moments. No randomness.
   const results = createResults({
@@ -102,16 +109,15 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   const tpc = config.time.ticksPerCandle;
   /** Market tick of the step about to be made (shocks.ts / news.ts time). */
   const marketTick = () => market.getDay() * tpc + market.getTickOfDay();
-  // Milestone 5 streams, appended after the news ones.
   const cards = createCardEngine({
     config,
     universe,
     catalog: options.catalog ?? DEFAULT_CATALOG,
     news,
     trading,
-    shopRng: rng.fork(),
-    secRng: rng.fork(),
-    regimeRng: rng.fork(),
+    shopRng,
+    secRng,
+    regimeRng,
     marketTick,
     quarterEndTick: () => quarter * config.time.daysPerQuarter * tpc - 1,
   });

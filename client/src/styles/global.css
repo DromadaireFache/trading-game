@@ -598,6 +598,9 @@ ol {
     'headlines headlines hand'
     'headlines headlines players';
 }
+.desk--final {
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 2fr) auto;
+}
 /* Server errors (rejected order, ...) float as a toast so the grid never jumps. */
 .desk__errors {
   position: fixed;
@@ -619,8 +622,25 @@ ol {
 .desk__chart {
   grid-area: chart;
 }
-.desk__headlines {
+.desk__updates {
   grid-area: headlines;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  gap: 8px;
+  grid-template-rows: minmax(0, 1fr);
+}
+.desk__updates:has(> .earnings) {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+}
+.desk:not(.desk--stage):has(.desk__updates > .earnings) {
+  grid-template-rows: auto minmax(0, 3fr) minmax(0, 6fr) auto;
+}
+@media (min-width: 1140px) {
+  .desk--final .desk__updates:has(> .earnings) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
 }
 .desk__order {
   grid-area: order;

@@ -395,8 +395,9 @@ export const defaultConfig: GameConfig = {
     surpriseSigma: 0.08,
     gapFactor: 1,
     leaksPerQuarter: 4,
-    leakShareMin: 0.3,
-    leakShareMax: 0.6,
+    // Leaks hint at direction while leaving most of the move for the reported beat or miss.
+    leakShareMin: 0.05,
+    leakShareMax: 0.1,
   },
   cards: {
     handLimit: 3,
