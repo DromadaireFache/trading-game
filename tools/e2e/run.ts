@@ -1012,7 +1012,21 @@ async function main(): Promise<void> {
       const latest = headlineFrames('A').at(-1)!;
       const ticker = (await a.locator(tid('news-pop-ticker')).last().textContent())?.trim() ?? '';
       check(ticker.length > 0 && (latest.symbol === undefined || ticker === latest.symbol), `the headline pops up as a paper with its ticker (${ticker}): "${latest.text}"`);
-      check((await a.evaluate(`getComputedStyle(document.querySelector('[data-testid=news-pops]')).pointerEvents`)) === 'none', 'the news popup cannot be clicked');
+      check((await a.evaluate(`getComputedStyle(document.querySelector('[data-testid=news-pops]')).pointerEvents`)) === 'none', 'the pile around the papers lets clicks through');
+      const selectedBefore = await a.getAttribute(tid('selected-symbol'), 'data-symbol');
+      await a.locator(tid('news-pop')).last().click({ position: { x: 60, y: 70 } });
+      check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === selectedBefore, 'clicking a paper does not select its stock');
+      const papers = await a.locator(tid('news-pop')).count();
+      await a.locator(tid('news-pop-close')).last().click();
+      await waitFor('the x dismisses a paper', async () => (await a.locator(tid('news-pop')).count()) < papers);
+      check(true, 'the x dismisses a paper');
+      const seenNow = headlineFrames('A').length;
+      await waitFor('another headline', async () => headlineFrames('A').length > seenNow);
+      await a.waitForSelector(tid('news-pop'));
+      const left = await a.locator(tid('news-pop')).count();
+      await a.keyboard.press('Escape');
+      await waitFor('Escape dismisses a paper', async () => (await a.locator(tid('news-pop')).count()) < left);
+      check(true, 'Escape dismisses the front paper');
       await shot(a, '20-play-headlines');
 
       // Detail modes: Simple hides funds, tickers and the extra rows; Pro shows the raw numbers.

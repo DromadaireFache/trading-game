@@ -1,6 +1,7 @@
 /*
  * Headline popups: newspaper clippings dropped on the desk. Colors and fonts only through var(--tg-...).
- * The whole pile ignores the mouse: you cannot click a headline, you have to find its ticker.
+ * The pile ignores the mouse; a paper can be dragged and dismissed, but nothing on it links to the
+ * stock: you have to find its ticker in the list.
  */
 .news-pops {
   position: relative;
@@ -30,10 +31,23 @@
   box-shadow:
     0 6px 0 var(--tg-color-shadow),
     0 14px 28px color-mix(in srgb, var(--tg-color-shadow) 70%, transparent);
-  /* Older papers slide down and back in the pile. */
-  transform: translate(calc(var(--pop-depth) * 14px), calc(var(--pop-depth) * 26px)) rotate(var(--pop-tilt));
-  animation: paper-drop 380ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  /* Older papers slide down and back in the pile; a dragged paper adds its own offset. */
+  transform: translate(calc(var(--pop-depth) * 14px + var(--drag-x, 0px)), calc(var(--pop-depth) * 26px + var(--drag-y, 0px)))
+    rotate(var(--pop-tilt));
+  animation: paper-drop 380ms cubic-bezier(0.2, 1.4, 0.4, 1) backwards;
   transition: transform 250ms ease, opacity 250ms ease;
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.paper--dragging {
+  z-index: 1;
+  cursor: grabbing;
+  transition: none;
+  box-shadow:
+    0 10px 0 var(--tg-color-shadow),
+    0 22px 36px color-mix(in srgb, var(--tg-color-shadow) 70%, transparent);
 }
 .paper--behind {
   opacity: 0.8;
@@ -61,9 +75,31 @@
   letter-spacing: 0.02em;
 }
 .paper__date {
+  margin-left: auto;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+.paper__close {
+  flex: none;
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  margin-left: 10px;
+  padding: 0;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--tg-color-card-text);
+  background: transparent;
+  border: 2px solid var(--tg-color-card-text);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.paper__close:hover {
+  color: var(--tg-color-card-face);
+  background: var(--tg-color-card-text);
 }
 
 .paper__body {

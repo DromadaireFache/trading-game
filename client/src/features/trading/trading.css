@@ -256,9 +256,9 @@
 .positions__table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 3px;
-  font-size: 13px;
-  line-height: 22px;
+  border-spacing: 0 5px;
+  font-size: 15px;
+  line-height: 38px;
 }
 .positions__table th {
   font-size: 10px;
@@ -274,7 +274,7 @@
 .positions__table td {
   text-align: right;
   white-space: nowrap;
-  padding: 0 3px;
+  padding: 0 8px;
   background: var(--tg-color-bg-inset);
 }
 .positions__table td:first-child {
@@ -301,7 +301,8 @@
 }
 .positions__sym {
   font-family: var(--tg-font-mono);
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 800;
   color: var(--tg-color-text-bright);
 }
 .positions__dir {
@@ -318,10 +319,12 @@
 }
 .positions__close {
   font: inherit;
-  width: 20px;
-  height: 18px;
+  width: 28px;
+  height: 26px;
   padding: 0;
-  line-height: 14px;
+  font-size: 16px;
+  line-height: 20px;
+  vertical-align: middle;
   color: var(--tg-color-text-dim);
   background: transparent;
   border: 2px solid var(--tg-color-border);
