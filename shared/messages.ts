@@ -11,9 +11,12 @@ import type { GameConfig } from './config.ts';
 import type {
   Arrest,
   Award,
+  Briefing,
   Card,
+  EarningsReport,
   CardDirection,
   CardOffer,
+  ForcedFillReason,
   LeaderboardEntry,
   LobbyPlayer,
   MarketSnapshot,
@@ -22,6 +25,7 @@ import type {
   Phase,
   PlayerId,
   Position,
+  QuickBet,
   Recap,
   Role,
   Sector,
@@ -53,11 +57,21 @@ export interface StartMsg {
   t: 'start';
 }
 
+/** FINAL only, any player: a fresh game (next seed) with the connected players back in the lobby. */
+export interface NewGameMsg {
+  t: 'new_game';
+}
+
 /** Market order. qty < 0 = sell/short. */
 export interface OrderMsg {
   t: 'order';
   symbol: SymbolId;
   qty: number;
+  /**
+   * Quick bet (Simple mode): cash this order out by itself at the close of its holdDays-th trading
+   * day (the day in progress counts as the first), and at the latest at the end of the quarter.
+   */
+  holdDays?: number;
 }
 
 export interface BuyCardMsg {
@@ -73,7 +87,7 @@ export interface PlayCardMsg {
   direction?: CardDirection;
 }
 
-export type ClientMsg = JoinMsg | StartMsg | OrderMsg | BuyCardMsg | PlayCardMsg;
+export type ClientMsg = JoinMsg | StartMsg | OrderMsg | BuyCardMsg | PlayCardMsg | NewGameMsg;
 export type ClientMsgType = ClientMsg['t'];
 
 // ---------------------------------------------------------------------------
@@ -109,6 +123,11 @@ export interface WelcomeMsg {
    * the first one when it was itself opened through localhost, where its own address is useless to others.
    */
   joinUrls?: string[];
+  /**
+   * Which game of this server run (1, 2, ...). A `welcome` with another number than the client had
+   * means "play again" started a new game: drop everything from the old one.
+   */
+  game?: number;
 }
 
 export interface LobbyState {
@@ -164,6 +183,7 @@ export interface CandleMsg {
 
 export interface HeadlineMsg {
   t: 'headline';
+  /** Unique per publication (the same template can appear twice in a long game). */
   id: string;
   text: string;
   symbol?: SymbolId;
@@ -172,14 +192,38 @@ export interface HeadlineMsg {
   ts: number;
   /** true = insider preview, sent only to the card holder ahead of the public headline. */
   early?: boolean;
+  /** Set on a rate decision: the policy rate it leaves (0.0325 = 3.25%). */
+  rate?: number;
+}
+
+/** Broadcast when BRIEFING starts, and sent after `welcome` during the quarter it belongs to. */
+export interface BriefingMsg extends Briefing {
+  t: 'briefing';
+}
+
+/**
+ * Broadcast when EARNINGS starts (and replayed after `welcome` until the next BRIEFING). Prices are
+ * frozen outside TRADING, so the gaps show at the next quarter's first tick.
+ */
+export interface EarningsMsg {
+  t: 'earnings';
+  quarter: number;
+  /** Every company, sorted by |gap|, largest first. */
+  reports: EarningsReport[];
 }
 
 /** Sent to the player whose order was filled. */
 export interface FillMsg {
   t: 'fill';
   symbol: SymbolId;
+  /** Signed shares: > 0 bought, < 0 sold. */
   qty: number;
+  /** Fill price including slippage. */
   price: number;
+  /** Set when the server traded on the player's behalf (margin call, elimination). */
+  reason?: ForcedFillReason;
+  /** Game day (fractional) of the fill. */
+  ts?: number;
 }
 
 /** Sent per player. */
@@ -191,10 +235,29 @@ export interface PortfolioMsg {
   heat: number;
   /** Game day until which the player is in jail. */
   jailedUntil?: number;
-  /** Additions to the draft, filled in by later milestones. */
+  /**
+   * Additions to the draft. buyingPower = max(0, leverageCap * equity - gross exposure) at the
+   * prices of the moment it was sent; clients recompute it live from ticks with the same formula.
+   */
   buyingPower?: number;
   hand?: Card[];
   eliminated?: boolean;
+  /** Quick bets still running. */
+  bets?: QuickBet[];
+  /** Quick bets won in a row (display only: it does not change any payout). */
+  streak?: number;
+}
+
+/** A quick bet settled (sent to its player only). */
+export interface BetResultMsg {
+  t: 'bet_result';
+  symbol: SymbolId;
+  qty: number;
+  entryPrice: number;
+  exitPrice: number;
+  pnl: number;
+  /** Wins in a row after this one (0 after a loss). */
+  streak: number;
 }
 
 /** Sent per player (prices scale with the buyer's net worth). */
@@ -255,7 +318,10 @@ export type ServerMsg =
   | TickMsg
   | CandleMsg
   | HeadlineMsg
+  | BriefingMsg
+  | EarningsMsg
   | FillMsg
+  | BetResultMsg
   | PortfolioMsg
   | ShopMsg
   | ResultsMsg

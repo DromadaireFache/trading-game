@@ -68,6 +68,12 @@ export interface GameConfig {
     quickSizePct: number[];
     /** Quick-size buttons: fixed dollar amounts. */
     quickSizeUsd: number[];
+    /** At most this many margin-call liquidations per player per tick (the largest position goes first). */
+    liquidationsPerTick: number;
+    /** Quick bets (Simple mode): trading days a bet runs before it cashes out by itself. */
+    quickBetDays: number;
+    /** Quick bet stakes (Small / Medium / Big) as shares of the player's buying power. */
+    quickBetStakes: number[];
   };
   market: {
     /** Must equal SECTORS.length (10): sector ids are fixed in shared/types.ts. */
@@ -137,6 +143,9 @@ export interface GameConfig {
     /** Starting policy rate (0.03 = 3%) and the size of one rate move. */
     startRate: number;
     rateStep: number;
+    /** The rate decision never takes the policy rate outside [rateMin, rateMax]. */
+    rateMin: number;
+    rateMax: number;
   };
   impact: {
     /** fill_price = mid * (1 + sign(q) * lambda * notional / adv). */
@@ -146,6 +155,13 @@ export interface GameConfig {
     /** temporary = kTemporary * notional / adv, decaying. */
     kTemporary: number;
     temporaryHalfLifeMs: number;
+    /**
+     * Caps on each impact term (fractions / log-returns) so a whale order into a small cap cannot
+     * produce absurd prices. notional / adv itself is not capped.
+     */
+    maxSlippage: number;
+    maxPermanent: number;
+    maxTemporary: number;
   };
   news: {
     /** Log-return applied by a headline of each magnitude. */
@@ -160,6 +176,21 @@ export interface GameConfig {
     randomHeadlinesPerQuarter: number;
     /** Share of random headlines that are neutral noise. */
     noiseShare: number;
+    /** Relative odds of a random (non-noise) headline's scope. */
+    scopeWeights: Record<'market' | 'sector' | 'stock', number>;
+    /** Relative odds of a random headline's magnitude. */
+    magnitudeWeights: Record<HeadlineMagnitude, number>;
+    /** A shock's size is shock[magnitude] * (1 + shockJitter * u), u uniform in [-1, 1]. */
+    shockJitter: number;
+    /** No random headline in the first quietDays trading days of a quarter. */
+    quietDays: number;
+    /**
+     * Names of the quarter's scheduled beats, announced at BRIEFING with their day (direction hidden).
+     * The FIRST one is the central-bank rate decision: it also moves the policy rate by market.rateStep.
+     */
+    beatTitles: string[];
+    /** How many recent headlines a (re)joining client gets. */
+    replayHeadlines: number;
   };
   earnings: {
     /** Std-dev of true_surprise drawn at BRIEFING. */
@@ -167,6 +198,9 @@ export interface GameConfig {
     /** Price gap = gapFactor * (true_surprise - priced_in). */
     gapFactor: number;
     leaksPerQuarter: number;
+    /** A leak prices in a share, drawn in [leakShareMin, leakShareMax], of the surprise not yet priced in. */
+    leakShareMin: number;
+    leakShareMax: number;
   };
   cards: {
     handLimit: number;
@@ -217,6 +251,8 @@ export interface GameConfig {
     countdownRefreshMs: number;
     /** Client: how long a server error stays on screen before it dismisses itself. */
     errorVisibleMs: number;
+    /** Projector: how long a BREAKING moment banner stays on screen. */
+    momentVisibleMs: number;
   };
   net: {
     serverPort: number;
@@ -265,14 +301,20 @@ export const defaultConfig: GameConfig = {
     shortBorrowFeePerDay: 0.0002,
     quickSizePct: [0.1, 0.25, 0.5, 1],
     quickSizeUsd: [1_000_000, 10_000_000, 100_000_000, 500_000_000],
+    liquidationsPerTick: 1,
+    quickBetDays: 5,
+    quickBetStakes: [0.1, 0.25, 0.5],
   },
   market: {
     sectors: 10,
     companiesPerSector: 5,
     marketCapMin: 5e9,
     marketCapMax: 500e9,
-    advFractionOfCapMin: 0.005,
-    advFractionOfCapMax: 0.02,
+    // M7 tuning: 12x the first guess (0.005..0.02), so a winner's orders don't drown in slippage as
+    // net worth grows, while a $500M order still visibly moves a mid-cap (about 0.2-0.8% slippage).
+    // Second pass (with cards): 0.04..0.16 gave a winner median of $0.87B at a 4-skilled-player table.
+    advFractionOfCapMin: 0.06,
+    advFractionOfCapMax: 0.24,
     fundAdvShareOfMembers: 0.25,
     betaMarketMin: 0.5,
     betaMarketMax: 1.6,
@@ -313,26 +355,43 @@ export const defaultConfig: GameConfig = {
     priceDecimals: 2,
     startRate: 0.03,
     rateStep: 0.0025,
+    rateMin: 0,
+    rateMax: 0.12,
   },
   impact: {
     lambda: 0.05,
     kPermanent: 0.02,
     kTemporary: 0.05,
     temporaryHalfLifeMs: 5_000,
+    maxSlippage: 0.15,
+    // kPermanent / lambda (0.4) times maxSlippage: at the cap, permanent impact stays well below what the
+    // order paid in slippage, so a whale cannot buy a mark-up worth more than it cost.
+    maxPermanent: 0.06,
+    maxTemporary: 0.25,
   },
   news: {
-    shock: { small: 0.02, medium: 0.05, large: 0.12, huge: 0.25 },
+    // M7 tuning: only `huge` grew (0.25 -> 0.5). Scheduled beats use medium / large, so the whole market
+    // stays calm while big tradable news lands on stocks and sectors (see scopeWeights).
+    shock: { small: 0.02, medium: 0.05, large: 0.12, huge: 0.5 },
     rampMs: 3_000,
     overshoot: 0.15,
     minGapMs: 2_000,
     scheduledBeatsPerQuarter: 3,
     randomHeadlinesPerQuarter: 12,
     noiseShare: 0.25,
+    scopeWeights: { market: 0.05, sector: 0.3, stock: 0.65 },
+    magnitudeWeights: { small: 0.3, medium: 0.3, large: 0.2, huge: 0.2 },
+    shockJitter: 0.25,
+    quietDays: 2,
+    beatTitles: ['Central bank rate decision', 'Jobs report', 'GDP flash estimate', 'Inflation print'],
+    replayHeadlines: 30,
   },
   earnings: {
     surpriseSigma: 0.08,
     gapFactor: 1,
     leaksPerQuarter: 4,
+    leakShareMin: 0.3,
+    leakShareMax: 0.6,
   },
   cards: {
     handLimit: 3,
@@ -368,6 +427,7 @@ export const defaultConfig: GameConfig = {
     countdownUrgentMs: 5_000,
     countdownRefreshMs: 200,
     errorVisibleMs: 6_000,
+    momentVisibleMs: 6_000,
   },
   net: {
     serverPort: 8787,
@@ -465,6 +525,12 @@ export function validateConfig(config: GameConfig): GameConfig {
     positiveInt('net.maxCatchUpTicks', config.net.maxCatchUpTicks);
     positiveInt('net.reconnectMinMs', config.net.reconnectMinMs);
     positiveInt('presentation.countdownRefreshMs', config.presentation.countdownRefreshMs);
+    positiveInt('trading.liquidationsPerTick', config.trading.liquidationsPerTick);
+    if (config.trading.leverageCap <= 0) problems.push('config.trading.leverageCap must be > 0');
+    if (config.trading.maintenanceMargin * config.trading.leverageCap >= 1) {
+      problems.push('config.trading.maintenanceMargin * leverageCap must be < 1, or a fully levered position is margin-called at once');
+    }
+    if (config.impact.temporaryHalfLifeMs <= 0) problems.push('config.impact.temporaryHalfLifeMs must be > 0');
     for (const [phase, ms] of Object.entries(config.phaseMs)) {
       if (ms <= 0) problems.push(`config.phaseMs.${phase} must be > 0, got ${ms}`);
     }
@@ -508,6 +574,16 @@ export function validateConfig(config: GameConfig): GameConfig {
         if (position > 1) problems.push(`config.market.sectorProfiles.${sector}.${key} must be a position 0..1, got ${position}`);
       }
     }
+    if (m.rateMin > m.rateMax || m.startRate < m.rateMin || m.startRate > m.rateMax) {
+      problems.push('config.market.rateMin <= startRate <= rateMax must hold');
+    }
+    const n = config.news;
+    if (n.shockJitter > 1) problems.push('config.news.shockJitter must be <= 1');
+    if (Object.values(n.scopeWeights).every((w) => w === 0)) problems.push('config.news.scopeWeights must not all be 0');
+    if (Object.values(n.magnitudeWeights).every((w) => w === 0)) problems.push('config.news.magnitudeWeights must not all be 0');
+    if (n.scheduledBeatsPerQuarter > n.beatTitles.length) problems.push('config.news.beatTitles needs one title per scheduled beat');
+    const e = config.earnings;
+    if (e.leakShareMin > e.leakShareMax || e.leakShareMax > 1) problems.push('config.earnings.leakShareMin must be <= leakShareMax <= 1');
     for (const sector of m.rateLovingSectors) {
       if (!SECTORS.includes(sector)) problems.push(`config.market.rateLovingSectors: unknown sector "${String(sector)}"`);
     }

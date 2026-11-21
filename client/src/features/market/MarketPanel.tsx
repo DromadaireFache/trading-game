@@ -1,4 +1,5 @@
 import { Panel, Placeholder } from '../../components/Panel.tsx';
+import { useUiMode } from '../../lib/uiMode.ts';
 import { useSelectedSymbol, useSymbols } from '../../net/marketHooks.ts';
 import { CandleChart } from './CandleChart.tsx';
 import { SymbolHeader } from './SymbolHeader.tsx';
@@ -23,11 +24,18 @@ export function MarketPanel({ listClassName, chartClassName }: MarketPanelProps)
 
 function SymbolListPanel({ className }: { className?: string }) {
   const symbols = useSymbols();
+  const mode = useUiMode();
   const stocks = symbols.filter((s) => s.kind === 'stock').length;
+  const aside =
+    symbols.length === 0
+      ? undefined
+      : mode === 'simple'
+        ? '% = up or down this quarter'
+        : `${stocks} companies, ${symbols.length - stocks} funds · % = change this quarter`;
   return (
     <Panel
-      title="Market"
-      aside={symbols.length > 0 ? `${stocks} stocks / ${symbols.length - stocks} funds  -  % since quarter open` : undefined}
+      title={mode === 'simple' ? 'Pick a company' : 'Pick a stock'}
+      aside={aside}
       className={`market-list${className ? ` ${className}` : ''}`}
     >
       {symbols.length > 0 ? <SymbolList /> : <Placeholder>Waiting for market data...</Placeholder>}
@@ -37,14 +45,16 @@ function SymbolListPanel({ className }: { className?: string }) {
 
 function ChartPanel({ className }: { className?: string }) {
   const selected = useSelectedSymbol();
+  const mode = useUiMode();
+  const aside = mode === 'simple' ? 'its price, day by day' : '1 candle = 1 day: green went up, red went down';
   return (
-    <Panel title="Chart" aside="daily candles" className={`market-chart${className ? ` ${className}` : ''}`}>
+    <Panel title="Price" aside={aside} className={`market-chart${className ? ` ${className}` : ''}`}>
       {selected === null ? (
         <Placeholder>Waiting for market data...</Placeholder>
       ) : (
         <>
           <SymbolHeader symbol={selected} />
-          <CandleChart symbol={selected} />
+          <CandleChart symbol={selected} kind={mode === 'simple' ? 'line' : 'candles'} />
         </>
       )}
     </Panel>

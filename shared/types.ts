@@ -192,6 +192,21 @@ export interface Position {
   qty: number;
   /** Volume-weighted average entry price. */
   avgPrice: number;
+  /** P&L already banked on this symbol this game (partial closes, flips, borrow fees excluded). */
+  realized?: number;
+}
+
+/** Why a fill happened when the player did not ask for it. */
+export type ForcedFillReason = 'margin_call' | 'elimination' | 'timed';
+
+/** A quick bet still running (Simple mode): it cashes out by itself at the close of `closeAtDay`. */
+export interface QuickBet {
+  symbol: SymbolId;
+  /** Signed shares of the bet (> 0 = UP). */
+  qty: number;
+  entryPrice: number;
+  /** Game day whose close settles it. */
+  closeAtDay: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +226,37 @@ export type HeadlineCategory =
   | 'absurd'
   | 'regime_followup';
 export type HeadlineKind = 'real' | 'fake_template' | 'debunk' | 'event';
+
+/** A scheduled beat announced at BRIEFING: its day is known, its direction is not. */
+export interface ScheduledBeat {
+  /** Game day (0-based trading day since the start) it lands on. */
+  day: number;
+  title: string;
+}
+
+/** What every player learns at BRIEFING. */
+export interface Briefing {
+  quarter: number;
+  /** Policy rate at the start of the quarter (0.03 = 3%). */
+  rate: number;
+  beats: ScheduledBeat[];
+  /** Names of the regimes running this quarter (M5). */
+  regimes: string[];
+  /**
+   * Earnings consensus: the quarter's expected EPS per company, $ per share (revenue * margin / 4 /
+   * shares). At EARNINGS a company beats or misses it by its hidden surprise.
+   */
+  consensus?: Record<SymbolId, number>;
+}
+
+/** One company's quarter result at EARNINGS. */
+export interface EarningsReport {
+  symbol: SymbolId;
+  /** EPS against consensus: +0.08 = beat by 8%. */
+  surprise: number;
+  /** Log-return still to come at the next open: gapFactor * (surprise - what leaks priced in). */
+  gap: number;
+}
 
 /** One entry of headlines.json. `text` may contain placeholders such as {COMPANY}. */
 export interface HeadlineTemplate {

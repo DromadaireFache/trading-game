@@ -162,6 +162,11 @@ export class GameClient {
     return this.send({ t: 'start' });
   }
 
+  /** FINAL only: everyone back to the lobby for a fresh game. */
+  newGame(): boolean {
+    return this.send({ t: 'new_game' });
+  }
+
   dismissError(): void {
     if (this.state.error) this.patch({ error: null });
   }

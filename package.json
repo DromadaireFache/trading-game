@@ -20,7 +20,8 @@
     "generate-headlines": "tsx tools/generate-headlines/index.ts",
     "pull-headlines": "tsx tools/generate-headlines/pull.ts",
     "build": "npm run typecheck && npm run build -w @tg/client",
-    "e2e": "npm run e2e -w @tg/tools"
+    "e2e": "npm run e2e -w @tg/tools",
+    "balance": "npm run balance -w @tg/tools --"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

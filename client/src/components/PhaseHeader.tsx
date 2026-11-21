@@ -3,7 +3,9 @@ import { useCountdown } from '../hooks/useCountdown.ts';
 import { PHASE_HINT, PHASE_LABEL } from '../lib/phases.ts';
 import { formatQuarter } from '../lib/time.ts';
 import { useGame } from '../net/GameProvider.tsx';
+import { SoundToggle } from '../features/fx/SoundToggle.tsx';
 import { ConnectionBadge } from './ConnectionBadge.tsx';
+import { ModeToggle } from './ModeToggle.tsx';
 
 /**
  * Top bar of /play: always shows the current phase, the quarter (Q3/8) and the live countdown,
@@ -45,7 +47,11 @@ export function PhaseHeader() {
 
       <div className="phase-header__me">
         {me && <span className="phase-header__player" data-testid="me-name">{me.name}</span>}
-        <ConnectionBadge />
+        <span className="phase-header__status">
+          <ModeToggle />
+          <SoundToggle />
+          <ConnectionBadge />
+        </span>
       </div>
 
       <div className="phase-header__progress" aria-hidden="true">

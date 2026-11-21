@@ -11,9 +11,12 @@
 import type {
   Arrest,
   Award,
+  Briefing,
   Card,
+  EarningsReport,
   CardDirection,
   CardOffer,
+  ForcedFillReason,
   GameConfig,
   LeaderboardEntry,
   MarketSnapshot,
@@ -22,11 +25,17 @@ import type {
   Phase,
   PlayerId,
   Position,
+  QuickBet,
   Recap,
   Sector,
   Statement,
   SymbolId,
 } from '@tg/shared';
+import type { HeadlineTemplate } from '@tg/shared';
+import type { PlaceholderLists } from './headlines.ts';
+import type { News } from './news.ts';
+import type { CardEngine } from './cardEngine.ts';
+import type { CardCatalogEntry } from '@tg/shared/cards';
 import type { Universe } from './universe.ts';
 
 // ---------------------------------------------------------------------------
@@ -40,8 +49,9 @@ export type SimIntent =
   | { kind: 'remove_player'; playerId: PlayerId }
   /** LOBBY only; needs config.lobby.minPlayers players. */
   | { kind: 'start'; playerId: PlayerId }
+  /** TRADING only. qty in shares, < 0 = sell/short; truncated to whole shares. holdDays = quick bet. */
+  | { kind: 'order'; playerId: PlayerId; symbol: SymbolId; qty: number; holdDays?: number }
   // --- later milestones (the stub rejects them) ---
-  | { kind: 'order'; playerId: PlayerId; symbol: SymbolId; qty: number }
   | { kind: 'buy_card'; playerId: PlayerId; offerId: string }
   | { kind: 'play_card'; playerId: PlayerId; cardId: string; target?: string; direction?: CardDirection };
 
@@ -57,6 +67,16 @@ export type SimRejectCode =
   | 'not_enough_players'
   | 'game_full'
   | 'invalid'
+  | 'unknown_symbol'
+  | 'insufficient_buying_power'
+  | 'eliminated'
+  | 'jailed'
+  | 'hand_full'
+  | 'insufficient_funds'
+  | 'unknown_card'
+  | 'no_target'
+  | 'regime_cap'
+  | 'nothing_to_tip'
   | 'not_implemented';
 
 export type SimEvent =
@@ -74,8 +94,13 @@ export type SimEvent =
   | { e: 'candle'; day: number; ohlc: Record<SymbolId, OHLC> }
   // --- later milestones: shapes mirror the wire messages in @tg/shared ---
   /** `to` set = private (insider preview with early: true); unset = broadcast. */
-  | { e: 'headline'; to?: PlayerId; id: string; text: string; symbol?: SymbolId; sector?: Sector; ts: number; early?: boolean }
-  | { e: 'fill'; playerId: PlayerId; symbol: SymbolId; qty: number; price: number }
+  | { e: 'headline'; to?: PlayerId; id: string; text: string; symbol?: SymbolId; sector?: Sector; ts: number; early?: boolean; rate?: number }
+  /** Milestone 4: right after the BRIEFING phase event. */
+  | ({ e: 'briefing' } & Briefing)
+  /** Milestone 4: right after the EARNINGS phase event. Gaps show at the next quarter's first tick. */
+  | { e: 'earnings'; quarter: number; reports: EarningsReport[] }
+  /** Milestone 3: a market order (or a forced close) was filled. Price unrounded. */
+  | { e: 'fill'; playerId: PlayerId; symbol: SymbolId; qty: number; price: number; ts: number; reason?: ForcedFillReason }
   | {
       e: 'portfolio';
       playerId: PlayerId;
@@ -87,7 +112,11 @@ export type SimEvent =
       buyingPower?: number;
       hand?: Card[];
       eliminated?: boolean;
+      bets?: QuickBet[];
+      streak?: number;
     }
+  /** A quick bet settled at the close of its last day. */
+  | { e: 'bet_result'; playerId: PlayerId; symbol: SymbolId; qty: number; entryPrice: number; exitPrice: number; pnl: number; streak: number }
   | { e: 'shop'; playerId: PlayerId; offers: CardOffer[] }
   | {
       e: 'results';
@@ -158,6 +187,40 @@ export interface Sim {
    * it, rounded, as the `market` message after each `welcome`. Returns fresh objects.
    */
   getMarketSnapshot(): MarketSnapshot;
+  /**
+   * A player's portfolio at current prices (unrounded), or undefined for an unknown player.
+   * The shell sends it after `welcome` so a reconnect restores cash and positions at once.
+   */
+  getPortfolio(playerId: PlayerId): SimEventOf<'portfolio'> | undefined;
+  /**
+   * The latest `results` event (a quarter's, or the final one with awards), or null before the first
+   * RESULTS. The shell sends it to a player who (re)joins during RESULTS, SHOP or FINAL.
+   */
+  getResults(): SimEventOf<'results'> | null;
+  /**
+   * What a (re)joining client needs to show the news: this quarter's briefing, the latest earnings
+   * (until the next BRIEFING) and the last config.news.replayHeadlines public headlines, oldest first.
+   */
+  getNewsSnapshot(): {
+    briefing: SimEventOf<'briefing'> | null;
+    earnings: SimEventOf<'earnings'> | null;
+    headlines: SimEventOf<'headline'>[];
+  };
+  /** The news engine (published headlines with their causes, the queue, earnings plan). */
+  readonly news: News;
+  /** This player's shop offers while the phase is SHOP (reconnect), else null. */
+  getShop(playerId: PlayerId): SimEventOf<'shop'> | null;
+  /** Hands, heat, jail, regimes (M5). */
+  readonly cards: CardEngine;
 }
 
-export type CreateSim = (seed: number, config: GameConfig) => Sim;
+export interface SimOptions {
+  /** Headline database (default: shared/data via ./data/headlineData.ts). */
+  headlines?: readonly HeadlineTemplate[];
+  /** Placeholder fill lists (default: shared/data/placeholders.json). */
+  placeholders?: PlaceholderLists;
+  /** Card catalog (default: shared/data/cards.json). */
+  catalog?: readonly CardCatalogEntry[];
+}
+
+export type CreateSim = (seed: number, config: GameConfig, options?: SimOptions) => Sim;

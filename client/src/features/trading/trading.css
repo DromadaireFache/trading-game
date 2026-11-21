@@ -1,0 +1,470 @@
+/*
+ * Trading feature: placing a bet and your money.
+ * Colors and fonts only through var(--tg-...) from theme.ts.
+ */
+
+/* ---------------------------------------------------------------- place a bet */
+
+.order .panel__body {
+  gap: 6px;
+  padding: 2px 10px 10px;
+}
+.order__on {
+  color: var(--tg-color-text);
+  font-family: var(--tg-font-mono);
+}
+.order__on strong {
+  color: var(--tg-color-text-bright);
+}
+.order__sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.order__side {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 4px;
+  font: inherit;
+  color: var(--tg-color-text-dim);
+  background: var(--tg-color-bg-inset);
+  border: 2px solid var(--tg-color-border);
+  border-radius: 10px;
+  box-shadow: 0 3px 0 var(--tg-color-shadow);
+  cursor: pointer;
+}
+.order__side-main {
+  font-family: var(--tg-font-display);
+  font-size: 15px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.order__side-sub {
+  /* The plain-words meaning is in the tooltip, the header hint and the lobby rules: the button stays one line. */
+  display: none;
+}
+.order__side--buy.order__side--on {
+  color: var(--tg-color-on-up);
+  background: var(--tg-color-up);
+  border-color: color-mix(in srgb, var(--tg-color-up) 70%, var(--tg-color-shadow));
+}
+.order__side--sell.order__side--on {
+  color: var(--tg-color-on-down);
+  background: var(--tg-color-down);
+  border-color: color-mix(in srgb, var(--tg-color-down) 70%, var(--tg-color-shadow));
+}
+.order__side:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--tg-color-shadow);
+}
+.order__row {
+  display: grid;
+  grid-template-columns: 9ch repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  align-items: center;
+}
+.order__label,
+.order__fact-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tg-color-text-dim);
+  white-space: nowrap;
+}
+.order__size,
+.order__cash {
+  font: inherit;
+  font-family: var(--tg-font-display);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 4px 2px;
+  color: var(--tg-color-text-bright);
+  background: var(--tg-color-panel-raised);
+  border: 2px solid var(--tg-color-border-strong);
+  border-radius: 8px;
+  box-shadow: 0 3px 0 var(--tg-color-shadow);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.order__size--buy:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tg-color-up) 35%, var(--tg-color-panel-raised));
+  border-color: var(--tg-color-up);
+}
+.order__size--sell:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tg-color-down) 35%, var(--tg-color-panel-raised));
+  border-color: var(--tg-color-down);
+}
+.order__cash:hover:not(:disabled) {
+  border-color: var(--tg-color-accent);
+}
+.order__size:active:not(:disabled),
+.order__cash:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--tg-color-shadow);
+}
+.order__size:disabled,
+.order__cash:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.order__held-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 5px;
+  align-items: center;
+}
+.order__cash {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.order__held {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--tg-color-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.order__held--up {
+  color: var(--tg-color-up);
+}
+.order__held--down {
+  color: var(--tg-color-down);
+}
+.order__facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+.order__can {
+  white-space: nowrap;
+}
+.order__fact-value {
+  font-family: var(--tg-font-display);
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--tg-color-text-bright);
+}
+.order__risk {
+  --risk-color: var(--tg-color-up);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.order__risk--mid {
+  --risk-color: var(--tg-color-warn);
+}
+.order__risk--high {
+  --risk-color: var(--tg-color-down);
+}
+.order__risk-bar {
+  flex: 1;
+  display: block;
+  height: 10px;
+  background: var(--tg-color-bg-inset);
+  border: 1px solid var(--tg-color-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.order__risk-fill {
+  display: block;
+  height: 100%;
+  background: var(--risk-color);
+  transform-origin: left center;
+}
+.order__status {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tg-color-warn);
+}
+.order__fill {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--tg-color-bg-inset);
+  border: 2px solid var(--tg-color-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.order__fill--forced {
+  color: var(--tg-color-warn);
+  border-color: var(--tg-color-warn);
+}
+
+/* ---------------------------------------------------------------- your money */
+
+.positions .panel__body {
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+.positions__score {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.positions__worth {
+  font-family: var(--tg-font-display);
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--tg-color-accent);
+  text-shadow: 0 2px 0 var(--tg-color-shadow);
+}
+.positions__pnl {
+  font-weight: 800;
+  font-size: 13px;
+}
+.positions__sub {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--tg-color-text-dim);
+}
+.positions__sub strong {
+  color: var(--tg-color-text);
+}
+.positions__out {
+  padding: 5px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--tg-color-text-bright);
+  background: color-mix(in srgb, var(--tg-color-down) 60%, var(--tg-color-panel));
+  border: 2px solid var(--tg-color-down);
+  border-radius: 8px;
+}
+.positions__empty {
+  font-size: 12px;
+  color: var(--tg-color-text-dim);
+}
+.positions__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 3px;
+  font-size: 12px;
+  line-height: 20px;
+}
+.positions__table th {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--tg-color-text-dim);
+  text-align: right;
+  text-transform: uppercase;
+}
+.positions__table th:first-child,
+.positions__table td:first-child {
+  text-align: left;
+}
+.positions__table td {
+  text-align: right;
+  white-space: nowrap;
+  padding: 0 3px;
+  background: var(--tg-color-bg-inset);
+}
+.positions__table td:first-child {
+  border-radius: 6px 0 0 6px;
+}
+.positions__table td:last-child {
+  border-radius: 0 6px 6px 0;
+}
+.positions__row {
+  cursor: pointer;
+}
+.positions__row:hover td {
+  background: var(--tg-color-panel-raised);
+}
+.positions__row--selected td {
+  background: color-mix(in srgb, var(--tg-color-accent) 18%, var(--tg-color-bg-inset));
+}
+.positions__sym {
+  font-family: var(--tg-font-mono);
+  font-weight: 700;
+  color: var(--tg-color-text-bright);
+}
+.positions__dir {
+  font-weight: 800;
+}
+.positions__dir--up {
+  color: var(--tg-color-up);
+}
+.positions__dir--down {
+  color: var(--tg-color-down);
+}
+.positions__profit {
+  font-weight: 800;
+}
+.positions__close {
+  font: inherit;
+  width: 20px;
+  height: 18px;
+  padding: 0;
+  line-height: 14px;
+  color: var(--tg-color-text-dim);
+  background: transparent;
+  border: 2px solid var(--tg-color-border);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.positions__close:hover:not(:disabled) {
+  color: var(--tg-color-text-bright);
+  border-color: var(--tg-color-down);
+  background: color-mix(in srgb, var(--tg-color-down) 35%, transparent);
+}
+.positions__close:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ---------------------------------------------------------------- detail modes */
+
+.order__row--3 {
+  grid-template-columns: 9ch repeat(3, minmax(0, 1fr));
+}
+.order__risk-word {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--risk-color);
+  white-space: nowrap;
+}
+.positions__name {
+  font-weight: 700;
+  color: var(--tg-color-text-bright);
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------------------------------------------------------------- quick bets (Simple mode) */
+
+.quick__stakes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.quick__stake {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px 2px;
+  font: inherit;
+  color: var(--tg-color-text);
+  background: var(--tg-color-bg-inset);
+  border: 2px solid var(--tg-color-border);
+  border-radius: 10px;
+  box-shadow: 0 3px 0 var(--tg-color-shadow);
+  cursor: pointer;
+}
+.quick__stake--on {
+  color: var(--tg-color-on-accent);
+  background: var(--tg-color-accent);
+  border-color: var(--tg-color-accent);
+}
+.quick__stake-label {
+  font-family: var(--tg-font-display);
+  font-size: 14px;
+  font-weight: 900;
+}
+.quick__stake-usd {
+  font-size: 11px;
+  font-weight: 700;
+}
+.quick__dirs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.quick__dir {
+  padding: 8px 4px;
+  font: inherit;
+  font-family: var(--tg-font-display);
+  font-size: 15px;
+  font-weight: 900;
+  text-transform: uppercase;
+  border: 2px solid var(--tg-color-shadow);
+  border-radius: 12px;
+  box-shadow: 0 4px 0 var(--tg-color-shadow);
+  cursor: pointer;
+}
+.quick__dir--up {
+  color: var(--tg-color-on-up);
+  background: var(--tg-color-up);
+}
+.quick__dir--down {
+  color: var(--tg-color-on-down);
+  background: var(--tg-color-down);
+}
+.quick__dir:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.quick__dir:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--tg-color-shadow);
+}
+.quick__dir:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.quick__note {
+  font-size: 12px;
+  color: var(--tg-color-text-dim);
+}
+
+/* Results and streak in Your money. */
+.bets {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.bets__hint {
+  font-size: 12px;
+  color: var(--tg-color-text-dim);
+}
+.bets__streak {
+  align-self: flex-start;
+  padding: 1px 8px;
+  font-family: var(--tg-font-display);
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--tg-color-text-dim);
+  background: var(--tg-color-bg-inset);
+  border: 2px solid var(--tg-color-border);
+  border-radius: 999px;
+}
+.bets__streak--hot {
+  color: var(--tg-color-on-accent);
+  background: var(--tg-color-accent);
+  border-color: var(--tg-color-accent);
+}
+.bets__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bets__item {
+  display: grid;
+  grid-template-columns: 1.4em minmax(0, 1fr) auto;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.bets__item--win {
+  color: var(--tg-color-up);
+}
+.bets__item--loss {
+  color: var(--tg-color-down);
+}
+.bets__name {
+  color: var(--tg-color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.positions__ends {
+  color: var(--tg-color-info);
+  font-weight: 700;
+}

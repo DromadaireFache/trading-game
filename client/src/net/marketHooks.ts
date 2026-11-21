@@ -27,6 +27,12 @@ export function useQuote(symbol: SymbolId | null): Quote | undefined {
   return useSyncExternalStore(subscribe, () => (symbol === null ? undefined : market.getQuote(symbol)));
 }
 
+/** The latest trading day with data (-1 before the first tick); re-renders once per day, not per tick. */
+export function useLastDay(): number {
+  const market = useMarketStore();
+  return useSyncExternalStore(market.subscribeFeed, () => market.getLastDay());
+}
+
 /** The symbol selected in the list (shared by chart, header and later the order panel). */
 export function useSelectedSymbol(): SymbolId | null {
   const market = useMarketStore();

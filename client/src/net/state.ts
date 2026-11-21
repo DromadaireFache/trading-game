@@ -7,7 +7,24 @@
  * to raw messages with GameClient.onMessage and keep their own buffers.
  */
 import { defaultConfig } from '@tg/shared';
-import type { ErrorCode, GameConfig, LobbyState, PhaseInfo, PlayerId, Role, ServerMsg } from '@tg/shared';
+import type {
+  BetResultMsg,
+  Briefing,
+  CardOffer,
+  EarningsMsg,
+  ErrorCode,
+  FillMsg,
+  GameConfig,
+  HeadlineMsg,
+  LobbyState,
+  MomentMsg,
+  PhaseInfo,
+  PlayerId,
+  PortfolioMsg,
+  ResultsMsg,
+  Role,
+  ServerMsg,
+} from '@tg/shared';
 
 /**
  * idle: not started. connecting: first attempt. open: socket is up.
@@ -36,6 +53,8 @@ export interface GameState {
   join: JoinStatus;
   /** Set by `welcome`; kept across reconnects so the UI does not flash back to name entry. */
   me: Me | null;
+  /** Game number from `welcome` (1, 2, ... after "play again"). */
+  game: number;
   /** Effective server config once welcomed; shared defaults before that. */
   config: GameConfig;
   phase: PhaseInfo | null;
@@ -47,12 +66,48 @@ export interface GameState {
   error: GameError | null;
   /** Another tab took over this session; this tab stays disconnected until it is reloaded. */
   replaced: boolean;
+  /** Latest `portfolio` from the server (players only). Live values are recomputed from ticks. */
+  portfolio: Portfolio | null;
+  /** This player's fills, newest first, at most MAX_FILLS. */
+  fills: FillRecord[];
+  /** Public headlines, newest first, at most MAX_HEADLINES, unique by id. */
+  headlines: Omit<HeadlineMsg, 't'>[];
+  /** This quarter's briefing (beats, rate). */
+  briefing: Briefing | null;
+  /** Latest earnings reports, until the next briefing. */
+  earnings: Omit<EarningsMsg, 't'> | null;
+  /** This SHOP's offers for this player (prices are personal). */
+  shop: CardOffer[];
+  /** Settled quick bets, newest first, at most MAX_BET_RESULTS. */
+  betResults: BetResult[];
+  /** Latest quarter (or final) results; shown in RESULTS and FINAL, kept until the next ones. */
+  results: Omit<ResultsMsg, 't'> | null;
+  /** Latest projector moment and when it arrived (client ms); the floor shows it for a few seconds. */
+  moment: (Omit<MomentMsg, 't'> & { at: number }) | null;
 }
+
+export const MAX_HEADLINES = 60;
+export const MAX_BET_RESULTS = 8;
+
+export interface BetResult extends Omit<BetResultMsg, 't'> {
+  /** Running number, so the UI can celebrate a new result even when it looks like the last one. */
+  seq: number;
+}
+
+export type Portfolio = Omit<PortfolioMsg, 't'>;
+
+export interface FillRecord extends Omit<FillMsg, 't'> {
+  /** Running number, so the UI can flash a new fill even when it looks like the last one. */
+  seq: number;
+}
+
+export const MAX_FILLS = 20;
 
 export const initialGameState: GameState = {
   connection: 'idle',
   join: 'none',
   me: null,
+  game: 0,
   config: defaultConfig,
   phase: null,
   lobby: null,
@@ -60,14 +115,33 @@ export const initialGameState: GameState = {
   clockOffsetMs: 0,
   error: null,
   replaced: false,
+  portfolio: null,
+  fills: [],
+  headlines: [],
+  briefing: null,
+  earnings: null,
+  shop: [],
+  betResults: [],
+  results: null,
+  moment: null,
 };
 
 /** Folds one server message into the state. Returns the same object when nothing changed. */
 export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): GameState {
   switch (msg.t) {
-    case 'welcome':
+    case 'welcome': {
+      const game = msg.game ?? 1;
+      // "Play again" started another game: nothing of the old one stays on screen.
+      if (state.game !== 0 && game !== state.game) {
+        state = { ...state, portfolio: null, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null, shop: [], betResults: [] };
+      }
+      // Same seat after a reconnect: keep the trading history. Another seat: start clean.
+      const sameSeat = state.me?.playerId === msg.playerId;
       return {
         ...state,
+        game,
+        portfolio: sameSeat ? state.portfolio : null,
+        fills: sameSeat ? state.fills : [],
         join: 'joined',
         me: { playerId: msg.playerId, name: msg.name, role: msg.role },
         config: msg.config,
@@ -77,6 +151,16 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
         clockOffsetMs: msg.phase.serverTime - now,
         error: null,
       };
+    }
+    case 'portfolio': {
+      const { t: _t, ...portfolio } = msg;
+      return { ...state, portfolio };
+    }
+    case 'fill': {
+      const { t: _t, ...fill } = msg;
+      const seq = (state.fills[0]?.seq ?? 0) + 1;
+      return { ...state, fills: [{ ...fill, seq }, ...state.fills].slice(0, MAX_FILLS) };
+    }
     case 'lobby': {
       const { t: _t, ...lobby } = msg;
       return { ...state, lobby };
@@ -93,13 +177,37 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
     case 'candle':
       return state;
     // Later milestones: fold these into their own slices.
-    case 'headline':
-    case 'fill':
-    case 'portfolio':
+    case 'headline': {
+      // Replays after a reconnect repeat ids we already have.
+      if (state.headlines.some((h) => h.id === msg.id && !h.early === !msg.early)) return state;
+      const { t: _t, ...headline } = msg;
+      const rest = msg.early ? state.headlines : state.headlines.filter((h) => h.id !== msg.id);
+      return { ...state, headlines: [headline, ...rest].slice(0, MAX_HEADLINES) };
+    }
+    case 'briefing': {
+      const { t: _t, ...briefing } = msg;
+      // A new quarter: last quarter's earnings are history.
+      return { ...state, briefing, earnings: null };
+    }
+    case 'earnings': {
+      const { t: _t, ...earnings } = msg;
+      return { ...state, earnings };
+    }
+    case 'results': {
+      const { t: _t, ...results } = msg;
+      return { ...state, results };
+    }
+    case 'moment': {
+      const { t: _t, ...moment } = msg;
+      return { ...state, moment: { ...moment, at: now } };
+    }
     case 'shop':
-    case 'results':
-    case 'moment':
-      return state;
+      return { ...state, shop: msg.offers };
+    case 'bet_result': {
+      const { t: _t, ...result } = msg;
+      const seq = (state.betResults[0]?.seq ?? 0) + 1;
+      return { ...state, betResults: [{ ...result, seq }, ...state.betResults].slice(0, MAX_BET_RESULTS) };
+    }
     default: {
       // Unknown `t` from a newer server: ignore rather than crash.
       const _exhaustive: never = msg;

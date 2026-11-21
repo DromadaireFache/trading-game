@@ -1,0 +1,240 @@
+/*
+ * Effects: shake, popups, particles, CRT backdrop, and the shared "juice" keyframes used by the results
+ * screens. Theme tokens only. Every animation here runs once per EVENT, never per tick.
+ */
+
+.fx-root {
+  position: relative;
+  height: 100%;
+}
+/* Clip only while shaking, so a shake never adds scrollbars (the e2e checks overflow). */
+.fx-root--shake-1,
+.fx-root--shake-2,
+.fx-root--shake-3 {
+  overflow: hidden;
+}
+.fx-root--shake-1 > :first-child {
+  animation: fx-shake 0.28s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  --fx-shake: 3px;
+}
+.fx-root--shake-2 > :first-child {
+  animation: fx-shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  --fx-shake: 7px;
+}
+.fx-root--shake-3 > :first-child {
+  animation: fx-shake 0.7s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+  --fx-shake: 14px;
+}
+@keyframes fx-shake {
+  10%,
+  90% {
+    transform: translate(calc(var(--fx-shake) * -0.3), calc(var(--fx-shake) * 0.2)) rotate(-0.15deg);
+  }
+  20%,
+  80% {
+    transform: translate(calc(var(--fx-shake) * 0.6), calc(var(--fx-shake) * -0.4)) rotate(0.25deg);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translate(calc(var(--fx-shake) * -1), calc(var(--fx-shake) * 0.5)) rotate(-0.35deg);
+  }
+  40%,
+  60% {
+    transform: translate(var(--fx-shake), calc(var(--fx-shake) * -0.6)) rotate(0.35deg);
+  }
+}
+
+.fx-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  pointer-events: none;
+}
+.fx-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.fx-popup {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--fx-color);
+  text-shadow:
+    0 2px 0 var(--tg-color-bg),
+    0 0 14px color-mix(in srgb, var(--fx-color) 70%, transparent);
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--tg-color-bg) 70%, transparent);
+  animation: fx-rise 1.15s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+.fx-popup--up {
+  --fx-color: var(--tg-color-up);
+}
+.fx-popup--down {
+  --fx-color: var(--tg-color-down);
+}
+.fx-popup--accent {
+  --fx-color: var(--tg-color-accent);
+}
+.fx-popup--info {
+  --fx-color: var(--tg-color-info);
+}
+.fx-popup--warn {
+  --fx-color: var(--tg-color-warn);
+}
+@keyframes fx-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.4) rotate(-6deg);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -70%) scale(1.25) rotate(3deg);
+  }
+  30% {
+    transform: translate(-50%, -85%) scale(1) rotate(-1deg);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -200%) scale(0.9) rotate(0deg);
+  }
+}
+
+/* CRT backdrop: static scanlines + vignette over everything. No animation, no input. */
+.fx-crt {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--tg-color-bg-inset) 0%, transparent) 0px,
+      color-mix(in srgb, var(--tg-color-bg-inset) 0%, transparent) 2px,
+      color-mix(in srgb, var(--tg-color-bg-inset) 22%, transparent) 3px
+    ),
+    radial-gradient(ellipse at center, transparent 60%, color-mix(in srgb, var(--tg-color-bg-inset) 55%, transparent) 100%);
+  mix-blend-mode: multiply;
+}
+
+/* A panel that just got news: one bright pulse. */
+.fx-pulse {
+  animation: fx-pulse 0.6s ease-out;
+}
+@keyframes fx-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--tg-color-accent) 70%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--tg-color-accent) 0%, transparent);
+  }
+}
+
+/* Dealt in: the results rows, recap cards and award cards land with an overshoot, one after another. */
+.fx-deal {
+  animation: fx-deal 0.55s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  animation-delay: calc(var(--fx-i, 0) * 140ms);
+}
+@keyframes fx-deal {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.85) rotate(-2deg);
+  }
+}
+.fx-flip {
+  animation: fx-flip 0.6s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  animation-delay: calc(400ms + var(--fx-i, 0) * 220ms);
+  transform-origin: center;
+}
+@keyframes fx-flip {
+  from {
+    opacity: 0;
+    transform: perspective(600px) rotateY(-90deg) scale(0.9);
+  }
+}
+/* A number that just finished counting: a quick scale pop. */
+.fx-bump {
+  display: inline-block;
+  animation: fx-bump 0.35s cubic-bezier(0.2, 1.8, 0.4, 1);
+}
+@keyframes fx-bump {
+  40% {
+    transform: scale(1.35);
+  }
+}
+/* Cards you can pick up: tilt toward the pointer side and lift a little on hover. */
+.fx-tilt {
+  transition:
+    transform 0.18s cubic-bezier(0.2, 1.6, 0.4, 1),
+    box-shadow 0.18s ease-out;
+}
+.fx-tilt:hover {
+  transform: translateY(-4px) rotate(-1.5deg) scale(1.03);
+  box-shadow: 0 8px 0 color-mix(in srgb, var(--tg-color-bg-inset) 80%, transparent);
+}
+.fx-tilt:nth-child(even):hover {
+  transform: translateY(-4px) rotate(1.5deg) scale(1.03);
+}
+/* Slow idle wobble for things that deserve attention (the winner). */
+.fx-wobble {
+  animation: fx-wobble 3.2s ease-in-out infinite;
+}
+@keyframes fx-wobble {
+  0%,
+  100% {
+    transform: rotate(-0.6deg);
+  }
+  50% {
+    transform: rotate(0.6deg) scale(1.01);
+  }
+}
+
+.sound-toggle {
+  font: inherit;
+  font-size: 11px;
+  padding: 1px 6px;
+  border: 1px solid var(--tg-color-border-strong);
+  border-radius: 3px;
+  background: var(--tg-color-panel-raised);
+  color: var(--tg-color-text-dim);
+  cursor: pointer;
+  letter-spacing: 0.06em;
+}
+.sound-toggle:hover {
+  color: var(--tg-color-text-bright);
+}
+.sound-toggle--off {
+  text-decoration: line-through;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-root > :first-child,
+  .fx-popup,
+  .fx-deal,
+  .fx-flip,
+  .fx-bump,
+  .fx-wobble,
+  .fx-pulse {
+    animation: none !important;
+  }
+  .fx-tilt,
+  .fx-tilt:hover {
+    transition: none;
+    transform: none;
+  }
+}
+
+.phase-header__status,
+.floor__status-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

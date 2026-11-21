@@ -1,6 +1,8 @@
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { Panel } from '../../components/Panel.tsx';
 import { Roster } from '../../components/Roster.tsx';
+import { ModeToggle } from '../../components/ModeToggle.tsx';
+import { formatMoney } from '../../lib/format.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 
 /** LOBBY phase on /play: roster and the Start button (any joined player may start). */
@@ -44,16 +46,32 @@ export function LobbyView() {
         <ErrorBanner />
       </Panel>
 
-      <Panel title="How it works" className="lobby__panel">
-        <ul className="rules">
+      <Panel title="How much detail?" aside="change it any time, top right" className="lobby__panel lobby__mode">
+        <ModeToggle big />
+      </Panel>
+
+      <Panel title="How to play" className="lobby__panel">
+        <ol className="rules">
           <li>
-            {config.time.quarters} quarters. Each quarter: briefing, {config.time.daysPerQuarter} trading days, earnings,
-            results, shop.
+            You start with <strong>{formatMoney(config.economy.startingCash)}</strong>. Whoever has the most money after{' '}
+            {config.time.quarters} quarters wins.
           </li>
-          <li>Go long or short, with up to {config.trading.leverageCap}x leverage. Big orders move the price.</li>
-          <li>Headlines move markets. Cards let you make your own headlines.</li>
-          <li>Highest net worth at the end wins. Getting caught by the SEC does not help.</li>
-        </ul>
+          <li>
+            Pick a stock and <strong>bet UP</strong> (you think it will rise) or <strong>bet DOWN</strong> (you think it will
+            fall). Cash out whenever you like.
+          </li>
+          <li>
+            <strong>Watch the news.</strong> Good news pushes a price up, bad news pushes it down. Be the first to react!
+          </li>
+          <li>
+            You can bet up to {config.trading.leverageCap}× your money with borrowed cash. Bigger wins, bigger losses: if you
+            lose too much the bank closes your bets, and below {formatMoney(config.economy.eliminationEquity)} you are out.
+          </li>
+          <li>
+            Between quarters, buy <strong>cards</strong>: insider tips, fake news, world events. Illegal ones can get you
+            arrested.
+          </li>
+        </ol>
       </Panel>
     </div>
   );

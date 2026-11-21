@@ -52,7 +52,7 @@ where to connect:
 
 ## Headline catalog
 
-The home server generates fictional news templates ahead of play. Run `npm run pull-headlines` to refresh the local catalog from `sbb-server-01`, or see the [generator guide](tools/generate-headlines/README.md) for generation and lookup details. The live feed is still pending.
+The home server generates fictional news templates ahead of play. Run `npm run pull-headlines` to refresh the local catalog from `sbb-server-01`, or see the [generator guide](tools/generate-headlines/README.md) for generation and lookup details.
 
 ## Settings
 

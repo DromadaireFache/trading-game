@@ -27,6 +27,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 6px;
   align-items: start;
+  font-family: var(--tg-font-mono);
   font-size: 12px;
   line-height: 18px;
 }
@@ -38,13 +39,14 @@
 .sym-group__title {
   height: 18px;
   padding: 0 4px;
-  font-size: 10px;
-  font-weight: 700;
+  font-family: var(--tg-font-display);
+  font-size: 11px;
+  font-weight: 800;
   line-height: 18px;
-  color: var(--tg-color-text-dim);
+  color: var(--tg-color-accent);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  border-bottom: 1px solid var(--tg-color-border);
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid var(--tg-color-border);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -75,8 +77,9 @@
   outline-offset: -1px;
 }
 .sym-row--selected {
-  background: color-mix(in srgb, var(--tg-color-accent) 14%, transparent);
+  background: color-mix(in srgb, var(--tg-color-accent) 22%, transparent);
   border-left-color: var(--tg-color-accent);
+  border-radius: 0 4px 4px 0;
 }
 .sym-row__ticker {
   font-weight: 700;
@@ -85,7 +88,7 @@
 }
 .sym-row__name {
   font-family: var(--tg-font-sans);
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--tg-color-text-dim);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -125,14 +128,15 @@
   min-width: 0;
 }
 .sym-head__ticker {
-  font-size: 20px;
-  font-weight: 700;
+  font-family: var(--tg-font-display);
+  font-size: 22px;
+  font-weight: 900;
   line-height: 1.1;
   color: var(--tg-color-text-bright);
 }
 .sym-head__name {
   font-family: var(--tg-font-sans);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--tg-color-text-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -153,14 +157,14 @@
   white-space: nowrap;
 }
 .sym-head__fact dt {
-  font-size: 10px;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--tg-color-text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 .sym-head__fact dd {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--tg-color-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -172,18 +176,20 @@
   white-space: nowrap;
 }
 .sym-head__price {
-  font-size: 22px;
-  font-weight: 700;
+  font-family: var(--tg-font-display);
+  font-size: 26px;
+  font-weight: 900;
   line-height: 1.1;
   color: var(--tg-color-text-bright);
 }
 .sym-head__change {
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 800;
 }
 .sym-head__change-label {
   color: var(--tg-color-text-dim);
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 400;
 }
 
 /* Projector variant: sized in viewport units like the rest of /floor. */
@@ -226,8 +232,8 @@
   position: relative;
   overflow: hidden;
   background: var(--tg-color-bg-inset);
-  border: 1px solid var(--tg-color-border);
-  border-radius: 3px;
+  border: 2px solid var(--tg-color-border);
+  border-radius: 10px;
 }
 
 @media (max-width: 1500px) {

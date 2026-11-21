@@ -717,3 +717,94 @@ describe('hostile input', () => {
     expect((await fetch(`http://127.0.0.1:${s.port}/`)).status).toBe(404);
   });
 });
+
+describe('trading', () => {
+  it('fills an order in TRADING, sends fill + portfolio to that player only, and restores the portfolio on reconnect', async () => {
+    const s = await start({ time: { daysPerQuarter: 40, quarters: 2 } });
+    const ann = await open(s);
+    const welcome = await ann.join('player', 'Ann');
+    const floor = await open(s);
+    await floor.join('spectator');
+    ann.send({ t: 'start' });
+    const opening = await ann.next('portfolio');
+    expect(opening).toMatchObject({ cash: defaultConfig.economy.startingCash, equity: defaultConfig.economy.startingCash, positions: [] });
+
+    ann.send({ t: 'order', symbol: 'TG50', qty: 100 });
+    expect((await ann.next('error')).message).toMatch(/closed/);
+
+    await ann.next('phase', (m) => m.phase === 'TRADING');
+    const symbol = s.sim.getUniverse().companies[0]!.symbol;
+    ann.send({ t: 'order', symbol, qty: 1000.7 });
+    const fill = await ann.next('fill');
+    expect(fill).toMatchObject({ symbol, qty: 1000 });
+    expect(isWirePrice(s.sim.config, fill.price)).toBe(true);
+    const after = await ann.next('portfolio', (m) => m.positions.length === 1);
+    expect(after.positions[0]).toMatchObject({ symbol, qty: 1000 });
+    // Cash is booked at the unrounded fill price; the wire price is rounded to cents.
+    expect(Math.abs(after.cash - (defaultConfig.economy.startingCash - 1000 * fill.price))).toBeLessThanOrEqual(1000 * 0.005 + 0.01);
+    expect(floor.received.some((m) => m.t === 'fill' || m.t === 'portfolio')).toBe(false);
+
+    ann.close();
+    const back = await open(s);
+    await back.join('player', undefined, welcome.token);
+    const restored = await back.next('portfolio');
+    expect(restored.positions).toEqual([expect.objectContaining({ symbol, qty: 1000 })]);
+  });
+});
+
+describe('play again', () => {
+  it('starts a fresh game from FINAL with the connected players back in the lobby', async () => {
+    const s = await start();
+    const ann = await open(s);
+    const annWelcome = await ann.join('player', 'Ann');
+    expect(annWelcome.game).toBe(1);
+    const bob = await open(s);
+    const bobWelcome = await bob.join('player', 'Bob');
+    const floor = await open(s);
+    await floor.join('spectator');
+
+    // Too early: only after the final results.
+    ann.send({ t: 'new_game' });
+    expect((await ann.next('error')).code).toBe('not_allowed');
+
+    ann.send({ t: 'start' });
+    await ann.next('phase', (m) => m.phase === 'FINAL');
+    await ann.next('results', (m) => m.final === true);
+    const oldUniverse = (await floor.next('market')).universe.symbols.map((x) => x.symbol).join();
+
+    // Bob leaves: he loses his seat in the next game.
+    bob.close();
+    await ann.next('lobby', (m) => m.players.some((p) => p.name === 'Bob' && !p.connected));
+
+    // A spectator cannot, a player can.
+    floor.send({ t: 'new_game' });
+    expect((await floor.next('error')).code).toBe('not_allowed');
+    ann.send({ t: 'new_game' });
+
+    const again = await ann.next('welcome', (m) => m.game === 2);
+    expect(again.playerId).toBe(annWelcome.playerId);
+    expect(again.token).toBe(annWelcome.token);
+    expect(again.phase.phase).toBe('LOBBY');
+    expect(again.lobby.players.map((p) => p.name)).toEqual(['Ann']);
+    const market = await ann.next('market');
+    expect(market.day).toBe(0);
+    expect(Object.values(market.candles).every((c) => c.length === 0)).toBe(true);
+    // Next seed: another universe.
+    expect(market.universe.symbols.map((x) => x.symbol).join()).not.toBe(oldUniverse);
+    expect((await floor.next('welcome', (m) => m.game === 2)).role).toBe('spectator');
+
+    // Bob's old token no longer works mid-lobby as a seat; he joins again like anyone else.
+    const bob2 = await open(s);
+    const bobAgain = await bob2.join('player', 'Bob', bobWelcome.token);
+    expect(bobAgain.game).toBe(2);
+    expect(bobAgain.playerId).not.toBe(bobWelcome.playerId);
+
+    // The new game plays: start, trade, through to its own FINAL.
+    ann.send({ t: 'start' });
+    await ann.next('phase', (m) => m.phase === 'BRIEFING' && m.quarter === 1);
+    await ann.next('portfolio');
+    const health = (await (await fetch(`http://127.0.0.1:${s.port}${HEALTH_PATH}`)).json()) as { game: number; players: number };
+    expect(health).toMatchObject({ game: 2, players: 2 });
+    await ann.next('phase', (m) => m.phase === 'FINAL');
+  });
+});

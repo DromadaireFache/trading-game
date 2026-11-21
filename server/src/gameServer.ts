@@ -12,21 +12,21 @@
  *   A join is handled between two sim ticks, so snapshot + the live stream that follows have no gap
  *   and no overlap: the first `tick` after a `market` is the one right after its (day, tickOfDay).
  */
+import { loadHeadlineTemplates } from './headlineCatalog.ts';
 import { createServer } from 'node:http';
 import type { Server as HttpServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
-import { WS_CLOSE_REPLACED, roundOhlc, roundPrices, roundSnapshot } from '@tg/shared';
-import type { ClientMsg, ErrorCode, JoinMsg, LobbyState, MarketMsg, PhaseInfo, PlayerId, Role, ServerMsg } from '@tg/shared';
+import { WS_CLOSE_REPLACED, roundOhlc, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
+import type { ClientMsg, ErrorCode, JoinMsg, LobbyState, MarketMsg, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg } from '@tg/shared';
 import type { ServerEnv } from './env.ts';
-import { createHeadlineCatalog, loadHeadlineTemplates } from './headlineCatalog.ts';
 import { lanUrls } from './lan.ts';
 import { runTickClock } from './loop.ts';
 import { cleanName, nameKey, parseClientMsg } from './protocol.ts';
 import { createSim } from './sim/index.ts';
-import type { Sim, SimEvent } from './sim/index.ts';
+import type { Sim, SimEvent, SimEventOf } from './sim/index.ts';
 
 /** Close code sent to a socket whose session was taken over by a newer connection (same token). */
 export const CLOSE_REPLACED = WS_CLOSE_REPLACED;
@@ -67,7 +67,6 @@ export interface GameServer {
   /** The port actually bound (differs from env.port when that was 0). */
   port: number;
   sim: Sim;
-  headlines: ReturnType<typeof createHeadlineCatalog>;
   close(): Promise<void>;
 }
 
@@ -78,8 +77,11 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
   const now = options.now ?? Date.now;
   const log = options.log ?? ((line: string) => console.log(line));
 
-  const sim = createSim(env.seed, config);
-  const headlines = createHeadlineCatalog(loadHeadlineTemplates(env.headlinesPath), sim.getUniverse(), env.seed, config.news.shock);
+  /** Replaced by "play again" (handleNewGame); everything below reads the current one. */
+  const headlines = loadHeadlineTemplates(env.headlinesPath);
+  let sim = createSim(env.seed, config, { headlines });
+  /** 1 for the first game of this server run, +1 per "play again". Game n uses seed env.seed + n - 1. */
+  let gameNumber = 1;
 
   /** token -> session. */
   const sessions = new Map<string, Session>();
@@ -154,6 +156,42 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     return { t: 'market', ...roundSnapshot(config, sim.getMarketSnapshot()) };
   }
 
+  /** Dollar amounts to cents, average prices like prices. */
+  function portfolioMsg(event: SimEventOf<'portfolio'>): PortfolioMsg {
+    const { e: _e, playerId: _p, cash, equity, buyingPower, positions, ...rest } = event;
+    const cents = (n: number) => Math.round(n * 100) / 100;
+    return {
+      t: 'portfolio',
+      ...rest,
+      cash: cents(cash),
+      equity: cents(equity),
+      ...(buyingPower === undefined ? {} : { buyingPower: cents(buyingPower) }),
+      positions: positions.map((p) => ({
+        ...p,
+        avgPrice: roundPrice(config, p.avgPrice),
+        ...(p.realized === undefined ? {} : { realized: cents(p.realized) }),
+      })),
+    };
+  }
+
+  function newsMsg(event: SimEventOf<'briefing'> | SimEventOf<'earnings'>): ServerMsg {
+    if (event.e === 'briefing') {
+      const { e: _e, ...rest } = event;
+      return { t: 'briefing', ...rest };
+    }
+    const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
+    return { t: 'earnings', quarter: event.quarter, reports: event.reports.map((r) => ({ symbol: r.symbol, surprise: round4(r.surprise), gap: round4(r.gap) })) };
+  }
+
+  /** Replays a public news event to one socket (join / reconnect). */
+  function dispatchTo(socket: WebSocket, event: SimEventOf<'briefing'> | SimEventOf<'earnings'> | SimEventOf<'headline'>): void {
+    if (event.e === 'headline') {
+      const { e: _e, to: _to, ...rest } = event;
+      return send(socket, { t: 'headline', ...rest });
+    }
+    send(socket, newsMsg(event));
+  }
+
   function broadcastLobby(): void {
     broadcast({ t: 'lobby', ...lobbyState() });
   }
@@ -193,9 +231,28 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       lobby: lobbyState(),
       config,
       joinUrls: lanUrls(env.clientPort).map((u) => u.play),
+      game: gameNumber,
     });
     // Same synchronous turn as the welcome, so no tick can slip in between.
     send(socket, market);
+    // A player who reconnects mid-game gets cash and positions back at once (none yet in the lobby).
+    const portfolio = session.role === 'player' ? sim.getPortfolio(session.id) : undefined;
+    if (portfolio !== undefined) send(socket, portfolioMsg(portfolio));
+    // In SHOP, the offers this player was shown.
+    const shop = session.role === 'player' ? sim.getShop(session.id) : null;
+    if (shop !== null) send(socket, { t: 'shop', offers: shop.offers });
+    // The news so far: this quarter's briefing, the latest earnings, the recent headlines (oldest first).
+    const news = sim.getNewsSnapshot();
+    if (news.briefing !== null) dispatchTo(socket, news.briefing);
+    if (news.earnings !== null) dispatchTo(socket, news.earnings);
+    for (const headline of news.headlines) dispatchTo(socket, headline);
+    // Results stay on screen through RESULTS, SHOP and FINAL; a (re)joining client gets the latest ones.
+    const phaseNow = sim.getState().phase;
+    const results = sim.getResults();
+    if (results !== null && (phaseNow === 'RESULTS' || phaseNow === 'SHOP' || phaseNow === 'FINAL')) {
+      const { e: _e, ...rest } = results;
+      send(socket, { t: 'results', ...rest });
+    }
     broadcastLobby();
   }
 
@@ -279,17 +336,37 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     if (ghosts.length > 0) broadcastLobby();
   }
 
+  /**
+   * "Play again" from FINAL: a fresh sim on the next seed. Connected players keep their seat, name and
+   * token and are back in the lobby; players who are gone lose their seat (they can join again by name).
+   * Every client gets a new welcome + market, as after a join, with the next game number.
+   */
+  function handleNewGame(socket: WebSocket, session: Session): void {
+    if (session.role !== 'player') return sendError(socket, 'not_allowed', 'only players can start a new game');
+    if (sim.getState().phase !== 'FINAL') return sendError(socket, 'not_allowed', 'a new game can only start after the final results');
+    gameNumber += 1;
+    sim = createSim(env.seed + gameNumber - 1, config, { headlines });
+    starting = false;
+    for (const s of playerSessions()) {
+      if (s.socket === null) dropSession(s);
+      else sim.submit({ kind: 'add_player', playerId: s.id, name: s.name });
+    }
+    log(`[server] game ${gameNumber} (seed ${env.seed + gameNumber - 1}) started by ${session.name}`);
+    for (const [clientSocket, clientSession] of [...bySocket]) attach(clientSession, clientSocket);
+  }
+
   function handleMessage(socket: WebSocket, msg: ClientMsg): void {
     if (msg.t === 'join') return handleJoin(socket, msg);
 
     const session = bySocket.get(socket);
     if (session === undefined) return sendError(socket, 'not_joined', 'send a join message first');
     if (msg.t === 'start') return handleStart(socket, session);
+    if (msg.t === 'new_game') return handleNewGame(socket, session);
 
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'spectators cannot do that');
     switch (msg.t) {
       case 'order':
-        return sim.submit({ kind: 'order', playerId: session.id, symbol: msg.symbol, qty: msg.qty });
+        return sim.submit({ kind: 'order', playerId: session.id, symbol: msg.symbol, qty: msg.qty, ...(msg.holdDays === undefined ? {} : { holdDays: msg.holdDays }) });
       case 'buy_card':
         return sim.submit({ kind: 'buy_card', playerId: session.id, offerId: msg.offerId });
       case 'play_card':
@@ -379,13 +456,24 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
         const msg: ServerMsg = { t: 'headline', ...rest };
         return to === undefined ? broadcast(msg) : sendTo(to, msg);
       }
+      case 'briefing':
+      case 'earnings':
+        return broadcast(newsMsg(event));
       case 'fill': {
-        const { e: _e, playerId, ...rest } = event;
-        return sendTo(playerId, { t: 'fill', ...rest });
+        const { e: _e, playerId, price, ...rest } = event;
+        return sendTo(playerId, { t: 'fill', ...rest, price: roundPrice(config, price) });
       }
-      case 'portfolio': {
-        const { e: _e, playerId, ...rest } = event;
-        return sendTo(playerId, { t: 'portfolio', ...rest });
+      case 'portfolio':
+        return sendTo(event.playerId, portfolioMsg(event));
+      case 'bet_result': {
+        const { e: _e, playerId, entryPrice, exitPrice, pnl, ...rest } = event;
+        return sendTo(playerId, {
+          t: 'bet_result',
+          ...rest,
+          entryPrice: roundPrice(config, entryPrice),
+          exitPrice: roundPrice(config, exitPrice),
+          pnl: Math.round(pnl * 100) / 100,
+        });
       }
       case 'shop': {
         const { e: _e, playerId, ...rest } = event;
@@ -430,7 +518,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     if (req.url === HEALTH_PATH) {
       const state = sim.getState();
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ ok: true, phase: state.phase, quarter: state.quarter, players: playerSessions().length }));
+      res.end(JSON.stringify({ ok: true, phase: state.phase, quarter: state.quarter, players: playerSessions().length, game: gameNumber }));
       return;
     }
     res.writeHead(404, { 'content-type': 'text/plain' });
@@ -473,7 +561,14 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       reject(error);
     });
     http.listen(env.port, options.host, () => {
-      resolve({ port: (http.address() as AddressInfo).port, sim, headlines, close });
+      resolve({
+        port: (http.address() as AddressInfo).port,
+        // A getter: "play again" swaps the sim.
+        get sim() {
+          return sim;
+        },
+        close,
+      });
     });
   });
 }

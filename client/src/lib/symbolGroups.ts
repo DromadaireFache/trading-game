@@ -10,7 +10,7 @@ export interface SymbolGroup {
 
 /** Funds first (index + sector funds), then one group per sector, in the order the server sent them. */
 export function groupSymbols(symbols: readonly SymbolInfo[]): SymbolGroup[] {
-  const funds: SymbolGroup = { key: 'funds', label: 'Funds', symbols: [] };
+  const funds: SymbolGroup = { key: 'funds', label: 'Funds (a whole sector in one)', symbols: [] };
   const sectors = new Map<string, SymbolGroup>();
   for (const info of symbols) {
     if (info.kind !== 'stock') {
