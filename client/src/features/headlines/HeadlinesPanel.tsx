@@ -16,13 +16,17 @@ export function HeadlinesPanel({ className }: { className?: string }) {
   // Latest rate decision this quarter, else the rate the quarter opened with.
   const decided = headlines.find((h) => h.rate !== undefined && briefing !== null && dayToQuarter(config, h.ts) === briefing.quarter)?.rate;
   const current = decided ?? briefing?.rate;
-  const rate = current === undefined ? 'live feed' : `rate ${(current * 100).toFixed(2)}%`;
+  const rate = current === undefined ? 'live feed' : `interest rate ${(current * 100).toFixed(2)}%`;
   const empty = headlines.length === 0 && briefing === null && earnings === null;
 
   return (
-    <Panel title="Headlines" aside={rate} className={`news${className ? ` ${className}` : ''}`}>
+    <Panel
+      title="News"
+      aside={<span title="Higher rates usually push stocks down; a cut pushes them up.">{rate}</span>}
+      className={`news${className ? ` ${className}` : ''}`}
+    >
       {empty ? (
-        <Placeholder>Breaking news appears here once the quarter starts.</Placeholder>
+        <Placeholder>Breaking news appears here. Good news pushes a price up, bad news pushes it down: be fast!</Placeholder>
       ) : (
         <>
           {briefing && briefing.beats.length > 0 && <Beats beats={briefing.beats} />}
@@ -32,6 +36,9 @@ export function HeadlinesPanel({ className }: { className?: string }) {
             </div>
           )}
           {earnings && <Earnings quarter={earnings.quarter} reports={earnings.reports} />}
+          {!earnings && headlines.length < 3 && (
+            <div className="news__tip">Tip: good news pushes a price up, bad news pushes it down. Click a tag to see that stock.</div>
+          )}
           <ol className="news__feed" data-testid="headlines">
             {headlines.map((h) => (
               <HeadlineRow key={`${h.id}${h.early ? '-early' : ''}`} headline={h} label={`D${dayOfQuarter(config, h.ts)}`} />
@@ -47,13 +54,16 @@ function Beats({ beats }: { beats: { day: number; title: string }[] }) {
   const { config } = useGame();
   const lastDay = useLastDay();
   return (
-    <ul className="news__beats" data-testid="beats" title="Scheduled this quarter: the day is known, the direction is not">
-      {beats.map((b) => (
-        <li key={b.day} className={b.day <= lastDay ? 'news__beat news__beat--past' : 'news__beat'}>
-          <span className="news__time">D{dayOfQuarter(config, b.day)}</span> {b.title}
-        </li>
-      ))}
-    </ul>
+    <div className="news__beats-row" title="Scheduled this quarter: you know the day, not whether it is good or bad news">
+      <span className="news__beats-label">Coming up</span>
+      <ul className="news__beats" data-testid="beats">
+        {beats.map((b) => (
+          <li key={b.day} className={b.day <= lastDay ? 'news__beat news__beat--past' : 'news__beat'}>
+            <span className="news__time">day {dayOfQuarter(config, b.day)}</span> {b.title}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -62,7 +72,7 @@ function Earnings({ quarter, reports }: { quarter: number; reports: EarningsRepo
   const { briefing } = useGame();
   const eps = (r: EarningsReport) => {
     const est = briefing?.consensus?.[r.symbol];
-    return est === undefined ? undefined : `EPS $${(est * (1 + r.surprise)).toFixed(2)} vs $${est.toFixed(2)} expected`;
+    return est === undefined ? undefined : `Profit per share $${(est * (1 + r.surprise)).toFixed(2)}, expected $${est.toFixed(2)}`;
   };
   const beats = reports.filter((r) => r.surprise > 0).sort((a, b) => b.surprise - a.surprise).slice(0, 3);
   const misses = reports.filter((r) => r.surprise < 0).sort((a, b) => a.surprise - b.surprise).slice(0, 3);
@@ -71,14 +81,16 @@ function Earnings({ quarter, reports }: { quarter: number; reports: EarningsRepo
       <button type="button" className="news__tag" onClick={() => market.select(r.symbol)}>
         {r.symbol}
       </button>{' '}
-      <span className={`change--${changeDirection(r.surprise)}`}>{formatPercent(r.surprise)}</span>
-      <span className="news__dim"> gap {formatPercent(Math.expm1(r.gap))}</span>
+      <span className={`change--${changeDirection(r.surprise)}`}>
+        {r.surprise >= 0 ? 'beat' : 'missed'} by {formatPercent(Math.abs(r.surprise)).replace('+', '')}
+      </span>
+      <span className="news__dim"> → price {formatPercent(Math.expm1(r.gap))} at open</span>
     </li>
   );
   return (
     <div className="news__earnings" data-testid="earnings">
       <div className="news__earnings-title">
-        Q{quarter} earnings vs consensus <span className="news__dim">(gaps at the next open)</span>
+        Q{quarter} results vs. expectations <span className="news__dim">(prices jump when the market opens)</span>
       </div>
       <div className="news__earnings-cols">
         <ul>{beats.map(row)}</ul>

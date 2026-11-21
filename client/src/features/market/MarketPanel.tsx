@@ -26,8 +26,8 @@ function SymbolListPanel({ className }: { className?: string }) {
   const stocks = symbols.filter((s) => s.kind === 'stock').length;
   return (
     <Panel
-      title="Market"
-      aside={symbols.length > 0 ? `${stocks} stocks / ${symbols.length - stocks} funds  -  % since quarter open` : undefined}
+      title="Pick a stock"
+      aside={symbols.length > 0 ? `${stocks} companies, ${symbols.length - stocks} funds · % = change this quarter` : undefined}
       className={`market-list${className ? ` ${className}` : ''}`}
     >
       {symbols.length > 0 ? <SymbolList /> : <Placeholder>Waiting for market data...</Placeholder>}
@@ -38,7 +38,7 @@ function SymbolListPanel({ className }: { className?: string }) {
 function ChartPanel({ className }: { className?: string }) {
   const selected = useSelectedSymbol();
   return (
-    <Panel title="Chart" aside="daily candles" className={`market-chart${className ? ` ${className}` : ''}`}>
+    <Panel title="Price" aside="1 candle = 1 day: green went up, red went down" className={`market-chart${className ? ` ${className}` : ''}`}>
       {selected === null ? (
         <Placeholder>Waiting for market data...</Placeholder>
       ) : (

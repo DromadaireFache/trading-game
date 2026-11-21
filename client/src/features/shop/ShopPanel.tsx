@@ -25,13 +25,18 @@ export function ShopPanel({ className }: { className?: string }) {
 
   return (
     <Panel
-      title="Shop"
-      aside={`hand ${handSize}/${config.cards.handLimit}${live ? `  -  equity ${formatMoney(live.equity)}` : ''}`}
+      title="Card shop"
+      aside={`your cards ${handSize}/${config.cards.handLimit}${live ? ` · your money ${formatMoney(live.equity)}` : ''}`}
       className={`shop${className ? ` ${className}` : ''}`}
     >
       {shop.length === 0 ? (
         <Placeholder>{last ? 'The game is over after this quarter: no more cards.' : 'No cards on offer.'}</Placeholder>
       ) : (
+        <>
+        <p className="shop__intro">
+          Cards let you make the news. Buy now, play them next quarter while the market is open. Prices grow with your
+          money. <strong>Illegal</strong> cards add heat: the SEC may fine you and put you in jail.
+        </p>
         <div className="shop__grid" data-testid="shop">
           {shop.map((offer) => {
             const owned = bought.has(offer.offerId);
@@ -55,6 +60,7 @@ export function ShopPanel({ className }: { className?: string }) {
             );
           })}
         </div>
+        </>
       )}
     </Panel>
   );

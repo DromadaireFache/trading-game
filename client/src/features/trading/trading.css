@@ -1,121 +1,191 @@
 /*
- * Trading feature: order entry and positions.
+ * Trading feature: placing a bet and your money.
  * Colors and fonts only through var(--tg-...) from theme.ts.
  */
 
-/* ---------------------------------------------------------------- order entry */
+/* ---------------------------------------------------------------- place a bet */
 
 .order .panel__body {
   gap: 6px;
-  padding: 8px;
+  padding: 2px 10px 10px;
+}
+.order__on {
+  color: var(--tg-color-text);
+  font-family: var(--tg-font-mono);
+}
+.order__on strong {
+  color: var(--tg-color-text-bright);
 }
 .order__sides {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 8px;
 }
 .order__side {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 4px;
   font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 6px 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--tg-color-text-dim);
   background: var(--tg-color-bg-inset);
-  border: 1px solid var(--tg-color-border);
-  border-radius: 3px;
+  border: 2px solid var(--tg-color-border);
+  border-radius: 10px;
+  box-shadow: 0 3px 0 var(--tg-color-shadow);
   cursor: pointer;
 }
+.order__side-main {
+  font-family: var(--tg-font-display);
+  font-size: 15px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.order__side-sub {
+  /* The plain-words meaning is in the tooltip, the header hint and the lobby rules: the button stays one line. */
+  display: none;
+}
 .order__side--buy.order__side--on {
-  color: var(--tg-color-on-accent);
+  color: var(--tg-color-on-up);
   background: var(--tg-color-up);
-  border-color: var(--tg-color-up);
+  border-color: color-mix(in srgb, var(--tg-color-up) 70%, var(--tg-color-shadow));
 }
 .order__side--sell.order__side--on {
-  color: var(--tg-color-text-bright);
+  color: var(--tg-color-on-down);
   background: var(--tg-color-down);
-  border-color: var(--tg-color-down);
+  border-color: color-mix(in srgb, var(--tg-color-down) 70%, var(--tg-color-shadow));
+}
+.order__side:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--tg-color-shadow);
 }
 .order__row {
   display: grid;
   grid-template-columns: 9ch repeat(4, minmax(0, 1fr));
-  gap: 4px;
+  gap: 5px;
   align-items: center;
 }
-.order__label {
-  font-size: 10px;
+.order__label,
+.order__fact-label {
+  font-size: 11px;
+  font-weight: 700;
   color: var(--tg-color-text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   white-space: nowrap;
 }
-.order__held {
-  grid-column: span 2;
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.order__size {
+.order__size,
+.order__cash {
   font: inherit;
-  font-size: 12px;
+  font-family: var(--tg-font-display);
+  font-size: 13px;
+  font-weight: 800;
   padding: 4px 2px;
-  color: var(--tg-color-text);
+  color: var(--tg-color-text-bright);
   background: var(--tg-color-panel-raised);
-  border: 1px solid var(--tg-color-border-strong);
-  border-radius: 3px;
+  border: 2px solid var(--tg-color-border-strong);
+  border-radius: 8px;
+  box-shadow: 0 3px 0 var(--tg-color-shadow);
   cursor: pointer;
   white-space: nowrap;
 }
 .order__size--buy:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--tg-color-up) 30%, var(--tg-color-panel-raised));
+  background: color-mix(in srgb, var(--tg-color-up) 35%, var(--tg-color-panel-raised));
   border-color: var(--tg-color-up);
 }
 .order__size--sell:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--tg-color-down) 30%, var(--tg-color-panel-raised));
+  background: color-mix(in srgb, var(--tg-color-down) 35%, var(--tg-color-panel-raised));
   border-color: var(--tg-color-down);
 }
-.order__size:not(.order__size--buy):not(.order__size--sell):hover:not(:disabled) {
+.order__cash:hover:not(:disabled) {
   border-color: var(--tg-color-accent);
 }
-.order__size:active:not(:disabled) {
-  transform: translateY(1px);
+.order__size:active:not(:disabled),
+.order__cash:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--tg-color-shadow);
 }
 .order__size:disabled,
-.order__side:disabled {
-  opacity: 0.4;
+.order__cash:disabled {
+  opacity: 0.35;
   cursor: not-allowed;
+  box-shadow: none;
 }
-.order__facts {
-  display: flex;
-  justify-content: space-between;
-  margin: 0;
+.order__held-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 5px;
+  align-items: center;
+}
+.order__cash {
+  padding: 3px 8px;
   font-size: 12px;
 }
-.order__facts dt,
-.positions__summary dt {
-  font-size: 10px;
+.order__held {
+  font-weight: 700;
+  font-size: 13px;
   color: var(--tg-color-text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.order__facts dd,
-.positions__summary dd {
-  margin: 0;
+.order__held--up {
+  color: var(--tg-color-up);
+}
+.order__held--down {
+  color: var(--tg-color-down);
+}
+.order__facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+.order__can {
+  white-space: nowrap;
+}
+.order__fact-value {
+  font-family: var(--tg-font-display);
+  font-size: 15px;
+  font-weight: 900;
   color: var(--tg-color-text-bright);
+}
+.order__risk {
+  --risk-color: var(--tg-color-up);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.order__risk--mid {
+  --risk-color: var(--tg-color-warn);
+}
+.order__risk--high {
+  --risk-color: var(--tg-color-down);
+}
+.order__risk-bar {
+  flex: 1;
+  display: block;
+  height: 10px;
+  background: var(--tg-color-bg-inset);
+  border: 1px solid var(--tg-color-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.order__risk-fill {
+  display: block;
+  height: 100%;
+  background: var(--risk-color);
+  transform-origin: left center;
 }
 .order__status {
   font-size: 12px;
+  font-weight: 700;
   color: var(--tg-color-warn);
 }
 .order__fill {
   font-size: 12px;
-  padding: 3px 6px;
-  border-radius: 3px;
+  padding: 3px 8px;
+  border-radius: 8px;
   background: var(--tg-color-bg-inset);
-  border: 1px solid var(--tg-color-border);
-  animation: tg-fill-flash 0.6s ease-out;
+  border: 2px solid var(--tg-color-border);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -124,32 +194,49 @@
   color: var(--tg-color-warn);
   border-color: var(--tg-color-warn);
 }
-@keyframes tg-fill-flash {
-  from {
-    background: color-mix(in srgb, var(--tg-color-accent) 40%, var(--tg-color-bg-inset));
-  }
-}
 
-/* ---------------------------------------------------------------- positions */
+/* ---------------------------------------------------------------- your money */
 
 .positions .panel__body {
   gap: 6px;
-  padding: 8px;
+  padding: 0 10px 10px;
 }
-.positions__summary {
+.positions__score {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+.positions__worth {
+  font-family: var(--tg-font-display);
+  font-size: 26px;
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--tg-color-accent);
+  text-shadow: 0 2px 0 var(--tg-color-shadow);
+}
+.positions__pnl {
+  font-weight: 800;
+  font-size: 13px;
+}
+.positions__sub {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  margin: 0;
-  font-size: 13px;
+  font-size: 12px;
+  color: var(--tg-color-text-dim);
+}
+.positions__sub strong {
+  color: var(--tg-color-text);
 }
 .positions__out {
-  padding: 4px 6px;
+  padding: 5px 8px;
   font-size: 12px;
-  font-weight: 700;
-  color: var(--tg-color-down);
-  border: 1px solid var(--tg-color-down);
-  border-radius: 3px;
+  font-weight: 800;
+  color: var(--tg-color-text-bright);
+  background: color-mix(in srgb, var(--tg-color-down) 60%, var(--tg-color-panel));
+  border: 2px solid var(--tg-color-down);
+  border-radius: 8px;
 }
 .positions__empty {
   font-size: 12px;
@@ -157,18 +244,17 @@
 }
 .positions__table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 3px;
   font-size: 12px;
-  line-height: 18px;
+  line-height: 20px;
 }
 .positions__table th {
   font-size: 10px;
-  font-weight: 400;
+  font-weight: 700;
   color: var(--tg-color-text-dim);
   text-align: right;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  border-bottom: 1px solid var(--tg-color-border);
 }
 .positions__table th:first-child,
 .positions__table td:first-child {
@@ -177,37 +263,57 @@
 .positions__table td {
   text-align: right;
   white-space: nowrap;
-  padding: 0 2px;
+  padding: 0 3px;
+  background: var(--tg-color-bg-inset);
+}
+.positions__table td:first-child {
+  border-radius: 6px 0 0 6px;
+}
+.positions__table td:last-child {
+  border-radius: 0 6px 6px 0;
 }
 .positions__row {
   cursor: pointer;
 }
-.positions__row:hover {
+.positions__row:hover td {
   background: var(--tg-color-panel-raised);
 }
-.positions__row--selected {
-  background: color-mix(in srgb, var(--tg-color-accent) 14%, transparent);
+.positions__row--selected td {
+  background: color-mix(in srgb, var(--tg-color-accent) 18%, var(--tg-color-bg-inset));
 }
 .positions__sym {
+  font-family: var(--tg-font-mono);
   font-weight: 700;
   color: var(--tg-color-text-bright);
 }
+.positions__dir {
+  font-weight: 800;
+}
+.positions__dir--up {
+  color: var(--tg-color-up);
+}
+.positions__dir--down {
+  color: var(--tg-color-down);
+}
+.positions__profit {
+  font-weight: 800;
+}
 .positions__close {
   font: inherit;
-  width: 18px;
-  height: 16px;
+  width: 20px;
+  height: 18px;
   padding: 0;
   line-height: 14px;
   color: var(--tg-color-text-dim);
   background: transparent;
-  border: 1px solid var(--tg-color-border);
-  border-radius: 2px;
+  border: 2px solid var(--tg-color-border);
+  border-radius: 5px;
   cursor: pointer;
 }
 .positions__close:hover:not(:disabled) {
   color: var(--tg-color-text-bright);
   border-color: var(--tg-color-down);
-  background: color-mix(in srgb, var(--tg-color-down) 30%, transparent);
+  background: color-mix(in srgb, var(--tg-color-down) 35%, transparent);
 }
 .positions__close:disabled {
   opacity: 0.3;

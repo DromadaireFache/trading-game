@@ -36,8 +36,12 @@ const outDir = resolve(repo, '.e2e');
 
 /** Short phases: one quarter = 1.5 + 26 + 0.8 + 1.5 + 1.5 = 31.3 s, two quarters to FINAL. */
 const QUARTERS = 2;
-/** Trading days per quarter: long enough to click around, reload and watch candles appear. */
-const DAYS = 26;
+/**
+ * Trading days per quarter: long enough to click around, reload and watch candles appear. Every step up
+ * to the headline checks must fit in Q1's trading phase: they take about 25 s, with a reload step that
+ * varies by several seconds; 26 and 32 days were too tight (the phase loop then caught Q2's EARNINGS).
+ */
+const DAYS = 40;
 const TICKS_PER_DAY = defaultConfig.time.ticksPerCandle;
 const DAY_MS = TICKS_PER_DAY * defaultConfig.time.tickMs;
 const TRADING_MS = DAYS * DAY_MS;
@@ -68,8 +72,11 @@ function check(condition: unknown, what: string): asserts condition {
 
 async function step<T>(name: string, fn: () => Promise<T>): Promise<T> {
   log(name);
+  const started = Date.now();
   try {
-    return await fn();
+    const result = await fn();
+    log(`  (${((Date.now() - started) / 1000).toFixed(1)} s)`);
+    return result;
   } catch (error) {
     throw new Error(`step "${name}": ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -902,6 +909,10 @@ async function main(): Promise<void> {
     });
 
     await step('every phase of every quarter, then FINAL', async () => {
+      // The checks below are about Q1's phases: if the earlier steps overran Q1, say so instead of
+      // failing later on a confusing count.
+      check((await textOf(a, 'quarter')).startsWith('Q1') && (await phaseOf(a)) === 'TRADING',
+        `the earlier steps finished inside Q1's trading (now ${await textOf(a, 'quarter')} ${await phaseOf(a)}); raise DAYS if not`);
       for (const phase of ['EARNINGS', 'RESULTS', 'SHOP'] as const) {
         // The earlier steps can finish with most of Q1's trading still to go, so EARNINGS may be up to a
         // whole TRADING phase away. A plain WAIT_MS made this step pass or fail with the speed of the run.
@@ -939,7 +950,8 @@ async function main(): Promise<void> {
           await floor.waitForSelector(tid('floor-results'));
           check((await floor.locator(tid('leaderboard-row')).count()) === 2, 'the floor shows the standings in RESULTS');
           const q1Results = framesOf('A').filter((m) => m.t === 'results');
-          check(q1Results.length === 1 && !(q1Results[0] as { final?: boolean }).final, 'A got one Q1 results message');
+          check(q1Results.length === 1 && !(q1Results[0] as { final?: boolean }).final,
+            `A got one Q1 results message (got ${q1Results.length}: ${q1Results.map((r) => JSON.stringify((r as { recap?: { quarter?: number } }).recap?.quarter)).join(',')})`);
           await shot(a, '14-play-RESULTS-board');
           await shot(floor, '14-floor-RESULTS');
         }

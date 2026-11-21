@@ -19,8 +19,8 @@ export function HandPanel({ className }: { className?: string }) {
 
   if (live === null) {
     return (
-      <Panel title="Hand" aside={`max ${config.cards.handLimit} cards`} className={className}>
-        <Placeholder>Buy cards in the SHOP phase, play them while the market is open.</Placeholder>
+      <Panel title="Your cards" aside={`up to ${config.cards.handLimit}`} className={className}>
+        <Placeholder>Buy cards in the SHOP, play them while the market is open.</Placeholder>
       </Panel>
     );
   }
@@ -32,17 +32,20 @@ export function HandPanel({ className }: { className?: string }) {
 
   return (
     <Panel
-      title="Hand"
+      title="Your cards"
       aside={
-        <span className={`hand__heat hand__heat--${heatLevel}`} data-testid="heat" title="Heat from illegal acts: the SEC rolls at the end of each quarter">
-          heat {Math.round(heat)}
+        <span title="Heat comes from illegal cards. The more heat (and the richer you are), the likelier the SEC fines and jails you at the end of the quarter.">
+          SEC{' '}
+          <span className={`hand__heat hand__heat--${heatLevel}`} data-testid="heat">
+            heat {Math.round(heat)}
+          </span>
         </span>
       }
       className={`hand${className ? ` ${className}` : ''}`}
     >
       {jailed && (
         <div className="hand__jail" data-testid="jailed">
-          IN JAIL until Q{dayToQuarter(config, jailedUntil!)} D{dayOfQuarter(config, jailedUntil!)}: no trading, no cards. Your positions stay open.
+          IN JAIL until Q{dayToQuarter(config, jailedUntil!)} day {dayOfQuarter(config, jailedUntil!)}: no betting, no cards. Your bets stay open.
         </div>
       )}
       {hand.length === 0 ? (

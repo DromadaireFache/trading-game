@@ -1,5 +1,6 @@
 /*
  * Cards feature: card face, shop grid, hand, heat and jail.
+ * Cards look like playing cards: a cream face, a colored band for their type, a hard shadow.
  * Colors and fonts only through var(--tg-...) from theme.ts.
  */
 
@@ -9,11 +10,13 @@
   flex-direction: column;
   gap: 4px;
   min-width: 0;
-  padding: 6px 8px;
-  background: var(--tg-color-bg-inset);
-  border: 1px solid var(--tg-color-border);
-  border-left: 3px solid var(--card-tint);
-  border-radius: 3px;
+  padding: 0 10px 8px;
+  color: var(--tg-color-card-text);
+  background: var(--tg-color-card-face);
+  border: 3px solid var(--card-tint);
+  border-radius: 12px;
+  box-shadow: 0 4px 0 var(--tg-color-shadow);
+  overflow: hidden;
 }
 .card--insider {
   --card-tint: var(--tg-color-info);
@@ -30,38 +33,45 @@
 .card--counter {
   --card-tint: var(--tg-color-text-dim);
 }
+/* The colored band across the top of the card. */
 .card__head {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  margin: 0 -10px 2px;
+  padding: 3px 10px;
   font-size: 10px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.card__tier {
-  color: var(--card-tint);
-  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--tg-color-card-text);
+  background: var(--card-tint);
 }
 .card__legal {
-  color: var(--tg-color-text-dim);
+  opacity: 0.7;
 }
 .card__illegal {
-  color: var(--tg-color-down);
-  font-weight: 700;
+  padding: 0 6px;
+  color: var(--tg-color-text-bright);
+  background: var(--tg-color-down);
+  border-radius: 4px;
 }
 .card__name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--tg-color-text-bright);
+  font-family: var(--tg-font-display);
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--tg-color-card-text);
 }
 .card__text {
   margin: 0;
   font-family: var(--tg-font-sans);
   font-size: 12px;
-  color: var(--tg-color-text);
+  color: var(--tg-color-card-text);
 }
 .card__hint {
   font-size: 11px;
-  color: var(--tg-color-text-dim);
+  font-weight: 700;
+  color: color-mix(in srgb, var(--tg-color-card-text) 60%, var(--tg-color-card-face));
 }
 .card__actions {
   display: flex;
@@ -71,75 +81,111 @@
 }
 .card__price {
   flex: 1;
-  font-weight: 700;
-  color: var(--tg-color-accent);
+  font-family: var(--tg-font-display);
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--tg-color-card-text);
 }
 .card__btn {
   font: inherit;
+  font-family: var(--tg-font-display);
   font-size: 12px;
-  padding: 3px 8px;
+  font-weight: 800;
+  padding: 3px 10px;
   color: var(--tg-color-text-bright);
-  background: var(--tg-color-panel-raised);
-  border: 1px solid var(--tg-color-border-strong);
-  border-radius: 3px;
+  background: var(--tg-color-panel);
+  border: 2px solid var(--tg-color-shadow);
+  border-radius: 8px;
+  box-shadow: 0 3px 0 var(--tg-color-shadow);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .card__btn:hover:not(:disabled) {
-  border-color: var(--tg-color-accent);
+  background: var(--tg-color-panel-raised);
 }
-.card__btn--up:hover:not(:disabled) {
-  border-color: var(--tg-color-up);
-  background: color-mix(in srgb, var(--tg-color-up) 25%, var(--tg-color-panel-raised));
+.card__btn--up {
+  color: var(--tg-color-on-up);
+  background: var(--tg-color-up);
 }
+.card__btn--down {
+  color: var(--tg-color-on-down);
+  background: var(--tg-color-down);
+}
+.card__btn--up:hover:not(:disabled),
 .card__btn--down:hover:not(:disabled) {
-  border-color: var(--tg-color-down);
-  background: color-mix(in srgb, var(--tg-color-down) 25%, var(--tg-color-panel-raised));
+  filter: brightness(1.1);
+}
+.card__btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--tg-color-shadow);
 }
 .card__btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* ---------------------------------------------------------------- shop */
 
 .shop__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
 }
 .shop .card {
-  padding: 10px 12px;
+  padding: 0 12px 12px;
+  min-height: 190px;
+}
+.shop .card__head {
+  margin: 0 -12px 4px;
+  padding: 5px 12px;
+  font-size: 11px;
 }
 .shop .card__name {
-  font-size: 16px;
+  font-size: 19px;
 }
 .shop .card__text {
+  flex: 1;
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+.shop .card__btn {
+  font-size: 14px;
+  padding: 5px 14px;
+}
+.shop__intro {
   font-size: 13px;
+  color: var(--tg-color-text);
 }
 
 /* ---------------------------------------------------------------- hand */
 
 .hand .panel__body {
-  gap: 6px;
-  padding: 8px;
+  gap: 4px;
+  padding: 0 10px 8px;
 }
 .hand__list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-height: 0;
   overflow-y: auto;
+  padding-bottom: 4px;
 }
 /* The side panel is short: one line per card (name + buttons); the full text is in the shop and the tooltip. */
 .hand .card {
+  flex-shrink: 0;
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 6px;
-  padding: 3px 6px;
+  padding: 1px 6px 1px 8px;
+  border-width: 2px;
+  border-left-width: 8px;
+  border-radius: 8px;
+  box-shadow: 0 2px 0 var(--tg-color-shadow);
 }
 .hand .card__head,
 .hand .card__text,
@@ -149,29 +195,31 @@
 .hand .card__name {
   flex: 1;
   min-width: 0;
-  font-size: 12px;
+  font-size: 12.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .hand .card--illegal .card__name::after {
   content: ' (illegal)';
-  font-weight: 400;
+  font-family: var(--tg-font-sans);
+  font-weight: 700;
   color: var(--tg-color-down);
 }
 .hand .card__actions {
   margin: 0;
 }
 .hand .card__btn {
-  padding: 1px 6px;
+  padding: 0 7px;
   font-size: 11px;
+  box-shadow: 0 2px 0 var(--tg-color-shadow);
 }
 .hand__empty {
   font-size: 12px;
   color: var(--tg-color-text-dim);
 }
 .hand__heat {
-  font-weight: 700;
+  font-weight: 800;
 }
 .hand__heat--none {
   color: var(--tg-color-text-dim);
@@ -183,10 +231,11 @@
   color: var(--tg-color-down);
 }
 .hand__jail {
-  padding: 4px 6px;
+  padding: 5px 8px;
   font-size: 12px;
-  font-weight: 700;
-  color: var(--tg-color-down);
-  border: 1px solid var(--tg-color-down);
-  border-radius: 3px;
+  font-weight: 800;
+  color: var(--tg-color-text-bright);
+  background: color-mix(in srgb, var(--tg-color-down) 60%, var(--tg-color-panel));
+  border: 2px solid var(--tg-color-down);
+  border-radius: 8px;
 }

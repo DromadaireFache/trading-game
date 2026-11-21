@@ -43,12 +43,12 @@ export function SymbolHeader({ symbol, size = 'normal' }: SymbolHeaderProps) {
           <dd data-testid="selected-sector">{symbolGroupLabel(info)}</dd>
         </div>
         <div className="sym-head__fact">
-          <dt>{info.kind === 'stock' ? 'Mkt cap' : 'Assets'}</dt>
+          <dt title="Total value of the company">{info.kind === 'stock' ? 'Company size' : 'Fund size'}</dt>
           <dd data-testid="selected-cap">{formatMoneyShort(info.marketCap)}</dd>
         </div>
         {eps !== undefined && (
-          <div className="sym-head__fact" title="Earnings consensus: this quarter's expected EPS. The report at EARNINGS beats or misses it.">
-            <dt>EPS est.</dt>
+          <div className="sym-head__fact" title="What the company is expected to earn per share this quarter. At EARNINGS it beats (price jumps) or misses (price drops).">
+            <dt>Profit est.</dt>
             <dd data-testid="selected-eps">${eps.toFixed(2)}</dd>
           </div>
         )}
@@ -82,7 +82,7 @@ function HeaderQuote({ symbol }: { symbol: SymbolId }) {
         {quote ? formatPrice(quote.price, decimals) : '--'}
       </span>
       <span className={`sym-head__change change--${changeDirection(change)}`} data-testid="selected-change" title="Change since the quarter opened">
-        {formatPercent(change)} <span className="sym-head__change-label">QTD</span>
+        {formatPercent(change)} <span className="sym-head__change-label">this quarter</span>
       </span>
     </div>
   );
