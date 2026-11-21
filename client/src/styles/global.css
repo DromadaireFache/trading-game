@@ -579,14 +579,13 @@ ol {
   min-height: 0;
   display: grid;
   /*
-   * Top: the headline slot over list | chart; side on the right. Bottom: the others' positions (left to
-   * middle) | yours (middle to right).
+   * Top: list | chart | side (bets, money, cards, and the headline slot at the bottom right). Bottom: the
+   * others' positions (left to middle) | yours (middle to right).
    */
   grid-template-columns: 480px minmax(0, 1fr) minmax(0, 1fr) 380px;
-  /* The bottom only needs a handful of rows; the middle keeps the whole stock list in view. */
-  grid-template-rows: 84px minmax(0, 1fr) minmax(150px, 22vh);
+  /* The bottom only needs a handful of rows; the top keeps the whole stock list in view. */
+  grid-template-rows: minmax(0, 1fr) minmax(150px, 22vh);
   grid-template-areas:
-    'news   news   news      side'
     'list   chart  chart     side'
     'rivals rivals positions positions';
   gap: 8px;
@@ -596,7 +595,6 @@ ol {
 @media (max-height: 860px) {
   .desk {
     grid-template-areas:
-      'news   news      news      side'
       'list   chart     chart     side'
       'rivals positions positions side';
   }
@@ -604,7 +602,6 @@ ol {
 /* RESULTS / SHOP / FINAL: one stage panel takes the place of everything but the side column. */
 .desk--stage {
   grid-template-areas:
-    'stage stage stage side'
     'stage stage stage side'
     'stage stage stage side';
 }
@@ -643,9 +640,10 @@ ol {
 .desk__chart {
   grid-area: chart;
 }
-/* The headline slot: the latest headline, over the list and the chart. */
-.desk__news {
-  grid-area: news;
+/* The headline slot: the latest headline, at the bottom of the side column (bottom right). */
+.desk__side > .desk__news {
+  flex: none;
+  height: 148px;
 }
 /* The earnings report (BRIEFING, EARNINGS, FINAL): over the chart, or under the final standings. */
 .desk__earnings {
@@ -660,7 +658,6 @@ ol {
 }
 .desk--final:has(.desk__earnings > .earnings) {
   grid-template-areas:
-    'stage    stage    stage    side'
     'stage    stage    stage    side'
     'earnings earnings earnings side';
 }

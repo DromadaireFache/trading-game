@@ -10,10 +10,10 @@ import './news.css';
 type Headline = Omit<HeadlineMsg, 't'>;
 
 /**
- * The desk's headline slot: the latest headline (engine news, a player's card, or a private insider
- * tip) as a newspaper strip. It stays until a later headline replaces it. The whole strip is one
- * button: clicking it opens its stock (or the sector fund, or the index for market-wide news) in the
- * list, chart and bet panel. Nothing on it moves or closes.
+ * The desk's headline slot, at the bottom right under your cards: the latest headline (engine news, a
+ * player's card, or a private insider tip) as a newspaper clipping. It stays until a later headline
+ * replaces it. The whole clipping is one button: clicking it opens its stock (or the sector fund, or
+ * the index for market-wide news) in the list, chart and bet panel. Nothing on it moves or closes.
  */
 export function HeadlineBanner({ className }: { className?: string }) {
   const { headlines } = useGame();
@@ -67,7 +67,7 @@ function Strip({ headline, symbols }: { headline: Headline; symbols: readonly Sy
       </span>
       <span className="headline__body">
         <span className="headline__mast">
-          <span className="headline__paper">{headline.early ? 'Psst… Insider Wire · only you can see this' : 'The Daily Ticker'}</span>
+          <span className="headline__paper">{headline.early ? 'Psst… Insider Wire · only you' : 'The Daily Ticker'}</span>
           <span className="headline__date">
             Q{quarter} · Day {day}
           </span>

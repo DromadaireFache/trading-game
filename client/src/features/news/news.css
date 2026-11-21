@@ -1,6 +1,7 @@
 /*
- * The headline slot: one newspaper strip above the list and chart showing the latest headline. It never
- * moves or closes; a later headline replaces it. The whole strip is a button that opens its stock.
+ * The headline slot: one newspaper clipping at the bottom right (under your cards) showing the latest
+ * headline. It never moves or closes; a later headline replaces it. The whole clipping is a button that
+ * opens its stock.
  * Colors and fonts only through var(--tg-...). --sector is the story's sector color (lib/sectorColor.ts).
  */
 .headline-slot {
@@ -22,11 +23,15 @@
 
 .headline {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'art   body'
+    'stock stock';
+  align-items: start;
+  gap: 4px 10px;
   min-width: 0;
-  padding: 6px 12px 6px 6px;
+  min-height: 0;
+  padding: 6px 10px 6px 6px;
   font: inherit;
   text-align: left;
   color: var(--tg-color-card-text);
@@ -59,6 +64,7 @@
 }
 
 .headline__art {
+  grid-area: art;
   display: flex;
   flex-direction: column;
   color: var(--tg-color-card-text);
@@ -68,8 +74,8 @@
 }
 .news-art {
   display: block;
-  width: 86px;
-  height: 52px;
+  width: 72px;
+  height: 46px;
 }
 .headline__sector {
   padding: 0 4px;
@@ -84,6 +90,7 @@
 }
 
 .headline__body {
+  grid-area: body;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -105,24 +112,28 @@
 }
 .headline__text {
   font-family: var(--tg-font-serif);
-  font-size: 19px;
+  font-size: 14px;
   font-weight: 900;
   line-height: 1.15;
+  /* Four lines hold the longest headline (140 characters) in the side column: the joke is often at the end. */
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 .headline__stock {
+  grid-area: stock;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 3px;
-  max-width: 180px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 3px;
+  border-top: 1px solid color-mix(in srgb, var(--tg-color-card-text) 40%, transparent);
 }
 .headline__company {
-  max-width: 100%;
+  flex: 1;
+  min-width: 0;
   font-family: var(--tg-font-serif);
   font-size: 13px;
   font-weight: 700;
@@ -132,9 +143,10 @@
 }
 /* The ticker wears the stock's sector color, as it does in the stock list. */
 .headline__ticker {
-  padding: 1px 8px;
+  flex: none;
+  padding: 0 7px;
   font-family: var(--tg-font-mono);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 900;
   letter-spacing: 0.06em;
   background: var(--sector);
@@ -142,6 +154,7 @@
   border-radius: 4px;
 }
 .headline__open {
+  flex: none;
   font-family: var(--tg-font-display);
   font-size: 12px;
   font-weight: 900;

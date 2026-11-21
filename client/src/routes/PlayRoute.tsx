@@ -52,8 +52,8 @@ function PlayScreen() {
 const STAGE_PHASES: readonly Phase[] = ['RESULTS', 'SHOP', 'FINAL'];
 
 /**
- * The trading desk grid. On top, the headline slot (the latest headline; click it to open its stock).
- * Under it the stock list and the chart, and on the right your bet buttons, your money and your cards.
+ * The trading desk grid. The stock list and the chart; on the right your bet buttons, your money, your
+ * cards and, at the bottom right, the headline slot (the latest headline; click it to open its stock).
  * At the bottom: the other players' positions, then yours. Between and after quarters one "stage"
  * panel (results / shop / final) takes the place of everything but the right column.
  */
@@ -65,7 +65,6 @@ function Desk({ phase }: { phase: Phase }) {
         <ErrorBanner />
       </div>
       <Stage phase={phase} />
-      {!stage && <HeadlineBanner className="desk__news" />}
       <div className="desk__earnings">
         <EarningsPanel />
       </div>
@@ -73,6 +72,7 @@ function Desk({ phase }: { phase: Phase }) {
         <OrderPanel className="desk__order" />
         <MoneyPanel className="desk__money" />
         <HandPanel className="desk__hand" />
+        {!stage && <HeadlineBanner className="desk__news" />}
       </div>
       {!stage && <RivalsPanel className="desk__rivals" />}
       {!stage && <PositionsPanel className="desk__positions" />}

@@ -1022,9 +1022,10 @@ async function main(): Promise<void> {
       const ticker = (await textOf(a, 'headline-ticker')).trim();
       check(ticker.length > 0 && (latest.symbol === undefined || ticker === latest.symbol), `the slot names its stock (${ticker})`);
       check((await textOf(a, 'headline-sector')).trim().length > 0, `the slot names its sector: ${await textOf(a, 'headline-sector')}`);
-      const [slotBox, chartBox, listBox] = [await a.locator(tid('headline-slot')).boundingBox(), await a.locator('.desk__chart').boundingBox(), await a.locator('.desk__list').boundingBox()];
-      check(slotBox !== null && chartBox !== null && listBox !== null && slotBox.y + slotBox.height <= Math.min(chartBox.y, listBox.y) + 1 && slotBox.x <= listBox.x + 1,
-        `the headline slot sits above the list and the chart (slot ${JSON.stringify(slotBox)})`);
+      const [slotBox, sideBox, handBox] = [await a.locator(tid('headline-slot')).boundingBox(), await a.locator('.desk__side').boundingBox(), await a.locator('.desk__hand').boundingBox()];
+      check(slotBox !== null && sideBox !== null && handBox !== null && slotBox.x >= sideBox.x - 1 && slotBox.y >= handBox.y + handBox.height - 1 &&
+        Math.abs(slotBox.y + slotBox.height - (sideBox.y + sideBox.height)) <= 2,
+        `the headline slot sits at the bottom right, under the cards (slot ${JSON.stringify(slotBox)})`);
       // Nothing on it to press, and it does not move when dragged.
       check((await a.locator(`${tid('headline')} button, ${tid('headline')} [role=button]`).count()) === 0, 'the headline has no buttons of its own');
       // A headline arriving mid-check slides in for a moment: read the box once it holds still.
