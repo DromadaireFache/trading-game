@@ -637,8 +637,9 @@ ol {
 .desk__chart {
   grid-area: chart;
 }
+/* Headline papers land on top of the side column's cards (bottom right), not over the chart. */
 .desk__pops {
-  grid-area: chart;
+  grid-area: side;
 }
 /* The earnings report (BRIEFING, EARNINGS, FINAL): over the chart, or under the final standings. */
 .desk__earnings {
@@ -898,7 +899,6 @@ ol {
 
 /* Simple mode (on /play only; the projector keeps its own look). */
 [data-mode='simple'] .play .phase-strip,
-[data-mode='simple'] .play .sym-head__facts,
-[data-mode='simple'] .play .sym-group[data-group='funds'] {
+[data-mode='simple'] .play .sym-head__facts {
   display: none;
 }

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent } from 'react';
-import { dayOfQuarter, dayToQuarter } from '@tg/shared';
+import { SECTOR_LABELS, dayOfQuarter, dayToQuarter } from '@tg/shared';
 import type { HeadlineMsg, Sector, SymbolInfo } from '@tg/shared';
 import { useGame } from '../../net/GameProvider.tsx';
 import { useMarketStore, useSymbols } from '../../net/marketHooks.ts';
+import { sectorColor } from '../../lib/sectorColor.ts';
 import { NewsDrawing } from './NewsDrawing.tsx';
 import './news.css';
 
@@ -133,7 +134,15 @@ function Paper({ headline, depth, symbols, onDismiss }: PaperProps) {
   const scope: Sector | 'market' = headline.sector ?? 'market';
   const quarter = dayToQuarter(config, headline.ts);
   const day = dayOfQuarter(config, headline.ts);
-  const style = { '--pop-tilt': `${tilt(headline.id)}deg`, '--pop-depth': depth, '--drag-x': `${drag.x}px`, '--drag-y': `${drag.y}px` } as CSSProperties;
+  const sectorName = scope === 'market' ? 'Whole market' : SECTOR_LABELS[scope];
+  const company = headline.symbol ? symbols.find((s) => s.symbol === headline.symbol)?.name : undefined;
+  const style = {
+    '--pop-tilt': `${tilt(headline.id)}deg`,
+    '--pop-depth': depth,
+    '--drag-x': `${drag.x}px`,
+    '--drag-y': `${drag.y}px`,
+    '--sector': sectorColor(scope),
+  } as CSSProperties;
   return (
     <article
       className={`paper${headline.early ? ' paper--early' : ''}${depth > 0 ? ' paper--behind' : ''}${dragging ? ' paper--dragging' : ''}`}
@@ -144,6 +153,7 @@ function Paper({ headline, depth, symbols, onDismiss }: PaperProps) {
       onPointerCancel={onPointerUp}
       data-testid="news-pop"
       data-ticker={ticker}
+      data-sector={scope}
     >
       <header className="paper__mast">
         <span className="paper__name">{headline.early ? 'Psst… Insider Wire' : 'The Daily Ticker'}</span>
@@ -156,14 +166,20 @@ function Paper({ headline, depth, symbols, onDismiss }: PaperProps) {
       </header>
       <div className="paper__body">
         <h3 className="paper__headline">{headline.text}</h3>
-        <figure className="paper__art" aria-hidden="true">
+        <figure className="paper__art">
           <NewsDrawing scope={scope} />
+          <figcaption className="paper__sector" data-testid="news-pop-sector">
+            {sectorName}
+          </figcaption>
         </figure>
       </div>
       <footer className="paper__foot">
         <span className="paper__note">{headline.early ? 'Only you can see this. Not public yet.' : 'Find it in your list: the price moves in seconds.'}</span>
-        <span className="paper__ticker" data-testid="news-pop-ticker">
-          {ticker}
+        <span className="paper__stock">
+          {company && <span className="paper__company">{company}</span>}
+          <span className="paper__ticker" data-testid="news-pop-ticker">
+            {ticker}
+          </span>
         </span>
       </footer>
     </article>

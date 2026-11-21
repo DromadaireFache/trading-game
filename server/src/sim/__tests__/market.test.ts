@@ -91,7 +91,9 @@ function playToFinal(sim: Sim, onEvents?: (events: SimEvent[]) => void): void {
 }
 
 describe('market: determinism', () => {
-  it('reduces quiet-market daily fluctuations to a quarter of the previous defaults', () => {
+  // The calm pass cut the base vols to a quarter of the first guess; the realism pass set them back to
+  // half (the dynamics in createSim add the storms on top).
+  it('keeps the base daily fluctuations at half of the first defaults', () => {
     const previous = mergeConfig(defaultConfig, { market: {
       marketVolPerDay: 0.01, sectorVolPerDay: 0.008, idioVolPerDayMin: 0.01, idioVolPerDayMax: 0.03,
     } });
@@ -102,7 +104,7 @@ describe('market: determinism', () => {
       const oldReturns = dailyReturns(old, 90, previous);
       const calmVol = mean(calm.universe.companies.map((c) => std(calmReturns.get(c.symbol)!)));
       const oldVol = mean(old.universe.companies.map((c) => std(oldReturns.get(c.symbol)!)));
-      expect(calmVol / oldVol).toBeCloseTo(0.25, 5);
+      expect(calmVol / oldVol).toBeCloseTo(0.5, 5);
     }
   });
 
@@ -185,10 +187,10 @@ describe('market: volatility', () => {
     }
     expect(mean(ratios)).toBeGreaterThan(0.96);
     expect(mean(ratios)).toBeLessThan(1.04);
-    // A typical stock has a quiet but measurable daily move.
+    // A typical stock has a measurable daily move, livelier since the realism pass (about 1.3%).
     const typical = mean(market.universe.companies.map((c) => std(returns.get(c.symbol)!)));
     expect(typical).toBeGreaterThan(0.0025);
-    expect(typical).toBeLessThan(0.0125);
+    expect(typical).toBeLessThan(0.02);
   });
 
   it('daily vol does not depend on the tick rate (sqrt-of-time scaling)', () => {

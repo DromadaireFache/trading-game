@@ -399,3 +399,44 @@ describe('news through the sim', () => {
     expect(snap.headlines.length).toBeLessThanOrEqual(CONFIG.news.replayHeadlines);
   });
 });
+
+describe('headlines only name what exists', () => {
+  it('with the full catalog, every published headline names a stock and a sector of this universe', async () => {
+    const { readHeadlines, HEADLINE_SEED, GENERATED_HEADLINES } = await import('../../headline-files.ts');
+    const { SECTORS } = await import('@tg/shared');
+    const catalog = [...readHeadlines(HEADLINE_SEED), ...readHeadlines(GENERATED_HEADLINES, true)];
+    for (const h of catalog) if (h.sector !== undefined) expect(SECTORS).toContain(h.sector);
+    const config = mergeConfig(defaultConfig, {
+      time: { daysPerQuarter: 40, quarters: 4 },
+      phaseMs: { BRIEFING: 200, EARNINGS: 200, RESULTS: 200, SHOP: 200 },
+      news: { randomHeadlinesPerQuarter: 12, minGapMs: 500 },
+      earnings: { leaksPerQuarter: 6 },
+    });
+    for (const seed of [1, 2, 3]) {
+      const sim = createSim(seed, config, { headlines: catalog });
+      const symbols = new Set(sim.getUniverse().companies.map((c) => c.symbol));
+      const names = sim.getUniverse().companies.map((c) => c.name);
+      sim.submit({ kind: 'add_player', playerId: 'p1', name: 'Ann' });
+      sim.submit({ kind: 'start', playerId: 'p1' });
+      const events: SimEvent[] = [];
+      for (let i = 0; i < 1_000_000 && sim.getState().phase !== 'FINAL'; i++) events.push(...sim.tick());
+      const published = only(events, 'headline');
+      expect(published.length).toBeGreaterThan(20);
+      for (const h of published) {
+        if (h.symbol !== undefined) {
+          expect(symbols.has(h.symbol)).toBe(true);
+          const company = sim.getUniverse().companies.find((c) => c.symbol === h.symbol)!;
+          expect(h.sector).toBe(company.sector);
+        }
+        if (h.sector !== undefined) expect(SECTORS).toContain(h.sector);
+        expect(h.text).not.toMatch(/\{[A-Z_]+\}/);
+      }
+      // A stock headline that names a company names one of this game's companies.
+      for (const p of sim.news.log()) {
+        if (p.target.scope !== 'stock') continue;
+        const template = catalog.find((t) => t.id === p.templateId)!;
+        if (/\{COMPANY\}/.test(template.text)) expect(names.some((n) => p.text.includes(n))).toBe(true);
+      }
+    }
+  });
+});

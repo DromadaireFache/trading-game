@@ -14,7 +14,7 @@ export const DEFAULT_UI_MODE: UiMode = 'simple';
 
 export const UI_MODE_INFO: Record<UiMode, { label: string; blurb: string }> = {
   simple: { label: 'Simple', blurb: 'Just the basics: pick a company, bet up or down, follow the news.' },
-  normal: { label: 'Normal', blurb: 'The full desk: funds, risk, coming events, earnings.' },
+  normal: { label: 'Normal', blurb: 'The full desk: risk, coming events, earnings.' },
   pro: { label: 'Pro', blurb: 'Every number: tickers, shares, average prices, leverage, interest rate.' },
 };
 

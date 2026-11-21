@@ -1,4 +1,5 @@
 import { canReadyUp } from '@tg/shared';
+import { play } from '../features/fx/sound.ts';
 import { useGame, useGameClient } from '../net/GameProvider.tsx';
 
 export function ReadyUp() {
@@ -15,7 +16,9 @@ export function ReadyUp() {
         type="button"
         className="btn btn--primary"
         disabled={ready || join !== 'joined'}
-        onClick={() => client.send({ t: 'ready_up', phase: current, quarter })}
+        onClick={() => {
+          if (client.send({ t: 'ready_up', phase: current, quarter })) play('ready');
+        }}
         data-testid="ready-up"
       >
         {ready ? 'Ready' : 'Ready Up'}

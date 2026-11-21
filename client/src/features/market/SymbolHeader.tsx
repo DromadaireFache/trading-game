@@ -1,3 +1,4 @@
+import { symbolColor } from '../../lib/sectorColor.ts';
 import { SECTOR_LABELS } from '@tg/shared';
 import type { SymbolId, SymbolInfo } from '@tg/shared';
 import { changeDirection, formatMoneyShort, formatPercent, formatPrice } from '../../lib/format.ts';
@@ -34,7 +35,9 @@ export function SymbolHeader({ symbol, size = 'normal' }: SymbolHeaderProps) {
   return (
     <div className={`sym-head sym-head--${size}`} data-testid="selected-symbol" data-symbol={info.symbol}>
       <div className="sym-head__id">
-        <span className="sym-head__ticker" data-testid="selected-ticker">{info.symbol}</span>
+        <span className="sym-head__ticker" style={{ color: symbolColor(info) }} data-testid="selected-ticker">
+          {info.symbol}
+        </span>
         <span className="sym-head__name" data-testid="selected-name">{info.name}</span>
       </div>
       <dl className="sym-head__facts">

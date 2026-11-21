@@ -108,6 +108,11 @@ export interface NewsDeps {
   earningsRng: Rng;
   /** Delay before the prior earnings report affects the market. */
   earningsLeadRng: Rng;
+  /**
+   * How the market reacts to engine headlines (size, reversal, overshoot, speed, aftermath) and
+   * whether a leak misleads; see config.news.reaction. Optional so a bare engine (tests) is exact.
+   */
+  reactionRng?: Rng;
   /** Presentation order of the earnings reports. */
   earningsOrderRng: Rng;
 }
@@ -153,7 +158,9 @@ function weighted<K extends string>(rng: Rng, weights: Record<K, number>): K {
 }
 
 export function createNews(deps: NewsDeps): News {
-  const { config, universe, book, lists, rng, earningsRng, earningsLeadRng, earningsOrderRng } = deps;
+  const { config, universe, book, lists, rng, earningsRng, earningsLeadRng, earningsOrderRng, reactionRng } = deps;
+  const reaction = config.news.reaction;
+  const between = (r: Rng, min: number, max: number) => min + (max - min) * r.next();
   const tpc = config.time.ticksPerCandle;
   const tradingTicks = config.time.daysPerQuarter * tpc;
   const minGapTicks = msToTicks(config, config.news.minGapMs);
@@ -229,8 +236,27 @@ export function createNews(deps: NewsDeps): News {
     const target = item.target;
     const id = `n${++seq}`;
     const effectTick = tick + leadMinTicks + rng.int(leadMaxTicks - leadMinTicks + 1);
-    if (item.logReturn !== 0) {
-      const shock = createShock(config, universe, { id, target, logReturn: item.logReturn, startTick: effectTick });
+    // The move the market actually makes. Cards keep their exact effect; the engine's own news gets an
+    // uncertain reaction, so a headline never fully tells you how far, how fast, or even which way.
+    let move = item.logReturn;
+    if (move !== 0) {
+      const shock = createShock(config, universe, { id, target, logReturn: move, startTick: effectTick });
+      const engineNews = reactionRng !== undefined && item.source !== 'card' && item.source !== 'regime' && item.leakAmount === undefined;
+      if (engineNews) {
+        const r = reactionRng!;
+        const size = Math.exp(reaction.sizeSigma * r.normal() - (reaction.sizeSigma * reaction.sizeSigma) / 2);
+        const reversed = r.next() < reaction.reverseChance;
+        move = item.logReturn * size * (reversed ? -reaction.reverseScale : 1);
+        shock.logReturn = move;
+        shock.overshoot = between(r, reaction.overshootMin, reaction.overshootMax);
+        shock.rampTicks = Math.max(1, Math.round(shock.rampTicks * between(r, reaction.rampMultMin, reaction.rampMultMax)));
+        // Aftermath: a slow follow-through or fade over the next days, with no headline of its own.
+        if (r.next() < reaction.driftChance) {
+          const days = Math.round(between(r, reaction.driftDaysMin, reaction.driftDaysMax));
+          const drift = createShock(config, universe, { id: `${id}~`, target, logReturn: move * between(r, reaction.driftShareMin, reaction.driftShareMax), startTick: effectTick + 2 * shock.rampTicks });
+          shocks.push({ ...drift, rampTicks: Math.max(1, days * tpc), overshoot: 0 });
+        }
+      }
       // A fake stays revertible until its debunk lands (an unset revertTick would drop it once settled).
       shocks.push(item.fake ? { ...shock, revertTick: Number.POSITIVE_INFINITY } : shock);
     }
@@ -262,7 +288,8 @@ export function createNews(deps: NewsDeps): News {
       ts,
       source: item.source,
       target,
-      logReturn: item.logReturn,
+      // The move the market made (what the recap explains), not the planned one.
+      logReturn: move,
       ...(item.ownerId === undefined ? {} : { ownerId: item.ownerId }),
       ...(item.cardName === undefined ? {} : { cardName: item.cardName }),
       ...(newRate === undefined ? {} : { rate: newRate }),
@@ -293,13 +320,17 @@ export function createNews(deps: NewsDeps): News {
       // 1. Earnings plan and its leaks.
       currentPlan = drawEarnings(earningsRng, config, universe, q, tradingStartTick);
       for (const leak of currentPlan.leaks) {
+        // A leak is a rumor: with 1 - leakAccuracy it points the wrong way. What it moves is what it
+        // "prices in" (signed), so the report's gap corrects it and leak + gap still add up.
+        const sign = reactionRng !== undefined && reactionRng.next() >= reaction.leakAccuracy ? -1 : 1;
+        const logReturn = sign * leak.logReturn;
         queue.push({
           tick: leak.tick,
           source: 'leak',
-          query: { kind: 'real', scope: 'stock', category: 'earnings_leak', direction: leak.logReturn >= 0 ? 'up' : 'down', magnitude: nearestMagnitude(config, leak.logReturn) },
+          query: { kind: 'real', scope: 'stock', category: 'earnings_leak', direction: logReturn >= 0 ? 'up' : 'down', magnitude: nearestMagnitude(config, logReturn) },
           target: { scope: 'stock', symbol: leak.symbol },
-          logReturn: leak.logReturn,
-          leakAmount: leak.amount,
+          logReturn,
+          leakAmount: sign * leak.amount,
         });
       }
 

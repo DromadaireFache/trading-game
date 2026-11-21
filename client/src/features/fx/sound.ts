@@ -1,12 +1,14 @@
 /**
  * Synthesized sound effects (WebAudio, no files: the game runs offline on a LAN).
  *
- * Browsers only allow audio after a user gesture, so the AudioContext is created on the first
- * pointerdown / keydown of the page. Until then play() is a no-op. Muting is per browser
+ * Browsers require a user gesture, so the AudioContext is unlocked on a click, tap, or keypress.
+ * Until then play() is a no-op. Muting is per browser
  * (localStorage 'tg.muted'). Everything here is best-effort: a failure never reaches the game.
  */
 
-export type SoundName = 'fill' | 'cash' | 'loss' | 'news' | 'whoosh' | 'sting' | 'bell' | 'pop' | 'count' | 'thump' | 'card' | 'secret' | 'siren';
+export type SoundName =
+  | 'fill' | 'cash' | 'loss' | 'news' | 'whoosh' | 'sting' | 'bell' | 'pop' | 'count' | 'thump' | 'card' | 'secret' | 'siren'
+  | 'briefing' | 'earnings' | 'shop' | 'final' | 'ready' | 'reject' | 'betWin' | 'betLoss';
 
 const MUTE_KEY = 'tg.muted';
 const MASTER_GAIN = 0.22;
@@ -17,7 +19,7 @@ let muted = readMuted();
 const listeners = new Set<() => void>();
 /** Per-sound minimum gap, so a burst of events does not turn into noise. */
 const lastPlayed = new Map<SoundName, number>();
-const MIN_GAP_MS: Partial<Record<SoundName, number>> = { count: 35, news: 120, fill: 60 };
+const MIN_GAP_MS: Partial<Record<SoundName, number>> = { count: 35, news: 120, fill: 60, reject: 300, betWin: 300, betLoss: 300 };
 
 function readMuted(): boolean {
   try {
@@ -27,25 +29,26 @@ function readMuted(): boolean {
   }
 }
 
-function unlock(): void {
-  if (ctx) {
-    if (ctx.state === 'suspended') void ctx.resume().catch(() => {});
-    return;
-  }
+async function unlock(): Promise<void> {
   try {
-    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return;
-    ctx = new Ctor();
-    master = ctx.createGain();
-    master.gain.value = muted ? 0 : MASTER_GAIN;
-    master.connect(ctx.destination);
+    if (!ctx || ctx.state === 'closed') {
+      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return;
+      const audio = new Ctor();
+      const gain = audio.createGain();
+      gain.gain.value = muted ? 0 : MASTER_GAIN;
+      gain.connect(audio.destination);
+      ctx = audio;
+      master = gain;
+    }
+    if (ctx.state !== 'running') await ctx.resume();
   } catch {
-    ctx = null;
+    // A later gesture can retry if the browser blocks audio.
   }
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('pointerdown', unlock, { capture: true });
+  window.addEventListener('click', unlock, { capture: true });
   window.addEventListener('keydown', unlock, { capture: true });
 }
 
@@ -62,6 +65,7 @@ export function setMuted(value: boolean): void {
   }
   if (master) master.gain.value = value ? 0 : MASTER_GAIN;
   for (const l of listeners) l();
+  if (!value) void unlock().then(() => play('ready'));
 }
 
 export function onMuteChange(listener: () => void): () => void {
@@ -162,6 +166,44 @@ export function play(name: SoundName, pitch = 1): void {
         tone(t, { freq: 880, type: 'sine', dur: 1.1, gain: 0.45 });
         tone(t, { freq: 1320, type: 'sine', dur: 0.7, gain: 0.2 });
         tone(t, { freq: 2640, type: 'sine', dur: 0.3, gain: 0.08 });
+        break;
+      case 'briefing': // a short news bulletin lead-in
+        for (const [i, freq] of [392, 494, 587].entries()) {
+          tone(t, { freq, type: 'triangle', start: i * 0.08, dur: 0.18, gain: 0.34 });
+        }
+        break;
+      case 'earnings': // report hits the desk, then two alert notes
+        noise(t, { dur: 0.14, from: 4200, to: 1300, gain: 0.5 });
+        tone(t, { freq: 784, type: 'triangle', start: 0.06, dur: 0.16, gain: 0.42 });
+        tone(t, { freq: 1175, type: 'triangle', start: 0.17, dur: 0.3, gain: 0.38 });
+        break;
+      case 'shop': // cash drawer and a bright chime
+        noise(t, { dur: 0.08, from: 1300, to: 5000, gain: 0.48 });
+        tone(t, { freq: 1568, start: 0.06, dur: 0.35, gain: 0.35 });
+        tone(t, { freq: 2349, start: 0.14, dur: 0.32, gain: 0.22 });
+        break;
+      case 'final':
+        for (const [i, freq] of [392, 523, 659, 784, 1047].entries()) {
+          tone(t, { freq, type: 'triangle', start: i * 0.115, dur: 0.32, gain: 0.34 });
+        }
+        tone(t, { freq: 262, start: 0.46, dur: 0.65, gain: 0.4 });
+        break;
+      case 'ready':
+        tone(t, { freq: 622, dur: 0.09, gain: 0.44 });
+        tone(t, { freq: 932, start: 0.07, dur: 0.14, gain: 0.36 });
+        break;
+      case 'reject':
+        tone(t, { freq: 235, to: 175, type: 'triangle', dur: 0.17, gain: 0.55 });
+        tone(t, { freq: 147, type: 'triangle', start: 0.09, dur: 0.17, gain: 0.32 });
+        break;
+      case 'betWin':
+        tone(t, { freq: 659 * p, type: 'triangle', dur: 0.16, gain: 0.44 });
+        tone(t, { freq: 988 * p, start: 0.08, dur: 0.24, gain: 0.43 });
+        noise(t, { start: 0.09, dur: 0.14, from: 5200, to: 6800, gain: 0.35 });
+        break;
+      case 'betLoss':
+        tone(t, { freq: 392, to: 294, type: 'triangle', dur: 0.16, gain: 0.46 });
+        tone(t, { freq: 247, to: 185, type: 'triangle', start: 0.11, dur: 0.23, gain: 0.36 });
         break;
       case 'pop':
         tone(t, { freq: 420 * p, to: 980 * p, type: 'sine', dur: 0.09, gain: 0.5 });
