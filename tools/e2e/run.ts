@@ -1011,6 +1011,7 @@ async function main(): Promise<void> {
       await a.click(tid('mode-simple'));
       await a.waitForSelector(`${tid('symbol-group')}[data-group=funds]`, { state: 'hidden' });
       check(true, 'Simple mode hides the funds group');
+      await checkChartDrawn(a, 'Simple mode', (await a.getAttribute(tid('selected-symbol'), 'data-symbol'))!, 2);
       check((await a.locator('[data-testid^=size-]').count()) === 0, 'Simple mode replaces the order buttons with quick bets');
       check((await a.locator('[data-testid^=stake-]').count()) === 3, 'Simple mode offers three stakes');
       check((await a.locator(tid('headline-up')).count()) > 0, 'Simple mode puts a quick bet on every headline');
