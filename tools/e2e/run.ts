@@ -1013,12 +1013,21 @@ async function main(): Promise<void> {
       const ticker = (await a.locator(tid('news-pop-ticker')).last().textContent())?.trim() ?? '';
       check(ticker.length > 0 && (latest.symbol === undefined || ticker === latest.symbol), `the headline pops up as a paper with its ticker (${ticker}): "${latest.text}"`);
       // The paper lands on top of the cards in the side column (bottom right), not over the chart.
+      await sleep(600); // after its 380 ms drop-in animation
       const [paperBox, sideBox] = [await a.locator(tid('news-pop')).last().boundingBox(), await a.locator('.desk__side').boundingBox()];
       check(paperBox !== null && sideBox !== null && paperBox.x >= sideBox.x - 12 && paperBox.y + paperBox.height > sideBox.y + sideBox.height / 2,
-        'the paper lands over the cards in the side column');
+        `the paper lands over the cards in the side column (paper ${JSON.stringify(paperBox)}, side ${JSON.stringify(sideBox)})`);
       const sectorLabel = (await a.locator(tid('news-pop-sector')).last().textContent())?.trim() ?? '';
       check(sectorLabel.length > 0, `the paper names its sector: ${sectorLabel}`);
       await shot(a, '20-play-news-paper');
+      // Go to: closes that paper and opens its stock (or sector fund, or index).
+      const papersBefore = await a.locator(tid('news-pop')).count();
+      const goTicker = (await a.locator(tid('news-pop-ticker')).last().textContent())?.trim() ?? '';
+      await a.locator(tid('news-pop-goto')).last().click();
+      await waitFor('the Go to paper to close', async () => (await a.locator(tid('news-pop')).count()) === papersBefore - 1);
+      await a.waitForSelector(`${tid('selected-symbol')}[data-symbol="${goTicker}"]`);
+      check(true, `Go to ${goTicker} closed the paper and opened ${goTicker}`);
+      await selectSymbol(a, stockA); // later steps expect A's own pick
       check((await a.evaluate(`getComputedStyle(document.querySelector('[data-testid=news-pops]')).pointerEvents`)) === 'none', 'the pile around the papers lets clicks through');
       const selectedBefore = await a.getAttribute(tid('selected-symbol'), 'data-symbol');
       await a.locator(tid('news-pop')).last().click({ position: { x: 60, y: 70 } });
