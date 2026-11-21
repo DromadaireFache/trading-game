@@ -1,4 +1,4 @@
-import { QUARTER_PHASES } from '@tg/shared';
+import { FINAL_QUARTER_PHASES, QUARTER_PHASES } from '@tg/shared';
 import { useCountdown } from '../hooks/useCountdown.ts';
 import { PHASE_HINT, PHASE_LABEL } from '../lib/phases.ts';
 import { formatQuarter } from '../lib/time.ts';
@@ -18,7 +18,7 @@ export function PhaseHeader() {
   const current = phase?.phase ?? 'LOBBY';
   const quarter = phase?.quarter ?? 0;
   const totalQuarters = phase?.totalQuarters ?? config.time.quarters;
-  const phases = quarter < totalQuarters ? QUARTER_PHASES : QUARTER_PHASES.filter((p) => p !== 'SHOP');
+  const phases = quarter < totalQuarters ? QUARTER_PHASES : FINAL_QUARTER_PHASES;
   const urgent = countdown.ms !== null && countdown.ms <= config.presentation.countdownUrgentMs;
 
   return (

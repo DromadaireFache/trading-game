@@ -3,7 +3,7 @@
  * (`@tg/server/sim` from other workspaces).
  *
  * Milestone 1: the phase state machine and the lobby roster.
- *   Each quarter starts with BRIEFING and ends with SHOP, except the last, which goes from RESULTS to FINAL.
+ *   Each quarter starts with BRIEFING and ends with SHOP, except the last, which goes from EARNINGS to FINAL.
  * Milestone 2: the market (./universe.ts, ./market.ts). The universe is generated from the seed
  *   when the sim is created; prices step once per tick() while the phase is TRADING and are frozen
  *   otherwise, so every quarter has exactly daysPerQuarter candles and days count on across quarters.
@@ -178,14 +178,8 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       results.recordEarnings(reports);
       events.push({ e: 'earnings', quarter, reports });
     }
-    if (phase === 'RESULTS') events.push(...quarterResults());
+    if (phase === 'RESULTS' || phase === 'FINAL') finishQuarter(phase === 'FINAL');
     if (phase === 'SHOP') events.push(...cards.openShop(quarter));
-    if (phase === 'FINAL') {
-      finalMarks = marksAfterLastGap();
-      // Everybody sees the net worth the final standings use.
-      for (const p of players) events.push(cards.decorate(trading.portfolio(p.id)!));
-      events.push(results.final(news.log(), { ...cardExtra(quarter * config.time.daysPerQuarter), arrests: [] }));
-    }
   }
 
   function marksAfterLastGap(): Map<string, number> | null {
@@ -228,21 +222,26 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     return { fines, cardSpend, jailed, jailDays, cardNames };
   }
 
-  /** RESULTS: regimes count down and the SEC rolls (cards), then results.ts builds the event. */
-  function quarterResults(): SimEvent[] {
+  /** Close every quarter for fines, trade awards and the recap. Publish the appropriate standings. */
+  function finishQuarter(final: boolean): void {
     const nextTradingDay = quarter * config.time.daysPerQuarter;
     const close = cards.closeQuarter(quarter, nextTradingDay);
-    const event = results.closeQuarter(quarter, news.log(), { ...cardExtra(nextTradingDay), arrests: close.arrests });
+    const extra = { ...cardExtra(nextTradingDay), arrests: close.arrests };
+    const event = results.closeQuarter(quarter, news.log(), extra);
     // Cards that publish no headline (insider tips, earnings peeks) are revealed too.
     event.recap.cardAuthors.push(...close.reveals);
-    const out: SimEvent[] = [event];
-    for (const m of close.moments) {
-      const moment = results.addMoment(m.kind, m.text);
-      if (moment !== null) out.push(moment);
+    if (final) {
+      finalMarks = marksAfterLastGap();
+    } else {
+      events.push(event);
+      for (const m of close.moments) {
+        const moment = results.addMoment(m.kind, m.text);
+        if (moment !== null) events.push(moment);
+      }
     }
-    // Fines and heat changed: everybody gets a fresh portfolio.
-    for (const p of players) out.push(portfolioOf(p.id)!);
-    return out;
+    // Everybody sees their updated portfolio at the close and the marks used in the final standings.
+    for (const p of players) events.push(portfolioOf(p.id)!);
+    if (final) events.push(results.final(news.log(), extra));
   }
 
   function reject(intent: SimIntent, code: SimRejectCode, message: string): void {

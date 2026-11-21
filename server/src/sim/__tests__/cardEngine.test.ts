@@ -80,7 +80,7 @@ describe('shop and hand', () => {
     expect(shops[0]!.offers.length).toBe(BASE.cards.offersPerShop);
     for (const o of shops[0]!.offers) expect(o.price).toBeGreaterThanOrEqual(BASE.cards.minPrice);
     expect(g.sim.getShop('p1')?.offers).toEqual(shops.find((s) => s.playerId === 'p1')!.offers);
-    g.to('RESULTS', 3);
+    g.to('EARNINGS', 3);
     expect(g.sim.getShop('p1')).toBeNull();
     expect(g.to('FINAL').some((event) => event.e === 'shop')).toBe(false);
   });
@@ -216,6 +216,19 @@ describe('playing cards', () => {
 
 describe('SEC', () => {
   const certain: DeepPartial<GameConfig> = { sec: { catchProbabilityPerHeat: 1, maxCatchProbability: 1, rankMultiplier: [1, 1, 1, 1] } };
+
+  it('includes the final quarter’s fine and card reveal in the final standings', () => {
+    const g = game([card('insider_tip')], { ...certain, time: { quarters: 2 } });
+    const { hand } = buyAll(g, 'p1');
+    g.to('TRADING', 2, 30);
+    g.sim.submit({ kind: 'play_card', playerId: 'p1', cardId: hand[0]!.cardId });
+    g.step();
+    const before = g.sim.getPortfolio('p1')!;
+    const [final] = only(g.to('FINAL'), 'results');
+    expect(final).toMatchObject({ final: true, arrests: [expect.objectContaining({ playerId: 'p1', reason: 'insider trading' })] });
+    expect(final!.recap.cardAuthors).toContainEqual(expect.objectContaining({ playerId: 'p1' }));
+    expect(before.cash - g.sim.getPortfolio('p1')!.cash).toBeCloseTo(final!.arrests[0]!.fine, 4);
+  });
 
   it('heat gets you arrested at RESULTS: fine charged, jailed for the next quarter, orders delayed', () => {
     const g = game([card('insider_tip')], certain);

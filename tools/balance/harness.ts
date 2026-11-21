@@ -173,7 +173,7 @@ export function playGame(seed: number, baseConfig: GameConfig, factories: readon
         offers.set(event.playerId, event.offers);
       } else if (event.e === 'phase' && event.phase !== 'SHOP') {
         offers.clear();
-      } else if (event.e === 'results' && !event.final) {
+      } else if (event.e === 'results') {
         for (const a of event.arrests) {
           const s = stats.get(a.playerId);
           if (s) {

@@ -28,7 +28,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import type { Browser, Page } from 'playwright-core';
-import { QUARTER_PHASES, SECTORS, defaultConfig } from '@tg/shared';
+import { FINAL_QUARTER_PHASES, QUARTER_PHASES, SECTORS, defaultConfig } from '@tg/shared';
 import type { DeepPartial, EarningsMsg, GameConfig, LobbyState, MarketMsg, Phase, ServerMsg, TickMsg } from '@tg/shared';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -60,7 +60,7 @@ const overrides: DeepPartial<GameConfig> = {
     news: { randomHeadlinesPerQuarter: 4, minGapMs: 2_000 },
   }),
 };
-const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800 + 1500) + (QUARTERS - 1) * 3000;
+const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800) + (QUARTERS - 1) * (1500 + 3000);
 const COMPANIES_PER_SECTOR = defaultConfig.market.companiesPerSector;
 const SYMBOL_COUNT = 1 + SECTORS.length + SECTORS.length * COMPANIES_PER_SECTOR;
 const WAIT_MS = 15_000;
@@ -232,7 +232,8 @@ function checkCadence(label: string, ticks: PhaseSeen[]): void {
     `${label} countdown stepped 1 s at a time, ${steps.length} steps, worst off by ${Math.round(worst)} ms (limit ${CADENCE_TOLERANCE_MS})`);
   const flipMax = Math.max(...flips);
   const flipMin = Math.min(...flips);
-  check(flips.length >= 8 && flipMax <= 1000 + CADENCE_TOLERANCE_MS && flipMin >= 500,
+  const expectedFlips = (QUARTERS - 1) * (QUARTER_PHASES.length - 1) + FINAL_QUARTER_PHASES.length;
+  check(flips.length >= expectedFlips && flipMax <= 1000 + CADENCE_TOLERANCE_MS && flipMin >= 500,
     `${label} phases flipped ${Math.round(flipMin)}-${Math.round(flipMax)} ms after the display reached 0:01 (${flips.length} flips)`);
 }
 
@@ -1138,7 +1139,7 @@ async function main(): Promise<void> {
       check(await a.locator(tid('ready-up')).isDisabled(), 'A is marked ready while B is still in the shop');
       await b.locator(tid('ready-up')).click();
       await waitForPhase(a, 'BRIEFING');
-      check((await a.locator('.phase-strip').getByText('Shop', { exact: true }).count()) === 0, 'the final quarter phase list skips Shop');
+      check((await a.locator('.phase-strip').getByText(/^(Results|Shop)$/).count()) === 0, 'the final quarter phase list skips Results and Shop');
       const q1Report = await checkEarningsReport(a);
       await a.waitForSelector(rowOf(stockA));
       const frozen1 = await boardOf(a);
@@ -1227,9 +1228,8 @@ async function main(): Promise<void> {
 
       const expected: string[] = [`LOBBY Q-/${QUARTERS}`];
       for (let q = 1; q <= QUARTERS; q++) {
-        for (const phase of QUARTER_PHASES) {
-          if (phase !== 'SHOP' || q < QUARTERS) expected.push(`${phase} Q${q}/${QUARTERS}`);
-        }
+        const phases = q < QUARTERS ? QUARTER_PHASES : FINAL_QUARTER_PHASES;
+        for (const phase of phases) expected.push(`${phase} Q${q}/${QUARTERS}`);
       }
       expected.push(`FINAL Q${QUARTERS}/${QUARTERS}`);
       for (const [label, page] of [['A', a], ['floor', floor]] as const) {

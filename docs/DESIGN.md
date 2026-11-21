@@ -19,7 +19,7 @@ and manipulation.
 ### Phase loop (per quarter)
 ```
 LOBBY → [ BRIEFING → TRADING → EARNINGS → RESULTS → SHOP ] × (N − 1)
-      → BRIEFING → TRADING → EARNINGS → RESULTS → FINAL
+      → BRIEFING → TRADING → EARNINGS → FINAL
 ```
 
 | Phase | Length | What happens |
@@ -27,7 +27,7 @@ LOBBY → [ BRIEFING → TRADING → EARNINGS → RESULTS → SHOP ] × (N − 1
 | **BRIEFING** | 5 s | Macro outlook (rates, Fed meeting date), active regimes, earnings consensus, the quarter's **scheduled beats**. Trading is closed. |
 | **TRADING** | 90 s | Prices tick live. Headlines drop throughout the quarter (scheduled, random, and from cards). Players trade and play cards. |
 | **EARNINGS** | 5 s | Quarter closes. Each company reports EPS against consensus. |
-| **RESULTS** | Up to 20 s | Leaderboard, P&L, statements, market recap, arrests, and card authors revealed. When every player selects **Ready Up**, the shop or final standings open. |
+| **RESULTS** | Up to 20 s | Between quarters, show the leaderboard, P&L, statements, market recap, arrests, and card authors. When every player selects **Ready Up**, the shop opens. |
 | **SHOP** | Up to 30 s | Buy cards for the next quarter. When every player on the roster selects **Ready Up**, the next briefing starts. |
 
 Positions carry across quarters. Players are ranked by **net worth**.

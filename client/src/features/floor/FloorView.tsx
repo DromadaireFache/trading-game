@@ -86,7 +86,7 @@ export function FloorView() {
         )}
         <ErrorBanner />
       </main>
-      <MomentBanner />
+      {current !== 'FINAL' && <MomentBanner />}
 
       <aside className="floor__side">
         <h2 className="floor__side-title">

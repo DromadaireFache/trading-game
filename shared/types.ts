@@ -7,12 +7,13 @@
 // Phases
 // ---------------------------------------------------------------------------
 
-/** Phase labels in play order. SHOP is skipped in the last quarter. */
+/** Phase labels in play order. RESULTS and SHOP occur between quarters. */
 export const PHASES = ['LOBBY', 'BRIEFING', 'TRADING', 'EARNINGS', 'RESULTS', 'SHOP', 'FINAL'] as const;
 export type Phase = (typeof PHASES)[number];
 
+export const FINAL_QUARTER_PHASES = ['BRIEFING', 'TRADING', 'EARNINGS'] as const;
 /** The phases of a quarter that ends with a shop, in order. */
-export const QUARTER_PHASES = ['BRIEFING', 'TRADING', 'EARNINGS', 'RESULTS', 'SHOP'] as const;
+export const QUARTER_PHASES = [...FINAL_QUARTER_PHASES, 'RESULTS', 'SHOP'] as const;
 export type QuarterPhase = (typeof QUARTER_PHASES)[number];
 export type ReadyPhase = Extract<QuarterPhase, 'TRADING' | 'RESULTS' | 'SHOP'>;
 

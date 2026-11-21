@@ -362,7 +362,7 @@ describe('start and phases', () => {
     const startedAt = Date.now();
     ann.send({ t: 'start' });
 
-    const expected = [1, 2].flatMap((quarter) => QUARTER_PHASES.filter((phase) => quarter < 2 || phase !== 'SHOP').map((phase) => ({ phase, quarter })));
+    const expected = [1, 2].flatMap((quarter) => QUARTER_PHASES.filter((phase) => quarter < 2 || (phase !== 'RESULTS' && phase !== 'SHOP')).map((phase) => ({ phase, quarter })));
     const seen: Array<MsgOf<ServerMsg, 'phase'>> = [];
     for (let i = 0; i < expected.length + 1; i++) seen.push(await ann.next('phase'));
     const elapsed = Date.now() - startedAt;
@@ -381,7 +381,7 @@ describe('start and phases', () => {
     }
 
     // Real time matches tick time: no drift over the whole game.
-    const gameMs = (quarterTicks(s.sim.config) * 2 - phaseTicks(s.sim.config, 'SHOP')) * TICK_MS;
+    const gameMs = (quarterTicks(s.sim.config) * 2 - phaseTicks(s.sim.config, 'RESULTS') - phaseTicks(s.sim.config, 'SHOP')) * TICK_MS;
     expect(elapsed).toBeGreaterThanOrEqual(gameMs - TICK_MS);
     expect(elapsed).toBeLessThan(gameMs + 25 * TICK_MS);
 
@@ -436,7 +436,7 @@ describe('start and phases', () => {
     expect(s.sim.getPhaseReady()?.readyPlayerIds).toEqual([]);
   });
 
-  it('starts debug mode for the whole game, advances the last Results early, and resets debug mode on Play Again', async () => {
+  it('starts debug mode for the whole game, goes from last Earnings to Final, and resets debug mode on Play Again', async () => {
     const s = await start({ time: { quarters: 1, daysPerQuarter: 60 }, phaseMs: { RESULTS: 1_000 } });
     const ann = await open(s);
     await ann.join('player', 'Ann');
@@ -448,12 +448,8 @@ describe('start and phases', () => {
     const earnings = await ann.next('phase');
     expect(earnings.phase).toBe('EARNINGS');
     expect(earnings.endsAt! - s.sim.config.phaseMs.EARNINGS).toBeLessThan(trading.endsAt!);
-    const results = await ann.next('phase');
-    expect(results.phase).toBe('RESULTS');
-
-    ann.send({ t: 'ready_up', quarter: 1, phase: 'RESULTS' });
     expect((await ann.next('phase')).phase).toBe('FINAL');
-    expect((await ann.next('results', (m) => m.final === true)).leaderboard).toHaveLength(1);
+    expect(await ann.next('results')).toMatchObject({ final: true, leaderboard: [expect.anything()] });
 
     ann.send({ t: 'new_game' });
     expect((await ann.next('welcome')).phase.debugMode).toBeUndefined();

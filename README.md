@@ -5,7 +5,7 @@ Fake companies, a fast simulated market, shared news and cards. Spec: [docs/DESI
 Choices made along the way: [docs/DECISIONS.md](docs/DECISIONS.md).
 
 **Status: milestone 2 (market).** Join by name, lobby, Start, and the phase loop
-LOBBY -> [BRIEFING -> TRADING -> EARNINGS -> RESULTS -> SHOP] x N -> FINAL with a live countdown on
+LOBBY -> [BRIEFING -> TRADING -> EARNINGS -> RESULTS -> SHOP] x (N - 1) -> BRIEFING -> TRADING -> EARNINGS -> FINAL, with a live countdown on
 `/play` and `/floor`. A seeded market of 30 fake companies in 6 sectors, 6 sector funds and one index fund
 moves at 10 ticks per second during TRADING (1 second = 1 trading day = 1 candle, 90 days per quarter).
 `/play` shows the sector-grouped symbol list with live prices and a candle chart of the clicked symbol;
