@@ -47,7 +47,7 @@ export function SymbolHeader({ symbol, size = 'normal' }: SymbolHeaderProps) {
           <dd data-testid="selected-cap">{formatMoneyShort(info.marketCap)}</dd>
         </div>
         {eps !== undefined && (
-          <div className="sym-head__fact" title="What the company is expected to earn per share this quarter. At EARNINGS it beats (price jumps) or misses (price drops).">
+          <div className="sym-head__fact" title="Expected earnings per share this quarter. The earnings report shows how the company did against this estimate.">
             <dt>Profit est.</dt>
             <dd data-testid="selected-eps">${eps.toFixed(2)}</dd>
           </div>

@@ -416,6 +416,16 @@ ol {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.phase-ready {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 13px;
+}
+.phase-header .phase-ready {
+  margin-top: 4px;
+}
 .phase-strip {
   display: flex;
   gap: 4px;
@@ -515,6 +525,12 @@ ol {
 .lobby__note {
   color: var(--tg-color-text-dim);
   font-size: 12px;
+}
+.lobby__debug {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
 }
 .rules {
   display: flex;
@@ -623,6 +639,25 @@ ol {
 }
 .desk__pops {
   grid-area: chart;
+}
+/* The earnings report (BRIEFING, EARNINGS, FINAL): over the chart, or under the final standings. */
+.desk__earnings {
+  grid-area: chart;
+  z-index: 4;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+}
+.desk__earnings:empty {
+  display: none;
+}
+.desk--final:has(.desk__earnings > .earnings) {
+  grid-template-areas:
+    'stage    stage    stage    side'
+    'earnings earnings earnings side';
+}
+.desk--final .desk__earnings {
+  grid-area: earnings;
 }
 .desk__rivals {
   grid-area: rivals;

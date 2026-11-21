@@ -14,8 +14,8 @@
  *   - `day` is the 0-based trading day since game start and continues across quarters.
  *   - A candle is built from the ticksPerCandle prices AFTER each step of its day:
  *     o = price after the day's first step, c = after its last, h/l = max/min of those.
- *     (So low <= open, close <= high always; a gap made between two days, e.g. by earnings,
- *     shows up between the previous close and the next open.)
+ *     (So low <= open, close <= high always. A gap between days shows between the previous close
+ *     and the next open.)
  *   - Fund price = sum(fund.units[i] * mid(fund.members[i])), recomputed every step.
  *   - No price is ever below config.market.priceFloor; no NaN.
  *   - getSnapshot() returns fresh objects the caller may keep or mutate.

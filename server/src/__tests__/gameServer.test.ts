@@ -362,7 +362,7 @@ describe('start and phases', () => {
     const startedAt = Date.now();
     ann.send({ t: 'start' });
 
-    const expected = [1, 2].flatMap((quarter) => QUARTER_PHASES.map((phase) => ({ phase, quarter })));
+    const expected = [1, 2].flatMap((quarter) => QUARTER_PHASES.filter((phase) => quarter < 2 || phase !== 'SHOP').map((phase) => ({ phase, quarter })));
     const seen: Array<MsgOf<ServerMsg, 'phase'>> = [];
     for (let i = 0; i < expected.length + 1; i++) seen.push(await ann.next('phase'));
     const elapsed = Date.now() - startedAt;
@@ -381,7 +381,7 @@ describe('start and phases', () => {
     }
 
     // Real time matches tick time: no drift over the whole game.
-    const gameMs = quarterTicks(s.sim.config) * 2 * TICK_MS;
+    const gameMs = (quarterTicks(s.sim.config) * 2 - phaseTicks(s.sim.config, 'SHOP')) * TICK_MS;
     expect(elapsed).toBeGreaterThanOrEqual(gameMs - TICK_MS);
     expect(elapsed).toBeLessThan(gameMs + 25 * TICK_MS);
 
@@ -389,6 +389,74 @@ describe('start and phases', () => {
     const floorPhases: string[] = [];
     for (let i = 0; i < expected.length + 1; i++) floorPhases.push((await floor.next('phase')).phase);
     expect(floorPhases).toEqual(seen.map((m) => m.phase));
+  });
+
+  it('advances Results and Shop when every player is ready, with scoped and reconnectable readiness', async () => {
+    const s = await start({ time: { quarters: 3 }, phaseMs: { RESULTS: 1_000, SHOP: 3_000 } });
+    const ann = await open(s);
+    const annSeat = await ann.join('player', 'Ann');
+    const bob = await open(s);
+    const bobSeat = await bob.join('player', 'Bob');
+    const floor = await open(s);
+    await floor.join('spectator');
+
+    ann.send({ t: 'start' });
+    const results = await ann.next('phase', (m) => m.phase === 'RESULTS');
+    ann.send({ t: 'ready_up', quarter: 1, phase: 'RESULTS' });
+    expect((await bob.next('phase_ready')).readyPlayerIds).toEqual([annSeat.playerId]);
+    expect(s.sim.getState().phase).toBe('RESULTS');
+    bob.send({ t: 'ready_up', quarter: 1, phase: 'RESULTS' });
+    const shop = await ann.next('phase', (m) => m.phase === 'SHOP');
+    expect(shop.endsAt! - s.sim.config.phaseMs.SHOP).toBeLessThan(results.endsAt!);
+    expect(s.sim.getPhaseReady()?.readyPlayerIds).toEqual([]);
+    ann.send({ t: 'ready_up', quarter: 1, phase: 'RESULTS' });
+    expect(await ann.next('error')).toMatchObject({ code: 'rejected' });
+
+    floor.send({ t: 'ready_up', quarter: 1 });
+    expect(await floor.next('error')).toMatchObject({ code: 'not_allowed' });
+    ann.send({ t: 'ready_up', quarter: 1 });
+    ann.send({ t: 'ready_up', quarter: 1 });
+    expect((await bob.next('phase_ready', (m) => m.readyPlayerIds.length === 1)).readyPlayerIds).toEqual([annSeat.playerId]);
+    expect(s.sim.getState().phase).toBe('SHOP');
+
+    const back = await open(s);
+    expect((await back.join('player', 'Ann', annSeat.token)).phase.phase).toBe('SHOP');
+    expect((await back.next('phase_ready')).readyPlayerIds).toEqual([annSeat.playerId]);
+
+    bob.send({ t: 'ready_up', quarter: 1 });
+    expect((await back.next('phase_ready')).readyPlayerIds).toEqual([annSeat.playerId, bobSeat.playerId]);
+    const briefing = await back.next('phase');
+    expect(briefing).toMatchObject({ phase: 'BRIEFING', quarter: 2 });
+    expect(briefing.endsAt! - s.sim.config.phaseMs.BRIEFING).toBeLessThan(shop.endsAt!);
+
+    await back.next('phase', (m) => m.phase === 'SHOP' && m.quarter === 2);
+    expect(s.sim.getPhaseReady()?.readyPlayerIds).toEqual([]);
+    back.send({ t: 'ready_up', quarter: 1 });
+    expect(await back.next('error')).toMatchObject({ code: 'rejected' });
+    expect(s.sim.getPhaseReady()?.readyPlayerIds).toEqual([]);
+  });
+
+  it('starts debug mode for the whole game, advances the last Results early, and resets debug mode on Play Again', async () => {
+    const s = await start({ time: { quarters: 1, daysPerQuarter: 60 }, phaseMs: { RESULTS: 1_000 } });
+    const ann = await open(s);
+    await ann.join('player', 'Ann');
+    ann.send({ t: 'start', debugMode: true });
+    const trading = await ann.next('phase', (m) => m.phase === 'TRADING');
+    expect(trading.debugMode).toBe(true);
+
+    ann.send({ t: 'ready_up', quarter: 1, phase: 'TRADING' });
+    const earnings = await ann.next('phase');
+    expect(earnings.phase).toBe('EARNINGS');
+    expect(earnings.endsAt! - s.sim.config.phaseMs.EARNINGS).toBeLessThan(trading.endsAt!);
+    const results = await ann.next('phase');
+    expect(results.phase).toBe('RESULTS');
+
+    ann.send({ t: 'ready_up', quarter: 1, phase: 'RESULTS' });
+    expect((await ann.next('phase')).phase).toBe('FINAL');
+    expect((await ann.next('results', (m) => m.final === true)).leaderboard).toHaveLength(1);
+
+    ann.send({ t: 'new_game' });
+    expect((await ann.next('welcome')).phase.debugMode).toBeUndefined();
   });
 
   it('forwards sim rejections to the player only', async () => {
@@ -628,13 +696,17 @@ describe('market', () => {
   });
 
   it('sends a consistent snapshot between quarters, when no day is in progress', async () => {
-    const s = await start({ phaseMs: { EARNINGS: 40 * TICK_MS } });
+    const s = await start({ time: { daysPerQuarter: 10 }, phaseMs: { EARNINGS: 40 * TICK_MS } });
     const { daysPerQuarter } = s.sim.config.time;
     const ann = await open(s);
     await ann.join('player', 'Ann');
     const floor = await open(s);
     ann.send({ t: 'start' });
     await ann.next('phase', (m) => m.phase === 'EARNINGS' && m.quarter === 1);
+    const report = await ann.next('earnings');
+    expect(report.quarter).toBe(1);
+    expect(report.reports).toHaveLength(s.sim.getUniverse().companies.length);
+    for (const row of report.reports) expect(Object.keys(row).sort()).toEqual(['surprise', 'symbol']);
 
     const welcome = await floor.join('spectator');
     expect(welcome.phase.phase).toBe('EARNINGS');
@@ -644,10 +716,16 @@ describe('market', () => {
     // Prices are frozen at the last close.
     const lastClose = Object.fromEntries(Object.entries(snapshot.candles).map(([id, flat]) => [id, flat.at(-1)]));
     expect(snapshot.prices).toEqual(lastClose);
+    expect(await floor.next('earnings')).toEqual(report);
 
     // The next quarter continues the day count right where the snapshot ends.
     const next = await floor.next('tick');
     expect({ day: next.day, tickOfDay: next.tickOfDay }).toEqual({ day: daysPerQuarter, tickOfDay: 1 });
+
+    const reconnected = await open(s);
+    const reopened = await reconnected.join('spectator', undefined, welcome.token);
+    expect(reopened.phase).toMatchObject({ phase: 'TRADING', quarter: 2 });
+    expect(await reconnected.next('earnings')).toEqual(report);
   });
 });
 

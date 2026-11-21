@@ -80,9 +80,9 @@ describe('shop and hand', () => {
     expect(shops[0]!.offers.length).toBe(BASE.cards.offersPerShop);
     for (const o of shops[0]!.offers) expect(o.price).toBeGreaterThanOrEqual(BASE.cards.minPrice);
     expect(g.sim.getShop('p1')?.offers).toEqual(shops.find((s) => s.playerId === 'p1')!.offers);
-    g.to('SHOP', 3);
-    g.step();
-    expect(only(g.log, 'shop').filter((s) => s.offers.length === 0)).toHaveLength(2);
+    g.to('RESULTS', 3);
+    expect(g.sim.getShop('p1')).toBeNull();
+    expect(g.to('FINAL').some((event) => event.e === 'shop')).toBe(false);
   });
 
   it('buying charges the price, puts the card in the hand, and stops at the hand limit', () => {

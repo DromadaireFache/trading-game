@@ -7,13 +7,14 @@
 // Phases
 // ---------------------------------------------------------------------------
 
-/** LOBBY -> [BRIEFING -> TRADING -> EARNINGS -> RESULTS -> SHOP] x N -> FINAL */
+/** Phase labels in play order. SHOP is skipped in the last quarter. */
 export const PHASES = ['LOBBY', 'BRIEFING', 'TRADING', 'EARNINGS', 'RESULTS', 'SHOP', 'FINAL'] as const;
 export type Phase = (typeof PHASES)[number];
 
-/** The phases that repeat every quarter, in order. */
+/** The phases of a quarter that ends with a shop, in order. */
 export const QUARTER_PHASES = ['BRIEFING', 'TRADING', 'EARNINGS', 'RESULTS', 'SHOP'] as const;
 export type QuarterPhase = (typeof QUARTER_PHASES)[number];
+export type ReadyPhase = Extract<QuarterPhase, 'TRADING' | 'RESULTS' | 'SHOP'>;
 
 // ---------------------------------------------------------------------------
 // Ids
@@ -246,8 +247,6 @@ export interface EarningsReport {
   symbol: SymbolId;
   /** EPS against consensus: +0.08 = beat by 8%. */
   surprise: number;
-  /** Log-return still to come at the next open: gapFactor * (surprise - what leaks priced in). */
-  gap: number;
 }
 
 /** One entry of headlines.json. `text` may contain placeholders such as {COMPANY}. */

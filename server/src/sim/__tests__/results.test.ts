@@ -143,7 +143,7 @@ describe('final standings include the last earnings gap', () => {
     sim.submit({ kind: 'start', playerId: 'a' });
     let bought: string | null = null;
     const events: SimEvent[] = [];
-    let shopEquity = 0;
+    let quarterEquity = 0;
     let priceBefore = 0;
     for (let t = 0; t < 100_000 && sim.getState().phase !== 'FINAL'; t++) {
       const s = sim.getState();
@@ -153,8 +153,8 @@ describe('final standings include the last earnings gap', () => {
         bought = Object.entries(plan.surprise).sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))[0]![0];
         sim.submit({ kind: 'order', playerId: 'a', symbol: bought, qty: 20_000 });
       }
-      if (s.phase === 'SHOP' && s.quarter === config.time.quarters) {
-        shopEquity = sim.getPortfolio('a')!.equity;
+      if (s.phase === 'RESULTS' && s.quarter === config.time.quarters) {
+        quarterEquity = sim.getPortfolio('a')!.equity;
         priceBefore = sim.getMarketSnapshot().prices[bought!]!;
       }
       events.push(...sim.tick());
@@ -165,7 +165,7 @@ describe('final standings include the last earnings gap', () => {
     const finalEquity = sim.getPortfolio('a')!.equity;
     // Within 0.1%: the position is valued at the fair price, which still nets out a trace of the order's own temporary impact.
     const expected = qty * priceBefore * (Math.exp(gap) - 1);
-    expect(Math.abs(finalEquity - shopEquity - expected)).toBeLessThan(Math.abs(expected) * 1e-3);
+    expect(Math.abs(finalEquity - quarterEquity - expected)).toBeLessThan(Math.abs(expected) * 1e-3);
     // The final standings and the last portfolio message say the same.
     const fin = events.filter((e): e is SimEventOf<'results'> => e.e === 'results').at(-1)!;
     expect(fin.final).toBe(true);

@@ -1,7 +1,8 @@
 /**
  * Phase order of the game. Pure (see ./types.ts for the purity rules).
  *
- *   LOBBY -> [BRIEFING -> TRADING -> EARNINGS -> RESULTS -> SHOP] x config.time.quarters -> FINAL
+ *   LOBBY -> [BRIEFING -> TRADING -> EARNINGS -> RESULTS -> SHOP] -> ... -> FINAL
+ *   The last quarter ends after RESULTS.
  */
 import { QUARTER_PHASES, phaseTicks } from '@tg/shared';
 import type { GameConfig, Phase, QuarterPhase } from '@tg/shared';
@@ -27,7 +28,9 @@ export function nextPhase(config: GameConfig, at: PhasePosition): PhasePosition 
 
   const index = QUARTER_PHASES.indexOf(at.phase);
   const following = QUARTER_PHASES[index + 1];
-  if (following !== undefined) return { phase: following, quarter: at.quarter };
+  if (following !== undefined && (following !== 'SHOP' || at.quarter < config.time.quarters)) {
+    return { phase: following, quarter: at.quarter };
+  }
   if (at.quarter >= config.time.quarters) return { phase: 'FINAL', quarter: at.quarter };
   return { phase: QUARTER_PHASES[0]!, quarter: at.quarter + 1 };
 }

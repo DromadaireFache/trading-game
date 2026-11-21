@@ -45,16 +45,14 @@ function SymbolListPanel({ className }: { className?: string }) {
 
 function ChartPanel({ className }: { className?: string }) {
   const selected = useSelectedSymbol();
-  const mode = useUiMode();
-  const aside = mode === 'simple' ? 'its price, day by day' : '1 candle = 1 day: green went up, red went down';
   return (
-    <Panel title="Price" aside={aside} className={`market-chart${className ? ` ${className}` : ''}`}>
+    <Panel title="Price" aside="1 candle = 1 day · green went up, red went down" className={`market-chart${className ? ` ${className}` : ''}`}>
       {selected === null ? (
         <Placeholder>Waiting for market data...</Placeholder>
       ) : (
         <>
           <SymbolHeader symbol={selected} />
-          <CandleChart symbol={selected} kind={mode === 'simple' ? 'line' : 'candles'} />
+          <CandleChart symbol={selected} />
         </>
       )}
     </Panel>

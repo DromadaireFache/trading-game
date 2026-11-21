@@ -1,7 +1,7 @@
 /**
  * How much detail a player wants on screen. Per player and per browser (localStorage), the game rules
  * are the same in every mode:
- *   simple  casual players: company names, a price line, the core bet buttons, risk in words
+ *   simple  casual players: company names, the core bet buttons, risk in words
  *   normal  the full desk in plain words
  *   pro     everything, plus the raw numbers (shares, average price, leverage, policy rate)
  * The mode is also written to <html data-mode="..."> so CSS can hide things without JS.
@@ -14,7 +14,7 @@ export const DEFAULT_UI_MODE: UiMode = 'simple';
 
 export const UI_MODE_INFO: Record<UiMode, { label: string; blurb: string }> = {
   simple: { label: 'Simple', blurb: 'Just the basics: pick a company, bet up or down, follow the news.' },
-  normal: { label: 'Normal', blurb: 'The full desk: funds, candles, risk, coming events, earnings.' },
+  normal: { label: 'Normal', blurb: 'The full desk: funds, risk, coming events, earnings.' },
   pro: { label: 'Pro', blurb: 'Every number: tickers, shares, average prices, leverage, interest rate.' },
 };
 

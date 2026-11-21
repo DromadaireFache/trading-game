@@ -32,7 +32,7 @@ describe('phase duration and progress', () => {
   it('derives durations from config', () => {
     expect(phaseDurationMs(defaultConfig, 'LOBBY')).toBeNull();
     expect(phaseDurationMs(defaultConfig, 'FINAL')).toBeNull();
-    expect(phaseDurationMs(defaultConfig, 'BRIEFING')).toBe(15_000);
+    expect(phaseDurationMs(defaultConfig, 'BRIEFING')).toBe(5_000);
     expect(phaseDurationMs(defaultConfig, 'TRADING')).toBe(90_000);
   });
   it('reports the elapsed share, clamped to 0..1', () => {

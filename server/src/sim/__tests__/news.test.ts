@@ -1,7 +1,7 @@
 /**
  * Milestone 4: headline lookup (matching, no repeats, fallbacks), slot filling, and the news engine
  * through createSim (global queue gap, determinism, beats and the rate decision, earnings reports and
- * the gap at the next open).
+ * the delayed gap in the next quarter).
  */
 import { describe, expect, it } from 'vitest';
 import { defaultConfig, mergeConfig, msToTicks } from '@tg/shared';
@@ -145,14 +145,30 @@ function playGame(seed: number, config: GameConfig = CONFIG): { sim: Sim; events
 
 const only = <E extends SimEvent['e']>(events: SimEvent[], e: E) => events.filter((x): x is SimEventOf<E> => x.e === e);
 
+const quiet = { randomHeadlinesPerQuarter: 0, scheduledBeatsPerQuarter: 0 };
+
+function testNews(config: GameConfig, seed: number, earningsSeed = seed) {
+  const rng = createRng(seed);
+  const universe = generateUniverse(rng.fork(), config);
+  const news = createNews({
+    config,
+    universe,
+    book: createHeadlineBook(DEFAULT_HEADLINES, rng.fork()),
+    lists: DEFAULT_PLACEHOLDERS,
+    rng,
+    earningsRng: createRng(earningsSeed),
+    earningsLeadRng: createRng(seed),
+    earningsOrderRng: createRng(seed).fork(),
+  });
+  return { news, universe };
+}
+
 describe('news through the sim', () => {
   it('draws seeded headline lead times between news.leadMinMs and leadMaxMs', () => {
     const config = mergeConfig(CONFIG, { news: { randomHeadlinesPerQuarter: 0, scheduledBeatsPerQuarter: 0 }, earnings: { leaksPerQuarter: 0 } });
     const delays = new Set<number>();
     for (let seed = 1; seed <= 12; seed++) {
-      const rng = createRng(seed);
-      const universe = generateUniverse(rng.fork(), config);
-      const news = createNews({ config, universe, book: createHeadlineBook(DEFAULT_HEADLINES, rng.fork()), lists: DEFAULT_PLACEHOLDERS, rng, earningsRng: createRng(seed) });
+      const { news, universe } = testNews(config, seed);
       news.startQuarter(1, 0, config.market.startRate);
       news.enqueue({ tick: 0, source: 'random', query: { kind: 'real', scope: 'stock', direction: 'up' }, target: { scope: 'stock', symbol: universe.companies[0]!.symbol }, logReturn: 0.05 });
       expect(news.beforeStep(0, config.market.startRate).events).toHaveLength(1);
@@ -174,9 +190,7 @@ describe('news through the sim', () => {
       news: { leadMinMs: 2_000, leadMaxMs: 2_000, randomHeadlinesPerQuarter: 0, scheduledBeatsPerQuarter: 0 },
       earnings: { leaksPerQuarter: 0 },
     });
-    const rng = createRng(77);
-    const universe = generateUniverse(rng.fork(), config);
-    const news = createNews({ config, universe, book: createHeadlineBook(DEFAULT_HEADLINES, rng.fork()), lists: DEFAULT_PLACEHOLDERS, rng, earningsRng: createRng(78) });
+    const { news, universe } = testNews(config, 77, 78);
     news.startQuarter(1, 0, config.market.startRate);
     news.enqueue({ tick: 0, source: 'rate', query: { kind: 'real', scope: 'market', direction: 'up' }, target: { scope: 'market' }, logReturn: 0.05, dRate: -0.0025 });
     const first = news.beforeStep(0, config.market.startRate);
@@ -195,9 +209,7 @@ describe('news through the sim', () => {
 
   it('does not publish a leak too late to settle before earnings', () => {
     const config = mergeConfig(CONFIG, { news: { randomHeadlinesPerQuarter: 0, scheduledBeatsPerQuarter: 0 }, earnings: { leaksPerQuarter: 0 } });
-    const rng = createRng(99);
-    const universe = generateUniverse(rng.fork(), config);
-    const news = createNews({ config, universe, book: createHeadlineBook(DEFAULT_HEADLINES, rng.fork()), lists: DEFAULT_PLACEHOLDERS, rng, earningsRng: createRng(100) });
+    const { news, universe } = testNews(config, 99, 100);
     news.startQuarter(1, 0, config.market.startRate);
     const symbol = universe.companies[0]!.symbol;
     const end = config.time.daysPerQuarter * config.time.ticksPerCandle;
@@ -266,7 +278,7 @@ describe('news through the sim', () => {
   it('reports earnings for every company at EARNINGS, and the gap is surprise minus what the published leaks priced in', () => {
     const { sim, events } = playGame(11, mergeConfig(CONFIG, { time: { quarters: 1 } }));
     const report = only(events, 'earnings')[0]!;
-    expect(report.reports).toHaveLength(sim.getUniverse().companies.length);
+    expect(report.reports.map((r) => r.symbol).sort()).toEqual(sim.getUniverse().companies.map((c) => c.symbol).sort());
     const plan = sim.news.plan()!;
     const leaks = sim.news.log().filter((p) => p.source === 'leak');
     for (const r of report.reports) {
@@ -274,37 +286,94 @@ describe('news through the sim', () => {
       expect(r.surprise).toBeCloseTo(plan.surprise[r.symbol]!, 12);
       expect(r.gap + leaked).toBeCloseTo(CONFIG.earnings.gapFactor * r.surprise, 10);
     }
-    // Sorted by |gap|.
-    expect(Math.abs(report.reports[0]!.gap)).toBeGreaterThanOrEqual(Math.abs(report.reports.at(-1)!.gap));
     // After the last quarter the gap waits (M6 marks the final leaderboard with it).
     expect(sim.news.pendingGap()).not.toBeNull();
   });
 
-  it("the earnings gap shows on the next quarter's first tick", () => {
-    const config = mergeConfig(CONFIG, { time: { quarters: 2 }, news: { randomHeadlinesPerQuarter: 0, scheduledBeatsPerQuarter: 0 }, earnings: { leaksPerQuarter: 0 } });
-    const sim = createSim(13, config);
-    sim.submit({ kind: 'add_player', playerId: 'p1', name: 'Ann' });
-    sim.submit({ kind: 'start', playerId: 'p1' });
-    let gap: Record<string, number> | null = null;
-    let before: Record<string, number> | null = null;
-    for (let i = 0; i < 100_000; i++) {
-      const events = sim.tick();
-      // The quarter's last tick comes in the same tick() as the EARNINGS event: look at later ones.
-      const tick = gap ? events.find((e) => e.e === 'tick') : undefined;
-      if (events.some((e) => e.e === 'earnings')) {
-        gap = sim.news.pendingGap();
-        before = sim.getMarketSnapshot().prices;
+  it('shuffles earnings once per quarter and keeps the order when replayed', () => {
+    const config = mergeConfig(CONFIG, { news: quiet, earnings: { surpriseSigma: 0, leaksPerQuarter: 0 } });
+    const open = config.time.daysPerQuarter * config.time.ticksPerCandle;
+    const rate = config.market.startRate;
+    const { news, universe } = testNews(config, 11);
+    news.startQuarter(1, 0, rate);
+    const q1 = news.closeQuarter();
+    expect(q1.map((r) => r.symbol)).not.toEqual(universe.companies.map((c) => c.symbol));
+    news.startQuarter(2, open, rate);
+    expect(news.earnings()).toEqual({ quarter: 1, reports: q1 });
+    expect(news.closeQuarter().map((r) => r.symbol)).not.toEqual(q1.map((r) => r.symbol));
+  });
+
+  it('draws seeded earnings delays in the configured range', () => {
+    const config = mergeConfig(CONFIG, { news: quiet, earnings: { leaksPerQuarter: 0 } });
+    const open = config.time.daysPerQuarter * config.time.ticksPerCandle;
+    function delay(seed: number): number {
+      const { news } = testNews(config, seed);
+      const rate = config.market.startRate;
+      news.startQuarter(1, 0, rate);
+      news.closeQuarter();
+      news.startQuarter(2, open, rate);
+      for (let tick = open; tick < open + maxTicks; tick++) {
+        if (news.beforeStep(tick, rate).symbolReturn !== undefined) return tick - open + 1;
       }
-      if (gap && before && tick && tick.e === 'tick') {
-        // One tick of noise is small next to the gap of the biggest movers.
-        const [symbol, g] = Object.entries(gap).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0]!;
-        const moved = Math.log(tick.prices[symbol]! / before[symbol]!);
-        expect(Math.abs(moved - g)).toBeLessThan(0.02);
-        expect(Math.abs(g)).toBeGreaterThan(0.05);
-        return;
+      throw new Error('no earnings move within the configured delay');
+    }
+    const minTicks = config.news.leadMinMs / config.time.tickMs;
+    const maxTicks = config.news.leadMaxMs / config.time.tickMs;
+    const delays = Array.from({ length: 12 }, (_, seed) => delay(seed));
+    expect(Math.min(...delays)).toBeGreaterThanOrEqual(minTicks);
+    expect(Math.max(...delays)).toBeLessThanOrEqual(maxTicks);
+    expect(new Set(delays).size).toBeGreaterThan(1);
+    expect(delay(3)).toBe(delays[3]);
+  });
+
+  it.each([
+    { days: 10, delay: 49 },
+    { days: 1, delay: 9 },
+  ])('allows orders before the earnings move at tick $delay ($days trading days)', ({ days, delay }) => {
+    const config = mergeConfig(CONFIG, {
+      time: { daysPerQuarter: days, quarters: 2 },
+      news: { ...quiet, leadMinMs: 5_000, leadMaxMs: 5_000 },
+      earnings: { leaksPerQuarter: 0 },
+    });
+    const sim = createSim(13, config);
+    const control = createSim(13, mergeConfig(config, { earnings: { gapFactor: 0 } }));
+    for (const game of [sim, control]) {
+      game.submit({ kind: 'add_player', playerId: 'p1', name: 'Ann' });
+      game.submit({ kind: 'start', playerId: 'p1' });
+    }
+    const tradingTicks = days * config.time.ticksPerCandle;
+    const beforeOpen: SimEvent[] = [];
+    while (sim.getState().quarter !== 2 || sim.getState().phase !== 'TRADING') {
+      beforeOpen.push(...sim.tick());
+      control.tick();
+      if (beforeOpen.length > 10_000) throw new Error('Q2 did not open');
+    }
+    const earnings = only(beforeOpen, 'earnings')[0]!;
+    const beat = earnings.reports.find((r) => r.surprise > 0)!;
+    const miss = earnings.reports.find((r) => r.surprise < 0)!;
+    const quickBet = earnings.reports.find((r) => r.symbol !== beat.symbol && r.symbol !== miss.symbol)!;
+    for (const game of [sim, control]) {
+      game.submit({ kind: 'order', playerId: 'p1', symbol: beat.symbol, qty: 1 });
+      game.submit({ kind: 'order', playerId: 'p1', symbol: miss.symbol, qty: -1 });
+      game.submit({ kind: 'order', playerId: 'p1', symbol: quickBet.symbol, qty: 1, holdDays: config.trading.quickBetDays });
+    }
+
+    for (let t = 0; t < tradingTicks; t++) {
+      const events = sim.tick();
+      const price = only(events, 'tick')[0]!.prices;
+      const baseline = only(control.tick(), 'tick')[0]!.prices;
+      if (t === 0) expect(only(events, 'fill').map((e) => e.qty)).toEqual([1, -1, 1]);
+      expect(only(events, 'bet_result')).toHaveLength(t === delay ? 1 : 0);
+      for (const r of [beat, miss]) {
+        const move = Math.log(price[r.symbol]! / baseline[r.symbol]!);
+        expect(move).toBeCloseTo(t < delay ? 0 : r.gap, 10);
       }
     }
-    throw new Error('no tick after earnings');
+
+    while (sim.getState().phase !== 'RESULTS') sim.tick();
+    const recap = sim.getResults()!.recap;
+    expect(recap.quarter).toBe(2);
+    expect(recap.topMoves.some((move) => move.cause.kind === 'earnings')).toBe(true);
   });
 
   it('the briefing carries the earnings consensus: expected quarterly EPS of every company', () => {

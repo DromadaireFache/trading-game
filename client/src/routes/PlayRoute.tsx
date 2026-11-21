@@ -2,6 +2,7 @@ import type { Phase } from '@tg/shared';
 import { ErrorBanner } from '../components/ErrorBanner.tsx';
 import { PhaseHeader } from '../components/PhaseHeader.tsx';
 import { SeatTaken } from '../components/SeatTaken.tsx';
+import { EarningsPanel } from '../features/headlines/EarningsPanel.tsx';
 import { HandPanel } from '../features/cards/HandPanel.tsx';
 import { JoinForm } from '../features/lobby/JoinForm.tsx';
 import { LobbyView } from '../features/lobby/LobbyView.tsx';
@@ -59,12 +60,15 @@ const STAGE_PHASES: readonly Phase[] = ['RESULTS', 'SHOP', 'FINAL'];
 function Desk({ phase }: { phase: Phase }) {
   const stage = STAGE_PHASES.includes(phase);
   return (
-    <main className={`desk${stage ? ' desk--stage' : ''}`}>
+    <main className={`desk${stage ? ' desk--stage' : ''}${phase === 'FINAL' ? ' desk--final' : ''}`}>
       <div className="desk__errors">
         <ErrorBanner />
       </div>
       <Stage phase={phase} />
       {phase === 'TRADING' && <NewsPopups className="desk__pops" />}
+      <div className="desk__earnings">
+        <EarningsPanel />
+      </div>
       <div className="desk__side">
         <OrderPanel className="desk__order" />
         <MoneyPanel className="desk__money" />
