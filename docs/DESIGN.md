@@ -1,4 +1,4 @@
-# Trading Game — Design Doc (v0.2, draft)
+# Oligopoly — Design Doc (v0.2, draft)
 
 Multiplayer LAN trading game for **2–4 players** on laptops. Fake companies, a fast simulated market,
 shared real-time news, and cards that let players plant fake news, buy insider information and
