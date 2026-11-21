@@ -299,10 +299,65 @@
   gap: 3vh;
   padding: 4vw;
   text-align: center;
-  background: color-mix(in srgb, var(--tg-color-bg) 88%, var(--tg-color-down));
-  animation: tg-moment-in 0.35s ease-out;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--tg-color-down) 16%, transparent) 0 2vw,
+      transparent 2vw 4vw
+    ),
+    color-mix(in srgb, var(--tg-color-bg) 86%, var(--tg-color-down));
+  background-size:
+    5.66vw 5.66vw,
+    auto;
+  animation:
+    tg-moment-in 0.45s cubic-bezier(0.2, 1.6, 0.4, 1),
+    tg-moment-stripes 1.2s linear infinite;
+}
+.moment--regime {
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      color-mix(in srgb, var(--tg-color-warn) 16%, transparent) 0 2vw,
+      transparent 2vw 4vw
+    ),
+    color-mix(in srgb, var(--tg-color-bg) 86%, var(--tg-color-warn));
+  background-size:
+    5.66vw 5.66vw,
+    auto;
+}
+@keyframes tg-moment-stripes {
+  to {
+    background-position:
+      5.66vw 0,
+      0 0;
+  }
 }
 .moment__label {
+  animation: tg-moment-label 0.9s cubic-bezier(0.2, 1.6, 0.4, 1) both, tg-moment-throb 0.5s ease-in-out 0.9s infinite alternate;
+  box-shadow: 0 0 4vw color-mix(in srgb, var(--tg-color-down) 70%, transparent);
+}
+.moment__text {
+  animation: tg-moment-text 0.6s cubic-bezier(0.2, 1.4, 0.4, 1) 0.25s both;
+}
+@keyframes tg-moment-label {
+  from {
+    transform: scale(3) rotate(-8deg);
+    opacity: 0;
+  }
+}
+@keyframes tg-moment-throb {
+  to {
+    transform: scale(1.05) rotate(-1deg);
+  }
+}
+@keyframes tg-moment-text {
+  from {
+    transform: translateY(4vh);
+    opacity: 0;
+  }
+}
+.moment__label {
+  display: inline-block;
   font-size: 8vw;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -323,5 +378,13 @@
   from {
     transform: scale(1.08);
     opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .moment,
+  .moment__label,
+  .moment__text {
+    animation: none !important;
   }
 }

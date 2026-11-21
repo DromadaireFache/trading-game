@@ -10,6 +10,7 @@ import { useSymbols } from '../../net/marketHooks.ts';
 import { CandleChart } from '../market/CandleChart.tsx';
 import { SymbolHeader } from '../market/SymbolHeader.tsx';
 import { FloorResults, MomentBanner } from '../results/FloorResults.tsx';
+import { SoundToggle } from '../fx/SoundToggle.tsx';
 import '../market/market.css';
 
 /**
@@ -44,7 +45,10 @@ export function FloorView() {
         <span className="floor__quarter" data-testid="quarter">
           {formatQuarter(phase?.quarter ?? 0, totalQuarters)}
         </span>
-        <ConnectionBadge />
+        <span className="floor__status-line">
+          <SoundToggle />
+          <ConnectionBadge />
+        </span>
       </header>
 
       <main className={`floor__main${showMarket ? ' floor__main--market' : ''}`}>

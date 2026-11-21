@@ -14,13 +14,18 @@ import { ResultsPanel } from '../features/results/ResultsPanel.tsx';
 import { ShopPanel } from '../features/shop/ShopPanel.tsx';
 import { OrderPanel } from '../features/trading/OrderPanel.tsx';
 import { PositionsPanel } from '../features/trading/PositionsPanel.tsx';
+import { FxRoot } from '../features/fx/FxLayer.tsx';
+import { GameFx } from '../features/fx/GameFx.tsx';
 import { GameProvider, useGame } from '../net/GameProvider.tsx';
 
 /** /play: the player's laptop view. */
 export function PlayRoute() {
   return (
     <GameProvider role="player">
-      <PlayScreen />
+      <FxRoot>
+        <PlayScreen />
+        <GameFx role="player" />
+      </FxRoot>
     </GameProvider>
   );
 }

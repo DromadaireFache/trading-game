@@ -1,9 +1,12 @@
+import type React from 'react';
 import { SECTOR_LABELS } from '@tg/shared';
 import type { LeaderboardEntry, RecapMove, Sector, Statement } from '@tg/shared';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
 import { changeDirection, formatMoney, formatMoneyShort, formatPercent } from '../../lib/format.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 import { useSymbols } from '../../net/marketHooks.ts';
+import { CountUp } from '../fx/CountUp.tsx';
+import '../fx/fx.css';
 import './results.css';
 
 /** RESULTS: leaderboard, this player's quarter, the market recap, arrests and card authors. */
@@ -68,7 +71,9 @@ export function ResultsPanel({ className }: { className?: string }) {
   );
 }
 
-export function Leaderboard({ rows, meId, pnlLabel }: { rows: readonly LeaderboardEntry[]; meId: string | undefined; pnlLabel: string }) {
+const fxIndex = (i: number) => ({ '--fx-i': i }) as React.CSSProperties;
+
+export function Leaderboard({ rows, meId, pnlLabel, tally = true }: { rows: readonly LeaderboardEntry[]; meId: string | undefined; pnlLabel: string; tally?: boolean }) {
   return (
     <table className="results__table" data-testid="leaderboard">
       <thead>
@@ -80,8 +85,14 @@ export function Leaderboard({ rows, meId, pnlLabel }: { rows: readonly Leaderboa
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => (
-          <tr key={r.playerId} className={r.playerId === meId ? 'results__row--me' : undefined} data-testid="leaderboard-row" data-player={r.playerId}>
+        {rows.map((r, i) => (
+          <tr
+            key={r.playerId}
+            className={`fx-deal${r.playerId === meId ? ' results__row--me' : ''}`}
+            style={fxIndex(i)}
+            data-testid="leaderboard-row"
+            data-player={r.playerId}
+          >
             <td>{r.rank}</td>
             <td className="results__name">
               {r.name}
@@ -89,7 +100,13 @@ export function Leaderboard({ rows, meId, pnlLabel }: { rows: readonly Leaderboa
               {r.eliminated && <span className="results__tag results__tag--down">OUT</span>}
               {r.jailed && <span className="results__tag results__tag--warn">JAIL</span>}
             </td>
-            <td>{formatMoneyShort(r.netWorth)}</td>
+            <td>
+              {tally ? (
+                <CountUp value={r.netWorth} from={r.netWorth - r.pnl} format={formatMoneyShort} delayMs={300 + i * 140} sound={i === 0} />
+              ) : (
+                formatMoneyShort(r.netWorth)
+              )}
+            </td>
             <td className={`results__pnl--${changeDirection(r.pnl)}`}>{formatMoneyShort(r.pnl)}</td>
           </tr>
         ))}
@@ -146,10 +163,10 @@ function Recap({ moves }: { moves: readonly RecapMove[] }) {
   if (moves.length === 0) return <div className="results__dim">A quiet quarter.</div>;
   return (
     <ol className="results__moves">
-      {moves.map((m) => {
+      {moves.map((m, i) => {
         const name = m.kind === 'sector' ? SECTOR_LABELS[m.target as Sector] : (symbols.find((s) => s.symbol === m.target)?.name ?? m.target);
         return (
-          <li key={m.target} className="results__move" data-testid="recap-move" data-cause={m.cause.kind}>
+          <li key={m.target} className="results__move fx-flip fx-tilt" style={fxIndex(i)} data-testid="recap-move" data-cause={m.cause.kind}>
             <div className="results__move-head">
               <span className="results__move-name">
                 {m.kind === 'stock' && <span className="results__sym">{m.target}</span>} {name}

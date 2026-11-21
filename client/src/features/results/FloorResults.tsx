@@ -1,9 +1,11 @@
+import type React from 'react';
 import { SECTOR_LABELS } from '@tg/shared';
 import type { Sector } from '@tg/shared';
 import { useEffect, useState } from 'react';
 import { changeDirection, formatMoneyShort, formatPercent } from '../../lib/format.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 import { useSymbols } from '../../net/marketHooks.ts';
+import { CountUp } from '../fx/CountUp.tsx';
 import { Leaderboard } from './ResultsPanel.tsx';
 import './results.css';
 
@@ -22,17 +24,17 @@ export function FloorResults() {
   return (
     <section className="floor-board" data-testid="floor-results">
       {results.final && winner && (
-        <div className="results__winner" data-testid="floor-winner">
+        <div className="results__winner fx-wobble" data-testid="floor-winner">
           <span className="results__winner-name">{winner.name}</span> wins with{' '}
-          <span className="results__winner-money">{formatMoneyShort(winner.netWorth)}</span>{' '}
+          <CountUp className="results__winner-money" value={winner.netWorth} from={config.economy.startingCash} format={formatMoneyShort} durationMs={1800} sound />{' '}
           <span className="results__dim">({(winner.netWorth / config.economy.startingCash).toFixed(1)}×)</span>
         </div>
       )}
-      <Leaderboard rows={results.leaderboard} meId={undefined} pnlLabel={results.final ? 'Total P&L' : `Q${results.recap.quarter} P&L`} />
+      <Leaderboard rows={results.leaderboard} meId={undefined} pnlLabel={results.final ? 'Total P&L' : `Q${results.recap.quarter} P&L`} tally={!results.final} />
       {results.final ? (
         <ul className="results__award-list">
-          {(results.awards ?? []).map((a) => (
-            <li key={a.title} className="results__award">
+          {(results.awards ?? []).map((a, i) => (
+            <li key={a.title} className="results__award fx-deal" style={{ '--fx-i': i + 3 } as React.CSSProperties}>
               <div className="results__award-title">{a.title}</div>
               <div className="results__award-name">{a.name}</div>
               <div className="results__dim">{a.detail}</div>
@@ -41,8 +43,8 @@ export function FloorResults() {
         </ul>
       ) : (
         <ol className="results__moves">
-          {results.recap.topMoves.map((m) => (
-            <li key={m.target} className="results__move">
+          {results.recap.topMoves.map((m, i) => (
+            <li key={m.target} className="results__move fx-flip" style={{ '--fx-i': i } as React.CSSProperties}>
               <div className="results__move-head">
                 <span className="results__move-name">
                   {m.kind === 'sector' ? `${SECTOR_LABELS[m.target as Sector]} sector` : (symbols.find((s) => s.symbol === m.target)?.name ?? m.target)}
