@@ -7,7 +7,9 @@
   "types": "./index.ts",
   "exports": {
     ".": "./index.ts",
-    "./config": "./config.ts"
+    "./config": "./config.ts",
+    "./cards": "./cards.ts",
+    "./data/cards.json": "./data/cards.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"
