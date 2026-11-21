@@ -154,6 +154,12 @@ export function createNews(deps: NewsDeps): News {
   const minGapTicks = msToTicks(config, config.news.minGapMs);
   const settleTicks = 2 * msToTicks(config, config.news.rampMs);
   const companyBySymbol = new Map(universe.companies.map((c) => [c.symbol, c]));
+  /** Expected quarterly EPS per company (fundamentals are fixed for the game), rounded to cents. */
+  const consensus: Record<SymbolId, number> = {};
+  for (const c of universe.companies) {
+    const f = c.fundamentals;
+    consensus[c.symbol] = f.shares > 0 ? Math.round(((f.revenue * f.margin) / 4 / f.shares) * 100) / 100 : 0;
+  }
 
   let queue: NewsItem[] = [];
   /** Items with `carry` still waiting at the close. */
@@ -327,7 +333,7 @@ export function createNews(deps: NewsDeps): News {
       }
       sortQueue();
 
-      currentBriefing = { quarter: q, rate, beats, regimes: [] };
+      currentBriefing = { quarter: q, rate, beats, regimes: [], consensus };
       return currentBriefing;
     },
 

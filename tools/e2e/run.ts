@@ -706,6 +706,8 @@ async function main(): Promise<void> {
       check(took < 250, `clicking ${stockA} switched header and chart within ${Math.round(took)} ms (limit 250)`);
       check((await textOf(a, 'selected-ticker')) === stockA, `the header shows ${stockA}`);
       check((await textOf(a, 'selected-name')) === stocks[0]!.name, `the header shows its company name (${stocks[0]!.name})`);
+      const eps = await textOf(a, 'selected-eps');
+      check(/^\$\d+\.\d{2}$/.test(eps), `the header shows the stock's earnings consensus (EPS est. ${eps})`);
       check((await a.getAttribute(rowOf(stockA), 'aria-pressed')) === 'true' && (await a.getAttribute(rowOf(indexSymbol), 'aria-pressed')) === 'false',
         'the clicked row is the selected one');
       // B picks another stock: selections are per player, and B's must survive its reload below.
@@ -1039,6 +1041,7 @@ async function main(): Promise<void> {
       check(true, 'the floor shows the winner in FINAL');
       await sleep(200);
       await shot(a, '20-play-FINAL');
+      check((await textOf(a, 'hand-empty')) === 'Game over: no more cards.', 'in FINAL the hand says the game is over');
       await shot(floor, '21-floor-FINAL');
       await checkNoOverflow(a, 'desk in FINAL at 1366x768');
       await checkNoOverflow(floor, 'floor in FINAL');

@@ -46,7 +46,13 @@ export function HandPanel({ className }: { className?: string }) {
         </div>
       )}
       {hand.length === 0 ? (
-        <div className="hand__empty">No cards. Buy some in the SHOP phase.</div>
+        <div className="hand__empty" data-testid="hand-empty">
+          {phase?.phase === 'FINAL'
+            ? 'Game over: no more cards.'
+            : (phase?.quarter ?? 0) >= config.time.quarters
+              ? 'No cards. The last quarter has no shop.'
+              : 'No cards. Buy some in the SHOP phase.'}
+        </div>
       ) : (
         <div className="hand__list" data-testid="hand">
           {hand.map((c) => (
