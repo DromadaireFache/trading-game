@@ -1,30 +1,18 @@
-import { useState } from 'react';
-import { sharesForNotional } from '@tg/shared';
 import type { FillMsg } from '@tg/shared';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
 import { formatMoney, formatMoneyShort, formatPrice, formatShares } from '../../lib/format.ts';
+import { useQuickBet } from '../../lib/quickBet.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
-import { useUiMode } from '../../lib/uiMode.ts';
 import { sendOrder } from '../fx/buttonFx.ts';
-import { QuickBetPanel } from './QuickBetPanel.tsx';
 import { JailOrderNotice } from './JailOrderNotice.tsx';
 import './trading.css';
 
-type Side = 'buy' | 'sell';
-
-/** Quick-size share of your money as a short label: 10%, 25%, ½, ALL. */
-function shareLabel(pct: number): string {
-  if (pct >= 1) return 'ALL';
-  if (pct === 0.5) return '½';
-  return `${Math.round(pct * 100)}%`;
-}
-
 /**
- * Place a bet on the selected stock, in plain words: UP (buy) or DOWN (sell short), then one click on
- * an amount sends a market order. "Cash out" closes half or all of what you hold. The server fills in
- * arrival order and clips an order to the leverage cap rather than refusing it.
+ * Bet on the selected stock in one tap: six buttons, each an amount of money. Green ▲ bets the price
+ * goes up (buys), red ▼ bets it goes down (sells short). The amounts are config.trading.quickBetStakes
+ * of the money you can bet right now. A bet stays open until you cash it out (or a margin call does).
  */
 export function OrderPanel({ className }: { className?: string }) {
   const { phase, config, fills, pendingOrder } = useGame();
@@ -33,152 +21,82 @@ export function OrderPanel({ className }: { className?: string }) {
   const symbol = useSelectedSymbol();
   const quote = useQuote(symbol);
   const live = useLivePortfolio();
-  const [side, setSide] = useState<Side>('buy');
-  const mode = useUiMode();
-  // Simple mode bets with fixed stakes that cash out by themselves.
-  if (mode === 'simple') return <QuickBetPanel className={className} />;
+  const { bet } = useQuickBet();
 
   if (live === null || symbol === null) {
     return (
-      <Panel title="Place a bet" className={className}>
+      <Panel title="Place a bet" className={`order${className ? ` ${className}` : ''}`}>
         <Placeholder>Betting opens when the game starts.</Placeholder>
       </Panel>
     );
   }
 
-  const decimals = config.market.priceDecimals;
-  const cap = config.trading.leverageCap;
-  const eliminated = live.portfolio.eliminated === true;
-  const open = phase?.phase === 'TRADING';
   const price = quote?.price ?? 0;
-  const disabled = !open || eliminated || price <= 0 || pendingOrder !== null;
-  const held = live.portfolio.positions.find((p) => p.symbol === symbol)?.qty ?? 0;
-  const sign = side === 'buy' ? 1 : -1;
+  const eliminated = live.portfolio.eliminated === true;
+  const open = phase?.phase === 'TRADING' && !eliminated && price > 0;
+  const canBet = open && live.buyingPower > 0 && pendingOrder === null;
   const info = market.getInfo(symbol);
-
-  const send = (button: HTMLButtonElement, qty: number) => {
-    if (qty !== 0) sendOrder(client, button, symbol, qty);
-  };
-  const sendNotional = (button: HTMLButtonElement, notional: number) => send(button, sign * sharesForNotional(notional, price));
-
-  const status = eliminated ? 'You are out of the game.' : open ? null : 'Betting is closed until the market opens.';
-  const risk = Number.isFinite(live.leverage) ? Math.min(1, live.leverage / cap) : 1;
-  const riskLevel = risk < 0.5 ? 'low' : risk < 0.85 ? 'mid' : 'high';
-  const riskWord = riskLevel === 'low' ? 'Safe' : riskLevel === 'mid' ? 'Careful' : 'Danger';
-  // Pro adds the raw numbers (shares, leverage); Simple mode uses QuickBetPanel instead.
-  const amounts = config.trading.quickSizeUsd;
-  const verb = side === 'buy' ? 'Bet UP on' : 'Bet DOWN on';
+  const held = live.portfolio.positions.find((p) => p.symbol === symbol)?.qty ?? 0;
+  const stakes = config.trading.quickBetStakes;
 
   return (
     <Panel
       title="Place a bet"
       aside={
         <span className="order__on" title={info?.name}>
-          {symbol} <strong>${price > 0 ? formatPrice(price, decimals) : '--'}</strong>
+          {info?.name ?? symbol} <strong>${price > 0 ? formatPrice(price, config.market.priceDecimals) : '--'}</strong>
         </span>
       }
       className={`order${className ? ` ${className}` : ''}`}
     >
       <JailOrderNotice />
-      <div className="order__sides" role="radiogroup" aria-label="Which way">
-        <button
-          type="button"
-          className={`order__side order__side--buy${side === 'buy' ? ' order__side--on' : ''}`}
-          aria-pressed={side === 'buy'}
-          onClick={() => setSide('buy')}
-          title="You win if the price goes up. (Buys shares; also closes a DOWN bet.)"
-          data-testid="side-buy"
-        >
-          <span className="order__side-main">▲ Bet up</span>
-          <span className="order__side-sub">it will rise</span>
-        </button>
-        <button
-          type="button"
-          className={`order__side order__side--sell${side === 'sell' ? ' order__side--on' : ''}`}
-          aria-pressed={side === 'sell'}
-          onClick={() => setSide('sell')}
-          title="You win if the price goes down. (Sells short; also sells an UP bet you hold.)"
-          data-testid="side-sell"
-        >
-          <span className="order__side-main">▼ Bet down</span>
-          <span className="order__side-sub">it will fall</span>
-        </button>
+      <div className="bet-grid" data-testid="bet-grid">
+        {([true, false] as const).map((up) =>
+          stakes.map((share, i) => {
+            const usd = live.buyingPower * share;
+            return (
+              <button
+                key={`${up}-${share}`}
+                type="button"
+                className={`bet-btn bet-btn--${up ? 'up' : 'down'}`}
+                disabled={!canBet}
+                onClick={(event) => bet(event.currentTarget, symbol, up, share)}
+                title={`Bet ${formatMoney(usd)} that ${info?.name ?? symbol} goes ${up ? 'up' : 'down'}`}
+                data-testid={`bet-${up ? 'up' : 'down'}-${i}`}
+                data-share={share}
+              >
+                <span className="bet-btn__arrow" aria-hidden="true">
+                  {up ? '▲' : '▼'}
+                </span>
+                {formatMoneyShort(usd)}
+              </button>
+            );
+          }),
+        )}
       </div>
-
-      <div className={`order__row order__row--${amounts.length}`}>
-        <span className="order__label">How much</span>
-        {amounts.map((usd) => (
+      {held !== 0 ? (
+        <div className="order__held-row">
+          <span className={`order__held order__held--${held > 0 ? 'up' : 'down'}`} data-testid="order-held">
+            {held > 0 ? '▲ UP' : '▼ DOWN'} · {formatMoneyShort(Math.abs(held) * price)}
+          </span>
+          <span />
           <button
-            key={usd}
             type="button"
-            className={`order__size order__size--${side}`}
-            disabled={disabled}
-            onClick={(event) => sendNotional(event.currentTarget, usd)}
-            title={`${verb} ${symbol} with ${formatMoney(usd)}`}
-            data-testid={`size-usd-${usd}`}
+            className="order__cash order__cash--primary"
+            disabled={!open || pendingOrder !== null}
+            onClick={(event) => sendOrder(client, event.currentTarget, symbol, -held)}
+            title="Close this bet and keep what it made (or lost)"
+            data-testid="order-close"
           >
-            {formatMoneyShort(usd).replace('.0', '')}
+            Cash out
           </button>
-        ))}
-      </div>
-      <div className="order__row">
-        <span className="order__label" title="A share of the money you can bet right now">Of my money</span>
-        {config.trading.quickSizePct.map((pct) => (
-          <button
-            key={pct}
-            type="button"
-            className={`order__size order__size--${side}`}
-            disabled={disabled || live.buyingPower <= 0}
-            onClick={(event) => sendNotional(event.currentTarget, pct * live.buyingPower)}
-            title={`${verb} ${symbol} with ${formatMoney(pct * live.buyingPower)}`}
-            data-testid={`size-pct-${Math.round(pct * 100)}`}
-          >
-            {shareLabel(pct)}
-          </button>
-        ))}
-      </div>
-
-      <div className="order__held-row">
-        <span
-          className={`order__held${held > 0 ? ' order__held--up' : held < 0 ? ' order__held--down' : ''}`}
-          data-testid="order-held"
-          title={held === 0 ? undefined : `${formatShares(Math.abs(held))} shares`}
-        >
-          {held === 0
-            ? `No bet on ${symbol} yet`
-            : `${held > 0 ? '▲ UP' : '▼ DOWN'} · ${formatMoneyShort(Math.abs(held) * price)}${mode === 'pro' ? ` · ${formatShares(Math.abs(held))} sh` : ''}`}
-        </span>
-        <button type="button" className="order__cash" disabled={disabled || Math.abs(held) < 2} onClick={(event) => send(event.currentTarget, -Math.trunc(held / 2))} data-testid="order-half" title="Close half of this bet">
-          Cash out ½
-        </button>
-        <button type="button" className="order__cash order__cash--primary" disabled={disabled || held === 0} onClick={(event) => send(event.currentTarget, -held)} data-testid="order-close" title="Close this bet and keep what it made (or lost)">
-          Cash out
-        </button>
-      </div>
-
-      <div className="order__facts">
-        <div className="order__can" title={`You can bet up to ${cap}× your net worth: the extra is borrowed (leverage).`}>
-          <span className="order__fact-label">Can bet</span>{' '}
-          <span className="order__fact-value" data-testid="buying-power">
-            {formatMoney(live.buyingPower)}
-          </span>
         </div>
-        <div
-          className={`order__risk order__risk--${riskLevel}`}
-          title={`Risk = how much you borrowed (${Number.isFinite(live.leverage) ? live.leverage.toFixed(1) : '--'}× of the ${cap}× limit). Borrowing makes wins and losses bigger. If losses eat too much of your money, the bank closes your biggest bet (margin call); below ${formatMoneyShort(config.economy.eliminationEquity)} you are out.`}
-        >
-          <span className="order__fact-label">Risk</span>
-          <span className="order__risk-bar" aria-hidden="true">
-            <span className="order__risk-fill" style={{ transform: `scaleX(${risk})` }} />
-          </span>
-          <span className="order__risk-word" data-testid="risk-word">
-            {mode === 'pro' ? `${Number.isFinite(live.leverage) ? live.leverage.toFixed(2) : '--'}× / ${cap}×` : riskWord}
-          </span>
+      ) : (
+        <div className="order__note" data-testid="order-held">
+          {eliminated ? 'You are out of the game.' : open ? 'No bet on this stock yet.' : 'Betting opens when the market opens.'}
         </div>
-      </div>
-
-      {status !== null && <div className="order__status">{status}</div>}
-      {fills[0] !== undefined && <LastFill key={fills[0].seq} fill={fills[0]} decimals={decimals} />}
+      )}
+      {fills[0] !== undefined && <LastFill key={fills[0].seq} fill={fills[0]} decimals={config.market.priceDecimals} />}
     </Panel>
   );
 }

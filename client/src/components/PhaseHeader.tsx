@@ -1,16 +1,14 @@
-import { FINAL_QUARTER_PHASES, QUARTER_PHASES } from '@tg/shared';
 import { useCountdown } from '../hooks/useCountdown.ts';
 import { PHASE_HINT, PHASE_LABEL } from '../lib/phases.ts';
 import { formatQuarter } from '../lib/time.ts';
 import { useGame, useGameClient } from '../net/GameProvider.tsx';
 import { SoundToggle } from '../features/fx/SoundToggle.tsx';
 import { ConnectionBadge } from './ConnectionBadge.tsx';
-import { ModeToggle } from './ModeToggle.tsx';
 import { ReadyUp } from './ReadyUp.tsx';
 
 /**
- * Top bar of /play: always shows the current phase, the quarter (Q3/4) and the live countdown,
- * plus who you are and the connection state.
+ * Top bar of /play, one slim line: the current phase and what to do now, the quarter (Q3/4), the live
+ * countdown, who you are, sound and the connection state.
  */
 export function PhaseHeader() {
   const { phase, me, config, game, join } = useGame();
@@ -19,7 +17,6 @@ export function PhaseHeader() {
   const current = phase?.phase ?? 'LOBBY';
   const quarter = phase?.quarter ?? 0;
   const totalQuarters = phase?.totalQuarters ?? config.time.quarters;
-  const phases = quarter < totalQuarters ? QUARTER_PHASES : FINAL_QUARTER_PHASES;
   const urgent = countdown.ms !== null && countdown.ms <= config.presentation.countdownUrgentMs;
   const canEndGame = me?.role === 'player' && current !== 'LOBBY' && current !== 'FINAL';
 
@@ -34,14 +31,6 @@ export function PhaseHeader() {
         <span className="phase-header__hint">{PHASE_HINT[current]}</span>
         {current === 'TRADING' && phase?.debugMode && <ReadyUp />}
       </div>
-
-      <ol className="phase-strip" aria-label="Phases of the quarter">
-        {phases.map((p) => (
-          <li key={p} className={`phase-strip__step${p === current ? ' phase-strip__step--current' : ''}`}>
-            {PHASE_LABEL[p]}
-          </li>
-        ))}
-      </ol>
 
       <div className="phase-header__quarter" data-testid="quarter">
         {formatQuarter(quarter, totalQuarters)}
@@ -71,7 +60,6 @@ export function PhaseHeader() {
           )}
         </div>
         <span className="phase-header__status">
-          <ModeToggle />
           <SoundToggle />
           <ConnectionBadge />
         </span>

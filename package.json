@@ -19,6 +19,7 @@
     "test:watch": "node tools/vitest.mjs",
     "generate-headlines": "tsx tools/generate-headlines/index.ts",
     "pull-headlines": "tsx tools/generate-headlines/pull.ts",
+    "generate-headlines:claude": "tsx tools/generate-headlines/claude.ts",
     "build": "npm run typecheck && npm run build -w @tg/client",
     "e2e": "npm run e2e -w @tg/tools",
     "balance": "npm run balance -w @tg/tools --"

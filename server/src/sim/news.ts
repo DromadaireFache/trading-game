@@ -13,12 +13,16 @@
  *     announced with their day and title (direction hidden). The first one is the rate decision and
  *     also moves the policy rate by +-market.rateStep (kept inside [rateMin, rateMax]);
  *   - random headlines: randomHeadlinesPerQuarter, of which noiseShare are neutral (no move); the rest
- *     draw scope, magnitude and direction from config.news, at a random tick after quietDays.
+ *     draw scope, magnitude and direction from config.news, at a random tick after quietDays;
+ *   - filler: a chain of random headlines through the whole trading window, each news.minGapMs to
+ *     news.maxGapMs after the previous one, drawn from news.filler (mostly noise and small moves). Those
+ *     too close to the close for a move to settle are noise. So the news never stops for long.
  * Every TRADING tick (beforeStep): publish at most ONE due item, and only when news.minGapMs has
  * passed since the last headline (the global queue; later items wait; a due card or regime item goes
- * before any backlog of engine headlines). Published news shocks and rate changes start after a
- * seeded 1–5 second trading-clock delay; then turn all live shocks into
- * this tick's symbolReturn. Items still waiting at the close are dropped.
+ * before any backlog of engine headlines). Engine news shocks and rate changes start after a seeded
+ * news.leadMinMs-leadMaxMs trading-clock delay; a player's own card headline moves the market at once
+ * (only its author was ready for it). Then turn all live shocks into this tick's symbolReturn. Items
+ * still waiting at the close are dropped.
  * At EARNINGS (closeQuarter): reports with gap = gapFactor * (surprise - what PUBLISHED leaks priced
  * in). That gap lands after a seeded trading window at the start of the next quarter.
  *
@@ -235,7 +239,8 @@ export function createNews(deps: NewsDeps): News {
     const { template, text } = item.rendered;
     const target = item.target;
     const id = `n${++seq}`;
-    const effectTick = tick + leadMinTicks + rng.int(leadMaxTicks - leadMinTicks + 1);
+    // A player's card hits the market as it is published; engine news after the lead.
+    const effectTick = item.ownerId !== undefined ? tick : tick + leadMinTicks + rng.int(leadMaxTicks - leadMinTicks + 1);
     // The move the market actually makes. Cards keep their exact effect; the engine's own news gets an
     // uncertain reaction, so a headline never fully tells you how far, how fast, or even which way.
     let move = item.logReturn;
@@ -378,6 +383,28 @@ export function createNews(deps: NewsDeps): News {
         const direction = rng.next() < 0.5 ? 'up' : 'down';
         const jitter = 1 + n.shockJitter * (2 * rng.next() - 1);
         queue.push({ tick, source: 'random', query: { kind: 'real', scope, direction, magnitude }, target, logReturn: shockSize(config, magnitude, direction) * jitter });
+      }
+
+      // 4. The filler chain: never more than maxGapMs without news.
+      if (n.maxGapMs > 0) {
+        const gapMin = Math.max(1, minGapTicks);
+        const gapMax = Math.max(gapMin, Math.floor(n.maxGapMs / config.time.tickMs));
+        const end = tradingStartTick + tradingTicks;
+        const gap = () => gapMin + rng.int(gapMax - gapMin + 1);
+        for (let tick = tradingStartTick + gap(); tick < end; tick += gap()) {
+          const scope = weighted(rng, n.scopeWeights);
+          const target = randomTarget(scope);
+          const late = tick + settleTicks >= end;
+          if (late || rng.next() < n.filler.noiseShare) {
+            const magnitude: HeadlineMagnitude = rng.next() < 0.5 ? 'small' : 'medium';
+            queue.push({ tick, source: 'random', query: { kind: 'real', scope, direction: 'neutral', magnitude }, target, logReturn: 0 });
+            continue;
+          }
+          const magnitude = weighted(rng, n.filler.magnitudeWeights);
+          const direction = rng.next() < 0.5 ? 'up' : 'down';
+          const jitter = 1 + n.shockJitter * (2 * rng.next() - 1);
+          queue.push({ tick, source: 'random', query: { kind: 'real', scope, direction, magnitude }, target, logReturn: shockSize(config, magnitude, direction) * jitter });
+        }
       }
       sortQueue();
 

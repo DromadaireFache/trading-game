@@ -1,5 +1,4 @@
 import { Panel, Placeholder } from '../../components/Panel.tsx';
-import { useUiMode } from '../../lib/uiMode.ts';
 import { useSelectedSymbol, useSymbols } from '../../net/marketHooks.ts';
 import { CandleChart } from './CandleChart.tsx';
 import { SymbolHeader } from './SymbolHeader.tsx';
@@ -24,17 +23,10 @@ export function MarketPanel({ listClassName, chartClassName }: MarketPanelProps)
 
 function SymbolListPanel({ className }: { className?: string }) {
   const symbols = useSymbols();
-  const mode = useUiMode();
-  const stocks = symbols.filter((s) => s.kind === 'stock').length;
-  const aside =
-    symbols.length === 0
-      ? undefined
-      : mode === 'simple'
-        ? '% = up or down this quarter'
-        : `${stocks} companies, ${symbols.length - stocks} funds · % = change this quarter`;
+  const aside = symbols.length === 0 ? undefined : '% = up or down this quarter';
   return (
     <Panel
-      title={mode === 'simple' ? 'Pick a company' : 'Pick a stock'}
+      title="Pick a company"
       aside={aside}
       className={`market-list${className ? ` ${className}` : ''}`}
     >

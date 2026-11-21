@@ -15,7 +15,7 @@ export const PHASE_LABEL: Record<Phase, string> = {
 export const PHASE_HINT: Record<Phase, string> = {
   LOBBY: 'Waiting for players. Read how to play while you wait.',
   BRIEFING: 'Get ready: see what news is coming. Trading opens soon.',
-  TRADING: 'Market open! Pick a stock, bet UP or DOWN, watch the news.',
+  TRADING: 'Market open! Click a headline to open its stock, then bet ▲ up or ▼ down.',
   EARNINGS: 'See which companies beat or missed expectations.',
   RESULTS: 'Who made the most money this quarter?',
   SHOP: 'Buy cards to bend the market next quarter.',

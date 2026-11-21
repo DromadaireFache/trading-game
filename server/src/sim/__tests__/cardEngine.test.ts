@@ -135,6 +135,26 @@ describe('playing cards', () => {
     expect(results.recap.cardAuthors).toEqual([expect.objectContaining({ playerId: 'p1', cardName: card('lucky_strike').name })]);
   });
 
+  it("a card's headline moves the market at once, with no lead (only its author was ready)", () => {
+    // No engine news in the way: the card's move is the only thing that moves the stock beyond noise.
+    // An engine headline would wait 5 s; the card's whole ramp fits well inside that.
+    const g = game([card('lucky_strike')], { news: { maxGapMs: 0, randomHeadlinesPerQuarter: 0, leadMinMs: 5_000, leadMaxMs: 5_000, rampMs: 2_000 } });
+    const { hand } = buyAll(g, 'p1');
+    g.to('TRADING', 2, 5);
+    const symbol = g.sim.getUniverse().companies[4]!.symbol;
+    const price = () => g.sim.getMarketSnapshot().prices[symbol]!;
+    const start = price();
+    g.sim.submit({ kind: 'play_card', playerId: 'p1', cardId: hand[0]!.cardId, target: symbol });
+    let ticks = 0;
+    while (!g.sim.news.log().some((p) => p.source === 'card') && ticks++ < 100) g.step();
+    const published = g.sim.news.log().find((p) => p.source === 'card')!;
+    // Within the ramp the stock has moved a good part of the card's +12%, long before any engine lead.
+    g.step(Math.ceil(2_000 / BASE.time.tickMs));
+    const moved = Math.log(price() / start);
+    expect(published.logReturn).toBeGreaterThan(0);
+    expect(moved).toBeGreaterThan(published.logReturn * 0.4);
+  });
+
   it('a fake headline moves the target, then a debunk reverts it; playing it adds heat', () => {
     const g = game([card('planted_rumor')], { cards: { fakeDebunkMinMs: 3000, fakeDebunkMaxMs: 4000 } });
     const { hand } = buyAll(g, 'p1');

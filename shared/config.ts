@@ -188,7 +188,21 @@ export interface GameConfig {
     overshoot: number;
     /** Global headline queue: minimum gap between two headlines. */
     minGapMs: number;
-    /** Delay between a headline and its market effect. */
+    /**
+     * Longest wait for the next headline: each quarter a chain of filler headlines runs through the
+     * whole trading window, each one minGapMs to maxGapMs after the previous (uniform), so there is
+     * always news on the desk. 0 turns the chain off.
+     */
+    maxGapMs: number;
+    /** The filler chain: mostly noise and small moves, so frequent news does not mean a wild market. */
+    filler: {
+      noiseShare: number;
+      magnitudeWeights: Record<HeadlineMagnitude, number>;
+    };
+    /**
+     * Delay between an engine headline and its market effect. A player's card headline (and a regime a
+     * card starts) moves the market at once: only the player who made it can be positioned for it.
+     */
     leadMinMs: number;
     leadMaxMs: number;
     scheduledBeatsPerQuarter: number;
@@ -444,11 +458,17 @@ export const defaultConfig: GameConfig = {
     shock: { small: 0.02, medium: 0.05, large: 0.12, huge: 0.5 },
     rampMs: 3_000,
     overshoot: 0.15,
-    minGapMs: 6_000,
-    // Headlines pop up on every desk; the price starts moving 4-6 s later, time to find the ticker.
+    // A headline every 2 to 10 s (about 15 a quarter): the filler chain plus the planned ones below.
+    minGapMs: 2_000,
+    maxGapMs: 10_000,
+    filler: {
+      noiseShare: 0.6,
+      magnitudeWeights: { small: 0.55, medium: 0.35, large: 0.1, huge: 0 },
+    },
+    // An engine headline lands on every desk; its price starts moving 8-11 s later, time to read and act.
     leadMinMs: 8_000,
     leadMaxMs: 11_000,
-    // About 3 headlines a quarter: 1 scheduled beat (the rate decision), 1 random, 1 earnings leak.
+    // Planned on top of the filler: 1 scheduled beat (the rate decision), 1 random (can be huge), 1 earnings leak.
     scheduledBeatsPerQuarter: 1,
     randomHeadlinesPerQuarter: 1,
     noiseShare: 0.25,
@@ -682,6 +702,9 @@ export function validateConfig(config: GameConfig): GameConfig {
     if (rc.rampMultMin <= 0 || rc.driftDaysMin < 1) problems.push('config.news.reaction: rampMultMin must be > 0 and driftDaysMin >= 1');
     const n = config.news;
     if (n.leadMinMs <= 0 || n.leadMinMs > n.leadMaxMs) problems.push('config.news.leadMinMs must be > 0 and <= leadMaxMs');
+    if (n.maxGapMs !== 0 && n.maxGapMs < Math.max(n.minGapMs, config.time.tickMs)) problems.push('config.news.maxGapMs must be 0 or >= minGapMs');
+    if (n.filler.noiseShare > 1) problems.push('config.news.filler.noiseShare must be <= 1');
+    if (Object.values(n.filler.magnitudeWeights).every((w) => w === 0)) problems.push('config.news.filler.magnitudeWeights must not all be 0');
     if (n.shockJitter > 1) problems.push('config.news.shockJitter must be <= 1');
     if (Object.values(n.scopeWeights).every((w) => w === 0)) problems.push('config.news.scopeWeights must not all be 0');
     if (Object.values(n.magnitudeWeights).every((w) => w === 0)) problems.push('config.news.magnitudeWeights must not all be 0');
