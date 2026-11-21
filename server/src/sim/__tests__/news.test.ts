@@ -229,6 +229,18 @@ describe('news through the sim', () => {
     throw new Error('no tick after earnings');
   });
 
+  it('the briefing carries the earnings consensus: expected quarterly EPS of every company', () => {
+    const { sim, events } = playGame(5, mergeConfig(CONFIG, { time: { quarters: 1 } }));
+    const consensus = only(events, 'briefing')[0]!.consensus!;
+    const companies = sim.getUniverse().companies;
+    expect(Object.keys(consensus).sort()).toEqual(companies.map((c) => c.symbol).sort());
+    for (const c of companies) {
+      const f = c.fundamentals;
+      expect(consensus[c.symbol]).toBeCloseTo((f.revenue * f.margin) / 4 / f.shares, 2);
+      expect(consensus[c.symbol]).toBeGreaterThan(0);
+    }
+  });
+
   it('serves a snapshot for (re)joining clients', () => {
     const sim = createSim(1, CONFIG);
     sim.submit({ kind: 'add_player', playerId: 'p1', name: 'Ann' });

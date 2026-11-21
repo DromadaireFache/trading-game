@@ -9,7 +9,7 @@ npm install
 npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) and /floor (projector)
 ```
 
-`npm run typecheck`, `npm test` (240 unit tests) and `npm run e2e` (two headless players plus the projector, 212 checks) all pass on this commit. Settings and env overrides are described in README.md; every choice the spec left open is in docs/DECISIONS.md.
+`npm run typecheck`, `npm test` (251 unit tests) and `npm run e2e` (two headless players plus the projector, 229 checks) all pass on this commit. Settings and env overrides are described in README.md; every choice the spec left open is in docs/DECISIONS.md.
 
 ## Done
 
@@ -35,6 +35,15 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 
 1. **M6 Results, final and floor.** Done (julien), and wired to M5: `server/src/sim/results.ts` builds the leaderboard, per-player statements (best and worst trade), the market recap (top 3 moves in different sectors, each with the headline, earnings gap, card or regime that caused it), the final awards (best trade, best short, bag holder, comeback, most chaos, busiest trader, margin call magnet, longest sentence) and crash moments (at most one per quarter, `presentation.maxMomentsPerGame` per game). /play shows real RESULTS and FINAL screens; /floor shows the standings in RESULTS and FINAL and a full-screen BREAKING banner for `presentation.momentVisibleMs`. A reconnect during RESULTS, SHOP or FINAL gets the latest results. **For M5:** pass arrests, fines, card spend, jail and card names to `closeQuarter` / `final` as their `extra` (see the comment in `createSim`), and call `results.addMoment` for regime starts and the leader's arrest. Not done: sound sting and screen shake (design track).
 2. **M7 Balance.** Second pass done with cards (docs/BALANCE.md). Card-using bots (insider-trader, manipulator, event-player) buy and play cards and pay the SEC; the harness reports card spend, fines, arrests and jail. At a realistic table of 4 skilled players the median winner is $1.24B (p10 $390M, p90 $3.81B), inside the $1-3B target, after raising daily volume to 6-24% of market cap. Open: skilled players get eliminated 15-18% of the time when 4 whales pile into one thin stock; insider tips are weak; the top tail runs past $3B.
+
+## Open items (2026-11-21)
+
+- `/floor` has no headline tape yet (M6, julien).
+- The final standings do not include the last quarter's earnings gap: there is no market step after the last EARNINGS. `sim.news.pendingGap()` holds it (M6, julien).
+- Balance: median winner about $631M against $1B-3B, and no bot plays cards yet (M7, julien).
+- Headline generator: never run against a model, no npm script, README or tests (headline teammate).
+- Not tested by a person: a second laptop on the venue Wi-Fi, a margin call or elimination in a browser, a second game through "Play again" with cards in hand.
+- Counter cards are out on purpose (first in the cut order).
 
 ## Suggested split
 

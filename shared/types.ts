@@ -232,6 +232,11 @@ export interface Briefing {
   beats: ScheduledBeat[];
   /** Names of the regimes running this quarter (M5). */
   regimes: string[];
+  /**
+   * Earnings consensus: the quarter's expected EPS per company, $ per share (revenue * margin / 4 /
+   * shares). At EARNINGS a company beats or misses it by its hidden surprise.
+   */
+  consensus?: Record<SymbolId, number>;
 }
 
 /** One company's quarter result at EARNINGS. */

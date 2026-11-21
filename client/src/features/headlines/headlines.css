@@ -34,6 +34,12 @@
   text-decoration: line-through;
 }
 
+.news__regimes {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tg-color-accent);
+}
+
 .news__earnings {
   font-size: 12px;
   padding: 4px 6px;

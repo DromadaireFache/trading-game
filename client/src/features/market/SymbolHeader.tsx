@@ -1,6 +1,7 @@
 import { SECTOR_LABELS } from '@tg/shared';
 import type { SymbolId, SymbolInfo } from '@tg/shared';
 import { changeDirection, formatMoneyShort, formatPercent, formatPrice } from '../../lib/format.ts';
+import { useGame } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSymbols } from '../../net/marketHooks.ts';
 import { quoteChange } from '../../net/marketStore.ts';
 
@@ -25,8 +26,10 @@ interface SymbolHeaderProps {
 export function SymbolHeader({ symbol, size = 'normal' }: SymbolHeaderProps) {
   const market = useMarketStore();
   useSymbols(); // re-read the info when a new snapshot arrives
+  const { briefing } = useGame();
   const info = symbol === null ? undefined : market.getInfo(symbol);
   if (!info) return null;
+  const eps = info.kind === 'stock' ? briefing?.consensus?.[info.symbol] : undefined;
 
   return (
     <div className={`sym-head sym-head--${size}`} data-testid="selected-symbol" data-symbol={info.symbol}>
@@ -43,6 +46,12 @@ export function SymbolHeader({ symbol, size = 'normal' }: SymbolHeaderProps) {
           <dt>{info.kind === 'stock' ? 'Mkt cap' : 'Assets'}</dt>
           <dd data-testid="selected-cap">{formatMoneyShort(info.marketCap)}</dd>
         </div>
+        {eps !== undefined && (
+          <div className="sym-head__fact" title="Earnings consensus: this quarter's expected EPS. The report at EARNINGS beats or misses it.">
+            <dt>EPS est.</dt>
+            <dd data-testid="selected-eps">${eps.toFixed(2)}</dd>
+          </div>
+        )}
         {info.ceo && (
           <div className="sym-head__fact sym-head__fact--optional">
             <dt>CEO</dt>

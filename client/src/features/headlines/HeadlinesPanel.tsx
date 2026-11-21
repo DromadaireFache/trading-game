@@ -26,6 +26,11 @@ export function HeadlinesPanel({ className }: { className?: string }) {
       ) : (
         <>
           {briefing && briefing.beats.length > 0 && <Beats beats={briefing.beats} />}
+          {briefing && briefing.regimes.length > 0 && (
+            <div className="news__regimes" data-testid="regimes" title="Regimes bend the market until they end">
+              In force: {briefing.regimes.join(' · ')}
+            </div>
+          )}
           {earnings && <Earnings quarter={earnings.quarter} reports={earnings.reports} />}
           <ol className="news__feed" data-testid="headlines">
             {headlines.map((h) => (
@@ -54,10 +59,15 @@ function Beats({ beats }: { beats: { day: number; title: string }[] }) {
 
 function Earnings({ quarter, reports }: { quarter: number; reports: EarningsReport[] }) {
   const market = useMarketStore();
+  const { briefing } = useGame();
+  const eps = (r: EarningsReport) => {
+    const est = briefing?.consensus?.[r.symbol];
+    return est === undefined ? undefined : `EPS $${(est * (1 + r.surprise)).toFixed(2)} vs $${est.toFixed(2)} expected`;
+  };
   const beats = reports.filter((r) => r.surprise > 0).sort((a, b) => b.surprise - a.surprise).slice(0, 3);
   const misses = reports.filter((r) => r.surprise < 0).sort((a, b) => a.surprise - b.surprise).slice(0, 3);
   const row = (r: EarningsReport) => (
-    <li key={r.symbol}>
+    <li key={r.symbol} title={eps(r)}>
       <button type="button" className="news__tag" onClick={() => market.select(r.symbol)}>
         {r.symbol}
       </button>{' '}
