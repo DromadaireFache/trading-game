@@ -27,6 +27,7 @@ import { createHeadlineBook } from './headlines.ts';
 import { createNews } from './news.ts';
 import { createRng } from './rng.ts';
 import { addReturns } from './shocks.ts';
+import { createResults } from './results.ts';
 import { createTrading } from './trading.ts';
 import type { Sim, SimEvent, SimEventOf, SimIntent, SimOptions, SimPlayer, SimRejectCode, SimState } from './types.ts';
 import { generateUniverse } from './universe.ts';
@@ -46,6 +47,8 @@ export { createHeadlineBook, fillHeadline, MAGNITUDES } from './headlines.ts';
 export type { FillContext, HeadlineBook, HeadlineQuery, PlaceholderLists } from './headlines.ts';
 export { createNews } from './news.ts';
 export type { HeadlineEvent, News, NewsDeps, NewsItem, NewsSource, PublishedHeadline } from './news.ts';
+export { createResults, formatMoney, recapTargetName } from './results.ts';
+export type { FinalExtra, QuarterExtra, Results, ResultsDeps } from './results.ts';
 
 export function createSim(seed: number, config: GameConfig, options: SimOptions = {}): Sim {
   // One child stream per subsystem, forked in a fixed order. Append new forks at the END.
@@ -73,6 +76,16 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     rng: newsRng,
     earningsRng,
   });
+  // Milestone 6: leaderboard, statements, recap, awards, projector moments. No randomness.
+  const results = createResults({
+    config,
+    universe,
+    priceOf: (symbol) => market.getPrice(symbol),
+    players: () => players,
+    equityOf: (id) => trading.portfolio(id)?.equity ?? 0,
+    positionsOf: (id) => trading.portfolio(id)?.positions ?? [],
+    eliminatedOf: (id) => trading.getAccount(id)?.eliminated ?? false,
+  });
   const tpc = config.time.ticksPerCandle;
   /** Market tick of the step about to be made (shocks.ts / news.ts time). */
   const marketTick = () => market.getDay() * tpc + market.getTickOfDay();
@@ -92,8 +105,18 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     quarter = next.quarter;
     phaseTick = 0;
     events.push({ e: 'phase', phase, quarter, durationTicks: phaseLength(config, phase) });
-    if (phase === 'BRIEFING') events.push({ e: 'briefing', ...news.startQuarter(quarter, marketTick(), market.getRate()) });
-    if (phase === 'EARNINGS') events.push({ e: 'earnings', quarter, reports: news.closeQuarter() });
+    if (phase === 'BRIEFING') {
+      results.startQuarter(quarter);
+      events.push({ e: 'briefing', ...news.startQuarter(quarter, marketTick(), market.getRate()) });
+    }
+    if (phase === 'EARNINGS') {
+      const reports = news.closeQuarter();
+      results.recordEarnings(reports);
+      events.push({ e: 'earnings', quarter, reports });
+    }
+    // M5: pass arrests, fines, card spend and jail to closeQuarter / final as their `extra`.
+    if (phase === 'RESULTS') events.push(results.closeQuarter(quarter, news.log()));
+    if (phase === 'FINAL') events.push(results.final(news.log()));
   }
 
   function reject(intent: SimIntent, code: SimRejectCode, message: string): void {
@@ -140,7 +163,10 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'the market is closed'), false;
         const result = trading.order(intent.playerId, intent.symbol, intent.qty);
         if (!result.ok) return reject(intent, result.code, result.message), false;
-        for (const event of result.events) events.push(event);
+        for (const event of result.events) {
+          if (event.e === 'fill') results.recordFill(event);
+          events.push(event);
+        }
         return false;
       }
       case 'buy_card':
@@ -185,11 +211,21 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
             ...(headlines.dRate === 0 ? {} : { dRate: headlines.dRate }),
           };
           let dayClosed = false;
+          let moment: SimEventOf<'moment'> | null = null;
           for (const event of market.step(input)) {
-            if (event.e === 'candle') dayClosed = true;
+            if (event.e === 'candle') {
+              dayClosed = true;
+              const close: Record<string, number> = {};
+              for (const [symbol, c] of Object.entries(event.ohlc)) close[symbol] = c.c;
+              moment = results.onCandle(event.day, close);
+            }
             events.push(event);
           }
-          for (const event of trading.afterStep(dayClosed)) events.push(event);
+          for (const event of trading.afterStep(dayClosed)) {
+            if (event.e === 'fill') results.recordFill(event);
+            events.push(event);
+          }
+          if (moment) events.push(moment);
         }
         phaseTick += 1;
         if (phaseTick >= length) enter(nextPhase(config, { phase, quarter }));
@@ -213,6 +249,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     getUniverse: () => universe,
     getMarketSnapshot: () => market.getSnapshot(),
     getPortfolio: (playerId) => trading.portfolio(playerId),
+    getResults: () => results.last(),
     getNewsSnapshot() {
       const briefing = news.briefing();
       const earnings = news.earnings();

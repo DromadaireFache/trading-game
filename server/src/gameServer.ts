@@ -237,6 +237,13 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     if (news.briefing !== null) dispatchTo(socket, news.briefing);
     if (news.earnings !== null) dispatchTo(socket, news.earnings);
     for (const headline of news.headlines) dispatchTo(socket, headline);
+    // Results stay on screen through RESULTS, SHOP and FINAL; a (re)joining client gets the latest ones.
+    const phaseNow = sim.getState().phase;
+    const results = sim.getResults();
+    if (results !== null && (phaseNow === 'RESULTS' || phaseNow === 'SHOP' || phaseNow === 'FINAL')) {
+      const { e: _e, ...rest } = results;
+      send(socket, { t: 'results', ...rest });
+    }
     broadcastLobby();
   }
 

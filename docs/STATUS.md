@@ -32,7 +32,7 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 ## Next (M5–M7, in order)
 
 1. **M5 Cards and shop.** Wire the catalog into the sim: shop offers, hand, card effects, heat, the SEC catch roll and jail.
-2. **M6 Results, final and floor.** Recap with causes, awards, and BREAKING moments.
+2. **M6 Results, final and floor.** Done except what needs M5. `server/src/sim/results.ts` builds the leaderboard, per-player statements (best and worst trade), the market recap (top 3 moves in different sectors, each with the headline, earnings gap, card or regime that caused it), the final awards (best trade, best short, bag holder, comeback, most chaos, busiest trader, margin call magnet, longest sentence) and crash moments (at most one per quarter, `presentation.maxMomentsPerGame` per game). /play shows real RESULTS and FINAL screens; /floor shows the standings in RESULTS and FINAL and a full-screen BREAKING banner for `presentation.momentVisibleMs`. A reconnect during RESULTS, SHOP or FINAL gets the latest results. **For M5:** pass arrests, fines, card spend, jail and card names to `closeQuarter` / `final` as their `extra` (see the comment in `createSim`), and call `results.addMoment` for regime starts and the leader's arrest. Not done: sound sting and screen shake (design track).
 3. **M7 Balance.** First tuning pass done (see docs/BALANCE.md). A news-trader bot (a fast, news-reading human) was added, and huge shocks, magnitude/scope weights and daily volume were retuned. Over 50 games the median winner is $631M (p10 $199M, p90 $2.84B), short of $1B on purpose because cards are not in yet. Next: card-using bots and another pass once M5 lands.
 
 ## Suggested split

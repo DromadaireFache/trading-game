@@ -910,6 +910,20 @@ async function main(): Promise<void> {
           await a.waitForSelector(tid('earnings'));
           check(true, `A shows the Q1 earnings reports in ${phase}`);
         }
+        if (phase === 'RESULTS') {
+          // Milestone 6: the quarter's results on the desk and on the projector.
+          await a.waitForSelector(tid('leaderboard'));
+          const rows = await a.locator(tid('leaderboard-row')).count();
+          const moves = await a.locator(tid('recap-move')).count();
+          check(rows === 2 && moves === 3, `A shows the Q1 standings (${rows} players) and ${moves} recap moves`);
+          check(await a.locator(tid('my-statement')).isVisible(), 'A sees its own quarter statement');
+          await floor.waitForSelector(tid('floor-results'));
+          check((await floor.locator(tid('leaderboard-row')).count()) === 2, 'the floor shows the standings in RESULTS');
+          const q1Results = framesOf('A').filter((m) => m.t === 'results');
+          check(q1Results.length === 1 && !(q1Results[0] as { final?: boolean }).final, 'A got one Q1 results message');
+          await shot(a, '14-play-RESULTS-board');
+          await shot(floor, '14-floor-RESULTS');
+        }
       }
 
       // Frozen between quarters: the last tick of Q1 stays on screen until Q2 trades.
@@ -973,7 +987,20 @@ async function main(): Promise<void> {
       check((await boardOf(b)).length === SYMBOL_COUNT, `B lists ${SYMBOL_COUNT} symbols again`);
       await shot(b, '19-play-after-reload-q2');
 
+      // The floor chart holds every candle of the game by the last SHOP (in FINAL the standings replace it).
+      await waitFor('the floor in the last SHOP', async () => (await floor.locator(`${tid('phase')}[data-phase=SHOP]`).count()) === 1 && (await textOf(floor, 'quarter')).startsWith(`Q${QUARTERS}`), GAME_MS + WAIT_MS);
+      const floorEnd = await checkChartDrawn(floor, 'floor in the last SHOP', indexSymbol, QUARTERS * DAYS);
+      check(floorEnd.candles === QUARTERS * DAYS, `the floor chart ends with all ${QUARTERS * DAYS} candles`);
+
       await Promise.all([waitForPhase(a, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(floor, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(b, 'FINAL', GAME_MS + WAIT_MS)]);
+      // Milestone 6: the final standings and awards, on the desk and on the projector.
+      await a.waitForSelector(tid('winner'));
+      check((await a.locator(tid('leaderboard-row')).count()) === 2, 'A shows the final standings');
+      const finalMsg = framesOf('A').filter((m) => m.t === 'results').at(-1) as { final?: boolean; awards?: unknown[] } | undefined;
+      check(finalMsg?.final === true && Array.isArray(finalMsg.awards), `A got the final results with ${finalMsg?.awards?.length ?? 0} awards`);
+      check((await a.locator(tid('award')).count()) === (finalMsg?.awards?.length ?? -1), 'every award is on screen');
+      await floor.waitForSelector(tid('floor-winner'));
+      check(true, 'the floor shows the winner in FINAL');
       await sleep(200);
       await shot(a, '20-play-FINAL');
       await shot(floor, '21-floor-FINAL');
@@ -1008,8 +1035,6 @@ async function main(): Promise<void> {
         const total = QUARTERS * DAYS * TICKS_PER_DAY;
         check(ticksOf(label).length === total, `${label}: ${total} ticks in the whole game (got ${ticksOf(label).length})`);
       }
-      const floorEnd = await checkChartDrawn(floor, 'floor in FINAL', indexSymbol, QUARTERS * DAYS);
-      check(floorEnd.candles === QUARTERS * DAYS, `the floor chart ends with all ${QUARTERS * DAYS} candles`);
       const health = (await (await fetch(`http://127.0.0.1:${serverPort}/health`)).json()) as { players: number; phase: string };
       check(health.phase === 'FINAL' && health.players === 2, 'server is in FINAL with 2 players');
     });

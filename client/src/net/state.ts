@@ -15,9 +15,11 @@ import type {
   GameConfig,
   HeadlineMsg,
   LobbyState,
+  MomentMsg,
   PhaseInfo,
   PlayerId,
   PortfolioMsg,
+  ResultsMsg,
   Role,
   ServerMsg,
 } from '@tg/shared';
@@ -70,6 +72,10 @@ export interface GameState {
   briefing: Briefing | null;
   /** Latest earnings reports, until the next briefing. */
   earnings: Omit<EarningsMsg, 't'> | null;
+  /** Latest quarter (or final) results; shown in RESULTS and FINAL, kept until the next ones. */
+  results: Omit<ResultsMsg, 't'> | null;
+  /** Latest projector moment and when it arrived (client ms); the floor shows it for a few seconds. */
+  moment: (Omit<MomentMsg, 't'> & { at: number }) | null;
 }
 
 export const MAX_HEADLINES = 60;
@@ -99,6 +105,8 @@ export const initialGameState: GameState = {
   headlines: [],
   briefing: null,
   earnings: null,
+  results: null,
+  moment: null,
 };
 
 /** Folds one server message into the state. Returns the same object when nothing changed. */
@@ -162,9 +170,15 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       const { t: _t, ...earnings } = msg;
       return { ...state, earnings };
     }
+    case 'results': {
+      const { t: _t, ...results } = msg;
+      return { ...state, results };
+    }
+    case 'moment': {
+      const { t: _t, ...moment } = msg;
+      return { ...state, moment: { ...moment, at: now } };
+    }
     case 'shop':
-    case 'results':
-    case 'moment':
       return state;
     default: {
       // Unknown `t` from a newer server: ignore rather than crash.
