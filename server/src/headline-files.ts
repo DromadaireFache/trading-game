@@ -8,6 +8,8 @@ import type { HeadlineTemplate } from '../../shared/types.ts';
 
 export const HEADLINE_SEED = fileURLToPath(new URL('../../shared/data/headlines.seed.json', import.meta.url));
 export const GENERATED_HEADLINES = fileURLToPath(new URL('../../shared/data/headlines.generated.json', import.meta.url));
+/** Funnier headlines written by Claude Haiku (tools/generate-headlines/claude.ts); optional. */
+export const CLAUDE_HEADLINES = fileURLToPath(new URL('../../shared/data/headlines.claude.json', import.meta.url));
 
 export function readHeadlines(path: string, optional = false): HeadlineTemplate[] {
   let data: string;

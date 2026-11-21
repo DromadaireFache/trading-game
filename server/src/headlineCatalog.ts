@@ -5,7 +5,7 @@ import type {
 } from '@tg/shared';
 import type { Placeholder } from '@tg/shared/headlines';
 import placeholders from '../../shared/data/placeholders.json' with { type: 'json' };
-import { generatedHeadlinePath, HEADLINE_SEED, readHeadlines } from './headline-files.ts';
+import { CLAUDE_HEADLINES, generatedHeadlinePath, HEADLINE_SEED, readHeadlines } from './headline-files.ts';
 import { createRng } from './sim/rng.ts';
 import type { Universe } from './sim/universe.ts';
 
@@ -45,15 +45,25 @@ function productFor(sector: Sector, symbol: SymbolId, random: (count: number) =>
   return menu[hash % menu.length]!;
 }
 
-/** The game takes a catalog snapshot at startup. A malformed generated file fails fast with its path. */
-export function loadHeadlineTemplates(path?: string): HeadlineTemplate[] {
+/**
+ * The game takes a catalog snapshot at startup. A malformed generated file fails fast with its path.
+ * The Claude catalog (optional) wins: for every bucket (scope, sector, direction, size, kind) it covers,
+ * the generated catalog's entries are left out, so its funnier headlines are the ones drawn. The seed
+ * always stays.
+ */
+export function loadHeadlineTemplates(path?: string, claudePath: string = CLAUDE_HEADLINES): HeadlineTemplate[] {
   const generated = readHeadlines(generatedHeadlinePath(path), path === undefined);
-  if (generated.some((headline) => headline.scope !== 'market' && headline.sector === undefined)) {
-    throw new Error(`${generatedHeadlinePath(path)}: generated stock and sector headlines must specify a sector`);
+  const claude = readHeadlines(claudePath, true);
+  for (const [file, list] of [[generatedHeadlinePath(path), generated], [claudePath, claude]] as const) {
+    if (list.some((headline) => headline.scope !== 'market' && headline.sector === undefined)) {
+      throw new Error(`${file}: generated stock and sector headlines must specify a sector`);
+    }
   }
+  const covered = new Set(claude.map((headline) => bucketKey(headline)));
   const ids = new Set<string>();
   const texts = new Set<string>();
-  return [...readHeadlines(HEADLINE_SEED), ...generated].filter((headline) => {
+  const kept = generated.filter((headline) => !covered.has(bucketKey(headline)));
+  return [...readHeadlines(HEADLINE_SEED), ...claude, ...kept].filter((headline) => {
     const text = normalizeText(headline.text);
     if (ids.has(headline.id) || texts.has(text)) return false;
     ids.add(headline.id);
