@@ -1108,6 +1108,33 @@ async function main(): Promise<void> {
       await lost.context().close();
     });
 
+    await step('play again: a new game from FINAL, back to the lobby, and it plays', async () => {
+      const oldSymbols = (await boardOf(a)).map((r) => r.symbol).join();
+      await a.click(tid('new-game'));
+      await Promise.all([waitForPhase(a, 'LOBBY'), waitForPhase(floor, 'LOBBY')]);
+      // Bud's tab is closed, so only Gordon (still connected) keeps a seat.
+      await waitFor('A sees only Gordon in the new lobby', async () => (await rosterNames(a)).join(',') === 'Gordon');
+      check(true, 'A and the floor are back in the lobby, with Gordon kept and the absent Bud dropped');
+      check((await textOf(a, 'me-name')) === 'Gordon', 'A is still Gordon, no name entry');
+      const again = await newPage('again', 1366, 768);
+      await again.goto(`${base}/play`);
+      await again.fill(tid('name-input'), 'Bud');
+      await again.click(tid('join-button'));
+      await waitFor('A sees Gordon and Bud', async () => (await rosterNames(a)).join(',') === 'Gordon,Bud');
+      await a.click(tid('start-button'));
+      await Promise.all([waitForPhase(a, 'BRIEFING'), waitForPhase(again, 'BRIEFING'), waitForPhase(floor, 'BRIEFING')]);
+      check((await textOf(a, 'quarter')).startsWith('Q1'), 'the new game starts at Q1');
+      await a.waitForSelector(rowOf((await boardOf(a))[0]?.symbol ?? ''));
+      const newSymbols = (await boardOf(a)).map((r) => r.symbol).join();
+      check(newSymbols !== oldSymbols && (await boardOf(a)).length === SYMBOL_COUNT, 'a new universe (next seed) is on screen');
+      check((await a.locator(tid('headline')).count()) === 0, "no headline of the old game is left in A's feed");
+      check((await a.locator(tid('positions')).count()) === 0, 'A starts the new game with no positions');
+      const health = (await (await fetch(`http://127.0.0.1:${serverPort}/health`)).json()) as { game: number; phase: string };
+      check(health.game === 2 && health.phase === 'BRIEFING', `the server runs game ${health.game}`);
+      await shot(a, '23-play-again');
+      await again.context().close();
+    });
+
     await step('no page errors, no external requests', async () => {
       check(problems.length === 0, `clean browser logs${problems.length ? `:\n    ${problems.join('\n    ')}` : ''}`);
     });

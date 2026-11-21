@@ -1,12 +1,13 @@
 import { Panel, Placeholder } from '../../components/Panel.tsx';
 import { formatMoneyShort } from '../../lib/format.ts';
-import { useGame } from '../../net/GameProvider.tsx';
+import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { Leaderboard } from './ResultsPanel.tsx';
 import './results.css';
 
 /** FINAL: the winner, the final standings (P&L since the start) and the awards. */
 export function FinalPanel({ className }: { className?: string }) {
   const { results, me, config } = useGame();
+  const client = useGameClient();
   if (!results?.final) {
     return (
       <Panel title="Final" className={className}>
@@ -17,7 +18,19 @@ export function FinalPanel({ className }: { className?: string }) {
   const winner = results.leaderboard[0];
   const multiple = winner ? winner.netWorth / config.economy.startingCash : 0;
   return (
-    <Panel title="Final standings" aside="game over" className={`results ${className ?? ''}`}>
+    <Panel
+      title="Final standings"
+      aside={
+        me?.role === 'player' ? (
+          <button type="button" className="results__again" data-testid="new-game" onClick={() => client.newGame()}>
+            Play again
+          </button>
+        ) : (
+          'game over'
+        )
+      }
+      className={`results ${className ?? ''}`}
+    >
       {winner && (
         <div className="results__winner" data-testid="winner">
           <span className="results__winner-name">{winner.name}</span> wins with{' '}

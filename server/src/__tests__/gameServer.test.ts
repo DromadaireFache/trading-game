@@ -751,3 +751,60 @@ describe('trading', () => {
     expect(restored.positions).toEqual([expect.objectContaining({ symbol, qty: 1000 })]);
   });
 });
+
+describe('play again', () => {
+  it('starts a fresh game from FINAL with the connected players back in the lobby', async () => {
+    const s = await start();
+    const ann = await open(s);
+    const annWelcome = await ann.join('player', 'Ann');
+    expect(annWelcome.game).toBe(1);
+    const bob = await open(s);
+    const bobWelcome = await bob.join('player', 'Bob');
+    const floor = await open(s);
+    await floor.join('spectator');
+
+    // Too early: only after the final results.
+    ann.send({ t: 'new_game' });
+    expect((await ann.next('error')).code).toBe('not_allowed');
+
+    ann.send({ t: 'start' });
+    await ann.next('phase', (m) => m.phase === 'FINAL');
+    await ann.next('results', (m) => m.final === true);
+    const oldUniverse = (await floor.next('market')).universe.symbols.map((x) => x.symbol).join();
+
+    // Bob leaves: he loses his seat in the next game.
+    bob.close();
+    await ann.next('lobby', (m) => m.players.some((p) => p.name === 'Bob' && !p.connected));
+
+    // A spectator cannot, a player can.
+    floor.send({ t: 'new_game' });
+    expect((await floor.next('error')).code).toBe('not_allowed');
+    ann.send({ t: 'new_game' });
+
+    const again = await ann.next('welcome', (m) => m.game === 2);
+    expect(again.playerId).toBe(annWelcome.playerId);
+    expect(again.token).toBe(annWelcome.token);
+    expect(again.phase.phase).toBe('LOBBY');
+    expect(again.lobby.players.map((p) => p.name)).toEqual(['Ann']);
+    const market = await ann.next('market');
+    expect(market.day).toBe(0);
+    expect(Object.values(market.candles).every((c) => c.length === 0)).toBe(true);
+    // Next seed: another universe.
+    expect(market.universe.symbols.map((x) => x.symbol).join()).not.toBe(oldUniverse);
+    expect((await floor.next('welcome', (m) => m.game === 2)).role).toBe('spectator');
+
+    // Bob's old token no longer works mid-lobby as a seat; he joins again like anyone else.
+    const bob2 = await open(s);
+    const bobAgain = await bob2.join('player', 'Bob', bobWelcome.token);
+    expect(bobAgain.game).toBe(2);
+    expect(bobAgain.playerId).not.toBe(bobWelcome.playerId);
+
+    // The new game plays: start, trade, through to its own FINAL.
+    ann.send({ t: 'start' });
+    await ann.next('phase', (m) => m.phase === 'BRIEFING' && m.quarter === 1);
+    await ann.next('portfolio');
+    const health = (await (await fetch(`http://127.0.0.1:${s.port}${HEALTH_PATH}`)).json()) as { game: number; players: number };
+    expect(health).toMatchObject({ game: 2, players: 2 });
+    await ann.next('phase', (m) => m.phase === 'FINAL');
+  });
+});

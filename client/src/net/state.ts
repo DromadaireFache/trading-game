@@ -52,6 +52,8 @@ export interface GameState {
   join: JoinStatus;
   /** Set by `welcome`; kept across reconnects so the UI does not flash back to name entry. */
   me: Me | null;
+  /** Game number from `welcome` (1, 2, ... after "play again"). */
+  game: number;
   /** Effective server config once welcomed; shared defaults before that. */
   config: GameConfig;
   phase: PhaseInfo | null;
@@ -96,6 +98,7 @@ export const initialGameState: GameState = {
   connection: 'idle',
   join: 'none',
   me: null,
+  game: 0,
   config: defaultConfig,
   phase: null,
   lobby: null,
@@ -117,10 +120,16 @@ export const initialGameState: GameState = {
 export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): GameState {
   switch (msg.t) {
     case 'welcome': {
+      const game = msg.game ?? 1;
+      // "Play again" started another game: nothing of the old one stays on screen.
+      if (state.game !== 0 && game !== state.game) {
+        state = { ...state, portfolio: null, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null };
+      }
       // Same seat after a reconnect: keep the trading history. Another seat: start clean.
       const sameSeat = state.me?.playerId === msg.playerId;
       return {
         ...state,
+        game,
         portfolio: sameSeat ? state.portfolio : null,
         fills: sameSeat ? state.fills : [],
         join: 'joined',

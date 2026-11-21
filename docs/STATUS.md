@@ -27,7 +27,7 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 - **e2e fixed (2026-11-21).** Two bugs in the test itself, not the game. (1) "every phase of every quarter" waited only 15 s for EARNINGS, but could start with up to a whole TRADING phase still to go, so it passed or failed depending on how fast the earlier steps ran. The first wait now covers the rest of TRADING. (2) On macOS/Linux the server was killed with a plain SIGKILL to `tsx`, which left the real server running with its port open, so "server loss shows on the client" failed and stray servers piled up. Children now run in their own process group and are killed as a group. 3 of 3 runs pass all 193 checks with no leftover servers. `package-lock.json` is back in sync, so `npm ci` works again.
 - **Generator never run.** It typechecks, but has never run, not even with `--dry-run`. It has no npm script, README or tests yet.
 - **No second machine tested.** A connection from another physical machine on the LAN is untested. Only this host was used, with the server bound to all interfaces.
-- **No restart.** Starting a new game needs a server restart.
+- **Play again (2026-11-21).** No server restart needed any more: in FINAL any player can press PLAY AGAIN. The server builds a fresh game on the next seed (`TG_SEED` + game number − 1), keeps connected players' seats, names and tokens, drops players who are gone (they can join again by name), and sends every client a new `welcome` (with `game`) and `market`, back in the lobby. Covered by a server test and an e2e step.
 
 ## M6–M7 (julien)
 

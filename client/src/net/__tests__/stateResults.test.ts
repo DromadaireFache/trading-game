@@ -24,3 +24,32 @@ describe('results and moments in the client state', () => {
     expect(s.moment).toEqual({ kind: 'crash', text: 'MARKET CRASH', at: 5000 });
   });
 });
+
+describe('play again', () => {
+  const welcome = (game: number): ServerMsg =>
+    ({
+      t: 'welcome',
+      playerId: 'p1',
+      token: 'tok',
+      role: 'player',
+      name: 'Ada',
+      phase: { phase: 'LOBBY', endsAt: null, quarter: 0, totalQuarters: 8, serverTime: 0 },
+      lobby: { players: [], spectators: 0, minPlayers: 1, maxPlayers: 4 },
+      config: initialGameState.config,
+      game,
+    }) as ServerMsg;
+
+  it('a welcome for another game drops the old game; a reconnect to the same game keeps it', () => {
+    let s = applyServerMsg(initialGameState, welcome(1), 0);
+    s = applyServerMsg(s, results, 1);
+    s = applyServerMsg(s, { t: 'moment', kind: 'crash', text: 'x' }, 2);
+    const reconnect = applyServerMsg(s, welcome(1), 3);
+    expect(reconnect.results).not.toBeNull();
+    const again = applyServerMsg(s, welcome(2), 4);
+    expect(again.game).toBe(2);
+    expect(again.results).toBeNull();
+    expect(again.moment).toBeNull();
+    expect(again.headlines).toEqual([]);
+    expect(again.me?.playerId).toBe('p1');
+  });
+});
