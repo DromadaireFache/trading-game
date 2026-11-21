@@ -52,12 +52,12 @@ const overrides: DeepPartial<GameConfig> = {
   phaseMs: PHASE_MS,
   lobby: { minPlayers: 2 },
   ...(earningsOnly ? {
-    news: { randomHeadlinesPerQuarter: 3, scheduledBeatsPerQuarter: 0, noiseShare: 1, quietDays: 0 },
+    news: { randomHeadlinesPerQuarter: 3, scheduledBeatsPerQuarter: 0, noiseShare: 1, quietDays: 0, maxGapMs: 0 },
     earnings: { leaksPerQuarter: 0 },
   } : {
-    // Short quarters: a few more headlines and a shorter gap than the real pace, so the news checks
-    // never wait long, yet every move settles before the close (none may carry into the next open).
-    news: { randomHeadlinesPerQuarter: 4, minGapMs: 2_000 },
+    // Short quarters: a faster pace than the real one (2-6 s, 4 s on average), so the news checks never
+    // wait long, yet every move settles before the close (none may carry into the next open).
+    news: { minGapMs: 2_000, meanGapMs: 4_000, maxGapMs: 6_000 },
   }),
 };
 const GAME_MS = QUARTERS * (PHASE_MS.BRIEFING + TRADING_MS + PHASE_MS.EARNINGS)
@@ -979,6 +979,13 @@ async function main(): Promise<void> {
       check((await b.getAttribute(tid('selected-symbol'), 'data-symbol')) === stockB, `the reloaded tab still has ${stockB} selected`);
       await b.waitForSelector(`${tid('position-row')}[data-symbol="${stockB}"]`);
       check(true, `the reloaded tab still shows B's short in ${stockB}`);
+      // Only headlines from the last few seconds (NewsPile FRESH_MS = 4 s, plus a day of rounding) land on a fresh page.
+      const reloadedPapers = (await b.evaluate(`[...document.querySelectorAll('[data-testid=headline]')].map((el) => el.dataset.id)`)) as string[];
+      const tsOf = new Map((framesOf('B').filter((m) => m.t === 'headline') as Array<{ id: string; ts: number }>).map((h) => [h.id, h.ts]));
+      const reloadDay = snapshotsOf('B').at(-1)!.day;
+      const ages = reloadedPapers.map((id) => (reloadDay - (tsOf.get(id) ?? -Infinity)) * DAY_MS);
+      check(ages.every((age) => age <= 4_000 + DAY_MS),
+        `the reloaded tab does not pile up old replayed headlines (papers ${reloadedPapers.join(', ') || 'none'}, ages ${ages.map((x) => Math.round(x)).join(', ')} ms)`);
       const snapshot = snapshotsOf('B').at(-1)!;
       check(snapshot.day >= 5 && (snapshot.candles[stockB]?.length ?? 0) === snapshot.day * 4,
         `the reload got a snapshot with ${snapshot.day} closed candles of history`);
@@ -1030,14 +1037,19 @@ async function main(): Promise<void> {
       const tickerBg = await style(`${top} ${tid('headline-ticker')}`, 'backgroundColor');
       const paperBg = await style(top, 'backgroundColor');
       check(tickerBg !== paperBg && !/rgba\(0, 0, 0, 0\)/.test(tickerBg), `the ticker wears a color of its own (${tickerBg})`);
-      // Over the cards, angled.
+      // Over the cards, angled (measured after the 380 ms drop-in).
+      await sleep(450);
       const [paperBox, handBox] = [await a.locator(top).boundingBox(), await a.locator('.desk__hand').boundingBox()];
       check(paperBox !== null && handBox !== null && paperBox.x < handBox.x + handBox.width && paperBox.x + paperBox.width > handBox.x &&
         paperBox.y < handBox.y + handBox.height && paperBox.y + paperBox.height > handBox.y,
         `the paper lies over the cards (paper ${JSON.stringify(paperBox)}, cards ${JSON.stringify(handBox)})`);
       check((await style(top, 'transform')) !== 'none', 'the paper is angled');
-      // Nothing on it to press, and it does not move when dragged.
-      check((await a.locator(`${tid('headline')} button`).count()) === 0, 'the papers have no buttons');
+      // Inside the side column: never over the positions or the chart.
+      const sideBox = (await a.locator('.desk__side').boundingBox())!;
+      check(paperBox!.x >= sideBox.x - 1 && paperBox!.x + paperBox!.width <= sideBox.x + sideBox.width + 1,
+        `the paper stays inside the side column (paper x ${Math.round(paperBox!.x)}..${Math.round(paperBox!.x + paperBox!.width)}, column ${Math.round(sideBox.x)}..${Math.round(sideBox.x + sideBox.width)})`);
+      check((await a.locator(`${top} button`).count()) === 1 && (await a.locator(`${top} ${tid('headline-close')}`).count()) === 1,
+        'a paper has exactly one button: its x');
       // A headline arriving mid-check drops in for a moment: read the box once it holds still.
       const stillBox = async (selector: string) => {
         let box = await a.locator(selector).boundingBox();
@@ -1049,25 +1061,37 @@ async function main(): Promise<void> {
         }
         return box;
       };
+      // Dragging moves a paper (and selects nothing).
       const pinned = `${tid('headline')}[data-id="${await a.getAttribute(top, 'data-id')}"]`;
+      const selectedBefore = await a.getAttribute(tid('selected-symbol'), 'data-symbol');
       const before = await stillBox(pinned);
-      await a.mouse.move(before!.x + before!.width / 2, before!.y + 20);
+      await a.mouse.move(before!.x + before!.width / 2, before!.y + 30);
       await a.mouse.down();
-      await a.mouse.move(before!.x - 100, before!.y - 120, { steps: 5 });
+      await a.mouse.move(before!.x + before!.width / 2 - 80, before!.y - 90, { steps: 8 });
       await a.mouse.up();
-      await a.mouse.move(before!.x + before!.width / 2, before!.y + 20);
       const after = await stillBox(pinned);
-      const sameDepth = (await a.getAttribute(pinned, 'data-depth')) === '0';
-      check(!sameDepth || (after !== null && Math.abs(after.x - before!.x) < 1 && Math.abs(after.y - before!.y) < 1),
-        `the paper cannot be dragged (${JSON.stringify(before)} -> ${JSON.stringify(after)})`);
+      check(after !== null && before!.x - after.x > 60 && before!.y - after.y > 70, `dragging moves the paper (${JSON.stringify(before)} -> ${JSON.stringify(after)})`);
+      check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === selectedBefore, 'a drag does not open the stock');
+      // Nothing moves on hover, and a plain click does nothing.
+      const resting = await stillBox(pinned);
+      await a.mouse.move(resting!.x + 60, resting!.y + 60);
+      await sleep(300);
+      const hovered = await a.locator(pinned).boundingBox();
+      check(hovered !== null && Math.abs(hovered.x - resting!.x) < 1 && Math.abs(hovered.y - resting!.y) < 1, 'hovering a paper does not move it');
+      const hand = (await a.locator('.desk__hand').boundingBox())!;
+      const pileBefore = (await a.locator(tid('news-pile')).boundingBox())!;
+      await a.mouse.move(hand.x + 20, hand.y + 12);
+      await sleep(300);
+      const pileAfter = (await a.locator(tid('news-pile')).boundingBox())!;
+      check(Math.abs(pileAfter.y - pileBefore.y) < 1, 'hovering the cards does not move the pile');
       await shot(a, '20-play-headline');
-      // Clicking a paper opens its stock; the paper stays.
+      // A click on a paper does nothing: it does not open the stock, and the paper stays.
       const openId = await a.getAttribute(top, 'data-id');
-      const openTicker = (await a.getAttribute(top, 'data-ticker'))!;
-      await a.click(top);
-      await a.waitForSelector(`${tid('selected-symbol')}[data-symbol="${openTicker}"]`);
-      check(true, `clicking the paper opened ${openTicker}`);
-      check((await a.locator(`${tid('headline')}[data-id="${openId}"]`).count()) === 1, 'the paper stays after the click');
+      const selectedNow = await a.getAttribute(tid('selected-symbol'), 'data-symbol');
+      await a.click(top, { position: { x: 60, y: 70 } });
+      await sleep(200);
+      check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === selectedNow, 'clicking a paper does not open its stock');
+      check((await a.locator(`${tid('headline')}[data-id="${openId}"]`).count()) === 1, 'the paper stays after a click');
       // It stays until later headlines bury it: the next one lands on top, the old one under it.
       const seenNow = headlineFrames('A').length;
       await waitFor('the next headline', async () => headlineFrames('A').length > seenNow);
@@ -1076,19 +1100,23 @@ async function main(): Promise<void> {
       const buried = await a.getAttribute(`${tid('headline')}[data-id="${openId}"]`, 'data-depth').catch(() => null);
       check(buried !== null && Number(buried) >= 1, `the old paper is buried under the new one (depth ${buried})`);
       const tilts = (await a.evaluate(`[...document.querySelectorAll('${tid('headline')}')].map((el) => getComputedStyle(el).transform)`)) as string[];
-      check(new Set(tilts).size === tilts.length && tilts.length >= 2, `the pile is messy: ${tilts.length} papers, each at its own angle`);
-      // While the pointer is over the cards the pile slides out of the way.
-      const pileY = (await a.locator(tid('news-pile')).boundingBox())!.y;
-      const hand = (await a.locator('.desk__hand').boundingBox())!;
-      await a.mouse.move(hand.x + 20, hand.y + 12);
-      await waitFor('the pile to slide down', async () => (await a.locator(tid('news-pile')).boundingBox())!.y > pileY + 60);
-      check(true, 'hovering the cards slides the pile down');
+      check(new Set(tilts).size === tilts.length && tilts.length >= 2, `the pile has ${tilts.length} papers, each at its own angle`);
+      // Right click throws a paper off screen.
+      const thrownId = await a.getAttribute(top, 'data-id');
+      await a.click(top, { button: 'right' });
+      await waitFor('the thrown paper to leave', async () => (await a.locator(`${tid('headline')}[data-id="${thrownId}"]`).count()) === 0);
+      check(true, `right click threw paper ${thrownId} off the screen`);
+      // The x throws a paper away too.
+      const closedId = await a.getAttribute(top, 'data-id');
+      await a.click(`${top} ${tid('headline-close')}`);
+      await waitFor('the closed paper to leave', async () => (await a.locator(`${tid('headline')}[data-id="${closedId}"]`).count()) === 0);
+      check(true, `the x threw paper ${closedId} away`);
       await a.mouse.move(5, 5);
-      // Pace: 2 to 10 s of game time between two public headlines.
+      // Pace (this run's faster setting): 2 to 6 s of game time between two public headlines.
       const pub = headlineFrames('A').filter((h) => !h.early);
       const gaps = pub.slice(1).map((h, i) => (h.ts - pub[i]!.ts) * DAY_MS);
       const minGap = 2_000;
-      const maxGap = defaultConfig.news.maxGapMs;
+      const maxGap = 6_000;
       check(gaps.length > 0 && gaps.every((g) => g >= minGap - 1 && g <= maxGap + 2 * minGap),
         `headlines come ${minGap / 1000}-${maxGap / 1000} s apart (gaps ${gaps.map((g) => (g / 1000).toFixed(1)).join(', ')} s)`);
 
@@ -1215,9 +1243,13 @@ async function main(): Promise<void> {
       check(handBefore > 0, `A still holds ${handBefore} cards in Q2`);
       for (let i = 0; i < handBefore; i++) {
         const cardEl = a.locator(tid('hand-card')).first();
-        // The headline papers lie over the cards: point at the cards so the pile slides away first.
-        await cardEl.hover({ position: { x: 20, y: 10 } });
-        await sleep(300);
+        // The headline papers lie over the cards: throw them away first, as a player would.
+        // (A thrown paper flies off with pointer-events off, so it no longer blocks the cards.)
+        const resting = a.locator(`${tid('headline')}:not(.paper--thrown) ${tid('headline-close')}`);
+        while ((await resting.count()) > 0) {
+          await resting.last().click().catch(() => undefined);
+          await sleep(50);
+        }
         const button = cardEl.locator(`${tid('play')}, ${tid('play-up')}`).first();
         if (await button.isDisabled()) break; // e.g. a sector card with the index fund selected
         await button.click();

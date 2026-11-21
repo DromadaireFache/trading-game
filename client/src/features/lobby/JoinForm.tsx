@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { ConnectionBadge } from '../../components/ConnectionBadge.tsx';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
+import { GameLogo } from '../../components/GameLogo.tsx';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 
 /** Name entry: the first screen of /play. */
@@ -23,7 +24,7 @@ export function JoinForm() {
   return (
     <main className="center-screen">
       <form className="join-card" onSubmit={onSubmit}>
-        <div className="join-card__brand">TRADING GAME</div>
+        <div className="join-card__brand"><GameLogo /></div>
         <p className="join-card__tagline">Fake companies. Real panic.</p>
 
         <label className="field">

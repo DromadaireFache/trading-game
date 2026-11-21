@@ -1,4 +1,5 @@
 import { ConnectionBadge } from '../../components/ConnectionBadge.tsx';
+import { GameLogo } from '../../components/GameLogo.tsx';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { Roster } from '../../components/Roster.tsx';
 import { SeatTaken } from '../../components/SeatTaken.tsx';
@@ -37,7 +38,7 @@ export function FloorView() {
   return (
     <div className={`floor phase--${current}`} data-testid="floor">
       <header className="floor__top">
-        <span className="floor__brand">TRADING GAME</span>
+        <span className="floor__brand"><GameLogo /></span>
         <span className="floor__quarter" data-testid="quarter">
           {formatQuarter(phase?.quarter ?? 0, totalQuarters)}
         </span>
@@ -48,6 +49,7 @@ export function FloorView() {
       </header>
 
       <main className={`floor__main${inLobby ? '' : ' floor__main--playing'}`}>
+        {inLobby && <h1 className="floor__lobby-brand"><GameLogo /></h1>}
         <div className="floor__status">
           <div className="floor__phase" data-testid="phase" data-phase={current}>
             {PHASE_LABEL[current]}

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { defaultConfig } from '@tg/shared';
 import type { HeadlineTemplate } from '@tg/shared';
-import { createHeadlineCatalog, loadHeadlineTemplates } from '../headlineCatalog.ts';
+import { ABSURD_GENERATED_SHARE, createHeadlineCatalog, loadHeadlineTemplates, PLAIN_GENERATED_SHARE } from '../headlineCatalog.ts';
+import { ABSURD_HEADLINES, GENERATED_HEADLINES, readHeadlines } from '../headline-files.ts';
 import { createRng, generateUniverse } from '../sim/index.ts';
 
 const seed = 17;
@@ -41,6 +42,25 @@ describe('headline catalog', () => {
       id: 'sector', text: 'Airlines wins new landing rights',
     });
     expect(catalog.draw({ ...stock, scope: 'market' })?.id).toBe('market');
+  });
+
+  it('loads every hand-written absurd headline and thins the generated catalog toward the absurd', () => {
+    const templates = loadHeadlineTemplates();
+    const ids = new Set(templates.map((t) => t.id));
+    const absurd = readHeadlines(ABSURD_HEADLINES);
+    expect(absurd.length).toBeGreaterThan(150);
+    expect(absurd.every((t) => ids.has(t.id) && t.sector === undefined)).toBe(true);
+    // Themes asked for: aliens, dinosaurs, portals, time travel, affairs, spies.
+    for (const theme of [/alien/i, /dinosaur/i, /portal/i, /time travel/i, /affair/i, /spy|spies/i]) {
+      expect(absurd.filter((t) => theme.test(t.text)).length, String(theme)).toBeGreaterThanOrEqual(8);
+    }
+    const generated = readHeadlines(GENERATED_HEADLINES, true);
+    if (generated.length === 0) return;
+    const share = (pick: (t: { category: string }) => boolean) =>
+      generated.filter((t) => pick(t) && ids.has(t.id)).length / generated.filter(pick).length;
+    expect(share((t) => t.category === 'product')).toBeCloseTo(PLAIN_GENERATED_SHARE, 1);
+    expect(share((t) => t.category === 'absurd')).toBeCloseTo(ABSURD_GENERATED_SHARE, 1);
+    expect(share((t) => t.category === 'earnings_leak')).toBe(1);
   });
 
   it('loads the bundled catalog without inference', () => {

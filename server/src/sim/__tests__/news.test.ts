@@ -242,10 +242,11 @@ describe('news through the sim', () => {
     }
   });
 
-  it('with the default pace, headlines come 2 to 10 s apart from the open to the close', () => {
+  it('with the default pace, headlines come 5 to 20 s apart, 10 s on average, from the open to the close', () => {
     const config = mergeConfig(defaultConfig, { phaseMs: { BRIEFING: 200, EARNINGS: 200, RESULTS: 200, SHOP: 200 } });
     const msPerDay = config.time.tickMs * config.time.ticksPerCandle;
-    for (const seed of [1, 2, 3]) {
+    const allGaps: number[] = [];
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
       const { sim } = playGame(seed, config);
       for (let q = 1; q <= config.time.quarters; q++) {
         const open = (q - 1) * config.time.daysPerQuarter;
@@ -256,8 +257,12 @@ describe('news through the sim', () => {
         expect(Math.max(...gaps)).toBeLessThanOrEqual(config.news.maxGapMs + 2 * config.news.minGapMs);
         for (const gap of gaps.slice(1, -1)) expect(gap).toBeGreaterThanOrEqual(config.news.minGapMs - 1e-6);
         expect(times.length - 2).toBeGreaterThanOrEqual(Math.floor((config.time.daysPerQuarter * msPerDay) / config.news.maxGapMs));
+        allGaps.push(...gaps.slice(1, -1));
       }
     }
+    const mean = allGaps.reduce((a, b) => a + b, 0) / allGaps.length;
+    expect(mean).toBeGreaterThan(config.news.meanGapMs * 0.8);
+    expect(mean).toBeLessThan(config.news.meanGapMs * 1.2);
   });
 
   it('a stock headline names its company and moves it; its log records the cause', () => {

@@ -99,7 +99,7 @@ export function planGroups(existing: readonly HeadlineTemplate[], opts: { kinds?
 
 export const SYSTEM_PROMPT = `You write headlines for the news wire of a fast, funny stock-trading party game. Players read one headline, then have a few seconds to bet on the stock it names.
 
-TONE: funny and slightly edgy. Deadpan corporate satire, like a financial wire written by a comedian with a grudge: greedy executives, hype, buzzwords, incompetent regulators, absurd accidents, petty rivalries, ridiculous excuses. Dark humor and mild innuendo are fine. Punch up at companies, executives and governments, never at groups of people. No slurs, nothing sexual beyond a wink, no real tragedies (terror attacks, mass casualties, real diseases), no politics of real parties.
+TONE: absurd, funny and slightly edgy, told with a straight face, like a financial wire from a slightly broken universe. Most headlines should be properly absurd: aliens, dinosaurs, portals, time travelers, ghosts, curses, krakens, wizards, cults, clones, robots, secret tunnels, moon bases. Mix in juicy human mischief: affairs between executives, spies sent to steal secrets, sabotage, heists, blackmail, petty feuds. The rest is deadpan corporate satire: greedy executives, hype, buzzwords, incompetent regulators. Dark humor and mild innuendo are fine. Punch up at companies, executives and governments, never at groups of people. No slurs, nothing sexual beyond a wink, no real tragedies (terror attacks, mass casualties, real diseases), no politics of real parties.
 
 FORMAT: each headline reads like a real wire headline: one line, 40 to ${TEXT_MAX} characters, no emoji, no hashtags, no quotes around the whole thing, no trailing period. Vary the openings and the sentence shapes; never start two headlines in a reply the same way.
 
@@ -137,7 +137,7 @@ export function buildUserPrompt(group: Group): string {
     '',
     ...lines,
     '',
-    'Reply with every headline as {slot, category, text}. Make each one genuinely funny or sharp; a dull headline is a wasted slot.',
+    'Reply with every headline as {slot, category, text}. Make each one genuinely funny or sharp; a dull headline is a wasted slot. At least two thirds should be absurd (category absurd when it is offered).',
   ].join('\n');
 }
 

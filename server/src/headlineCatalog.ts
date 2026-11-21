@@ -5,7 +5,7 @@ import type {
 } from '@tg/shared';
 import type { Placeholder } from '@tg/shared/headlines';
 import placeholders from '../../shared/data/placeholders.json' with { type: 'json' };
-import { CLAUDE_HEADLINES, generatedHeadlinePath, HEADLINE_SEED, readHeadlines } from './headline-files.ts';
+import { ABSURD_HEADLINES, CLAUDE_HEADLINES, generatedHeadlinePath, HEADLINE_SEED, readHeadlines } from './headline-files.ts';
 import { createRng } from './sim/rng.ts';
 import type { Universe } from './sim/universe.ts';
 
@@ -46,12 +46,32 @@ function productFor(sector: Sector, symbol: SymbolId, random: (count: number) =>
 }
 
 /**
- * The game takes a catalog snapshot at startup. A malformed generated file fails fast with its path.
- * The Claude catalog (optional) wins: for every bucket (scope, sector, direction, size, kind) it covers,
- * the generated catalog's entries are left out, so its funnier headlines are the ones drawn. The seed
- * always stays.
+ * Plain (not absurd) categories of the generated catalog, thinned out at load. Its regime follow-ups
+ * only ever come up as random news (regimes name their seed headlines by id), so they count as plain.
  */
-export function loadHeadlineTemplates(path?: string, claudePath: string = CLAUDE_HEADLINES): HeadlineTemplate[] {
+const PLAIN_CATEGORIES: readonly HeadlineCategory[] = ['contract', 'legal', 'exec', 'product', 'macro', 'regime_followup'];
+/**
+ * Shares of the generated catalog kept (picked by id, the same every start), so the hand-written absurd
+ * headlines (aliens, dinosaurs, portals, affairs, spies) come up often and the news leans absurd, with
+ * some ordinary stories left in. Earnings leaks are always kept (the leaks need them).
+ */
+export const PLAIN_GENERATED_SHARE = 0.1;
+export const ABSURD_GENERATED_SHARE = 0.5;
+
+function keep(id: string, share: number): boolean {
+  let h = 2166136261;
+  for (const c of id) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0;
+  return h / 4294967296 < share;
+}
+
+/**
+ * The game takes a catalog snapshot at startup. A malformed generated file fails fast with its path.
+ * Sources: the seed and the hand-written absurd headlines (both always, sector-free); the Claude
+ * catalog (optional), which wins for every bucket (scope, sector, direction, size, kind) it covers;
+ * and the generated catalog for the other buckets, thinned to ABSURD_GENERATED_SHARE of its absurd
+ * headlines and PLAIN_GENERATED_SHARE of its plain ones, so the average headline is absurd.
+ */
+export function loadHeadlineTemplates(path?: string, claudePath: string = CLAUDE_HEADLINES, absurdPath: string = ABSURD_HEADLINES): HeadlineTemplate[] {
   const generated = readHeadlines(generatedHeadlinePath(path), path === undefined);
   const claude = readHeadlines(claudePath, true);
   for (const [file, list] of [[generatedHeadlinePath(path), generated], [claudePath, claude]] as const) {
@@ -62,8 +82,11 @@ export function loadHeadlineTemplates(path?: string, claudePath: string = CLAUDE
   const covered = new Set(claude.map((headline) => bucketKey(headline)));
   const ids = new Set<string>();
   const texts = new Set<string>();
-  const kept = generated.filter((headline) => !covered.has(bucketKey(headline)));
-  return [...readHeadlines(HEADLINE_SEED), ...claude, ...kept].filter((headline) => {
+  const kept = generated.filter((headline) =>
+    !covered.has(bucketKey(headline)) &&
+    (headline.category === 'absurd' ? keep(headline.id, ABSURD_GENERATED_SHARE)
+      : PLAIN_CATEGORIES.includes(headline.category) ? keep(headline.id, PLAIN_GENERATED_SHARE) : true));
+  return [...readHeadlines(HEADLINE_SEED), ...readHeadlines(absurdPath, true), ...claude, ...kept].filter((headline) => {
     const text = normalizeText(headline.text);
     if (ids.has(headline.id) || texts.has(text)) return false;
     ids.add(headline.id);
