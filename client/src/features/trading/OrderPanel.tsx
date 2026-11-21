@@ -7,6 +7,7 @@ import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
 import { useUiMode } from '../../lib/uiMode.ts';
+import { QuickBetPanel } from './QuickBetPanel.tsx';
 import './trading.css';
 
 type Side = 'buy' | 'sell';
@@ -32,6 +33,8 @@ export function OrderPanel({ className }: { className?: string }) {
   const live = useLivePortfolio();
   const [side, setSide] = useState<Side>('buy');
   const mode = useUiMode();
+  // Simple mode bets with fixed stakes that cash out by themselves.
+  if (mode === 'simple') return <QuickBetPanel className={className} />;
 
   if (live === null || symbol === null) {
     return (
@@ -60,14 +63,14 @@ export function OrderPanel({ className }: { className?: string }) {
   const risk = Number.isFinite(live.leverage) ? Math.min(1, live.leverage / cap) : 1;
   const riskLevel = risk < 0.5 ? 'low' : risk < 0.85 ? 'mid' : 'high';
   const riskWord = riskLevel === 'low' ? 'Safe' : riskLevel === 'mid' ? 'Careful' : 'Danger';
-  // Simple mode: three fixed amounts and no share-of-money row; Pro adds the raw numbers.
-  const amounts = mode === 'simple' ? config.trading.quickSizeUsd.slice(0, 3) : config.trading.quickSizeUsd;
+  // Pro adds the raw numbers (shares, leverage); Simple mode uses QuickBetPanel instead.
+  const amounts = config.trading.quickSizeUsd;
   const verb = side === 'buy' ? 'Bet UP on' : 'Bet DOWN on';
 
   return (
     <Panel
       title="Place a bet"
-      aside={mode === 'simple' ? <span className="order__on">{info?.name ?? symbol}</span> : 
+      aside={
         <span className="order__on" title={info?.name}>
           {symbol} <strong>${price > 0 ? formatPrice(price, decimals) : '--'}</strong>
         </span>
@@ -115,7 +118,6 @@ export function OrderPanel({ className }: { className?: string }) {
           </button>
         ))}
       </div>
-      {mode !== 'simple' && (
       <div className="order__row">
         <span className="order__label" title="A share of the money you can bet right now">Of my money</span>
         {config.trading.quickSizePct.map((pct) => (
@@ -132,7 +134,6 @@ export function OrderPanel({ className }: { className?: string }) {
           </button>
         ))}
       </div>
-      )}
 
       <div className="order__held-row">
         <span
@@ -141,7 +142,7 @@ export function OrderPanel({ className }: { className?: string }) {
           title={held === 0 ? undefined : `${formatShares(Math.abs(held))} shares`}
         >
           {held === 0
-            ? `No bet on ${mode === 'simple' ? 'it' : symbol} yet`
+            ? `No bet on ${symbol} yet`
             : `${held > 0 ? '▲ UP' : '▼ DOWN'} · ${formatMoneyShort(Math.abs(held) * price)}${mode === 'pro' ? ` · ${formatShares(Math.abs(held))} sh` : ''}`}
         </span>
         <button type="button" className="order__cash" disabled={disabled || Math.abs(held) < 2} onClick={() => send(-Math.trunc(held / 2))} data-testid="order-half" title="Close half of this bet">
@@ -179,7 +180,7 @@ export function OrderPanel({ className }: { className?: string }) {
   );
 }
 
-function LastFill({ fill, decimals }: { fill: Omit<FillMsg, 't'>; decimals: number }) {
+export function LastFill({ fill, decimals }: { fill: Omit<FillMsg, 't'>; decimals: number }) {
   const bought = fill.qty > 0;
   const forced = fill.reason === 'margin_call' ? 'MARGIN CALL: ' : fill.reason === 'elimination' ? 'OUT: ' : '';
   return (

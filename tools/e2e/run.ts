@@ -284,6 +284,8 @@ function wsCollect(url: string, join: object, count: number): Promise<ServerMsg[
 
 /** Every server frame a page received, in order (all its websockets, so it survives reloads). */
 const wire = new Map<string, ServerMsg[]>();
+/** bet_result frames A had before its quick bet (milestone: quick bets). */
+let quickBetResultsBefore = 0;
 const framesOf = (label: string): ServerMsg[] => wire.get(label) ?? [];
 const ticksOf = (label: string): TickMsg[] => framesOf(label).filter((m): m is TickMsg => m.t === 'tick');
 const snapshotsOf = (label: string): MarketMsg[] => framesOf(label).filter((m): m is MarketMsg => m.t === 'market');
@@ -623,8 +625,12 @@ async function main(): Promise<void> {
       check(true, 'A, B and floor all entered BRIEFING');
       check((await textOf(a, 'quarter')) === `Q1/${QUARTERS}`, `quarter reads Q1/${QUARTERS}`);
       await shot(a, '10-play-BRIEFING');
-      check(!framesOf('A').some((m) => m.t === 'tick' || m.t === 'candle'), 'no tick or candle in LOBBY or the first BRIEFING');
       await Promise.all([waitForPhase(a, 'TRADING'), waitForPhase(b, 'TRADING'), waitForPhase(floor, 'TRADING')]);
+      // Order on the wire, not timing: BRIEFING is short and a screenshot can outlast it.
+      const framesA = framesOf('A');
+      const firstMarket = framesA.findIndex((m) => m.t === 'tick' || m.t === 'candle');
+      const tradingAt = framesA.findIndex((m) => m.t === 'phase' && m.phase === 'TRADING');
+      check(tradingAt >= 0 && (firstMarket === -1 || firstMarket > tradingAt), 'no tick or candle in LOBBY or the first BRIEFING');
       await Promise.all([perfReset(a), perfReset(b), perfReset(floor)]);
       await a.evaluate(CANDLE_RECORDER);
       await shot(a, '11-play-TRADING');
@@ -724,6 +730,8 @@ async function main(): Promise<void> {
       check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === stockA, "B's selection does not change A's");
       await sleep(3 * DAY_MS + 300);
       const stockChart = await checkChartDrawn(a, 'A', stockA, indexChart.candles + 2);
+      // Compare with the tick of the same moment: a screenshot below can take a game day or more.
+      const tickAtChart = ticksOf('A').at(-1)!;
       const headPrice = shownPrice(await textOf(a, 'selected-price'));
       await sleep(130);
       check(ticksOf('A').slice(-8).some((t) => t.prices[stockA] === headPrice), `the header price ${headPrice} is a recent tick price of ${stockA}`);
@@ -743,8 +751,7 @@ async function main(): Promise<void> {
       log(`  candle count on A: ${grown.map((e) => `${e.symbol}:${e.candles}`).join(' ')}`);
       check(stepsOfOne && gaps.length >= 3, `the chart grew by exactly one candle at a time (${gaps.length} timed steps)`);
       check(worst <= 300, `one new candle per second: each step took ${DAY_MS} ms, worst off by ${Math.round(worst)} ms (limit 300)`);
-      const lastTick = ticksOf('A').at(-1)!;
-      check(Math.abs(stockChart.candles - (lastTick.day + 1)) <= 1, `the chart has one candle per game day (${stockChart.candles} candles, day ${lastTick.day})`);
+      check(Math.abs(stockChart.candles - (tickAtChart.day + 1)) <= 1, `the chart has one candle per game day (${stockChart.candles} candles, day ${tickAtChart.day})`);
 
       await selectSymbol(a, indexSymbol);
       await checkChartDrawn(a, 'A', indexSymbol, stockChart.candles);
@@ -913,12 +920,17 @@ async function main(): Promise<void> {
       await a.click(tid('mode-simple'));
       await a.waitForSelector(`${tid('symbol-group')}[data-group=funds]`, { state: 'hidden' });
       check(true, 'Simple mode hides the funds group');
-      check((await a.locator(tid('size-pct-25')).count()) === 0, 'Simple mode drops the share-of-money row');
-      check((await a.locator('[data-testid^=size-usd-]').count()) === 3, 'Simple mode offers three amounts');
-      const word = await textOf(a, 'risk-word');
-      check(['Safe', 'Careful', 'Danger'].includes(word), `Simple mode says the risk in words: "${word}"`);
-      await checkNoOverflow(a, 'desk in Simple mode');
+      check((await a.locator('[data-testid^=size-]').count()) === 0, 'Simple mode replaces the order buttons with quick bets');
+      check((await a.locator('[data-testid^=stake-]').count()) === 3, 'Simple mode offers three stakes');
+      check((await a.locator(tid('headline-up')).count()) > 0, 'Simple mode puts a quick bet on every headline');
+      // A quick bet cashes out by itself after config.trading.quickBetDays days and reports a result.
+      const resultsBefore = framesOf('A').filter((m) => m.t === 'bet_result').length;
+      await a.click(tid('quick-up'));
+      await waitFor('a quick bet fill', async () => framesOf('A').some((m) => m.t === 'portfolio' && ((m as { bets?: unknown[] }).bets?.length ?? 0) > 0));
       await shot(a, '20-play-simple');
+      // It settles by itself within quickBetDays days and never outlives the quarter: checked at RESULTS.
+      quickBetResultsBefore = resultsBefore;
+      await checkNoOverflow(a, 'desk in Simple mode');
       await a.click(tid('mode-pro'));
       await waitFor('Pro risk numbers', async () => (await textOf(a, 'risk-word')).includes('×'));
       check(true, `Pro mode shows leverage as a number: "${await textOf(a, 'risk-word')}"`);
@@ -972,6 +984,8 @@ async function main(): Promise<void> {
           const q1Results = framesOf('A').filter((m) => m.t === 'results');
           check(q1Results.length === 1 && !(q1Results[0] as { final?: boolean }).final,
             `A got one Q1 results message (got ${q1Results.length}: ${q1Results.map((r) => JSON.stringify((r as { recap?: { quarter?: number } }).recap?.quarter)).join(',')})`);
+          const settled = framesOf('A').filter((m) => m.t === 'bet_result').slice(quickBetResultsBefore) as Array<{ pnl: number; streak: number }>;
+          check(settled.length >= 1, `A's quick bet settled by itself before the quarter closed: ${settled.map((r) => `${r.pnl >= 0 ? '+' : ''}${Math.round(r.pnl)} (streak ${r.streak})`).join(', ')}`);
           await shot(a, '14-play-RESULTS-board');
           await shot(floor, '14-floor-RESULTS');
         }

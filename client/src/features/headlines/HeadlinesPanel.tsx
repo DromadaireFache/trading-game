@@ -5,6 +5,7 @@ import { changeDirection, formatPercent } from '../../lib/format.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 import { useLastDay, useMarketStore, useSymbols } from '../../net/marketHooks.ts';
 import { useUiMode } from '../../lib/uiMode.ts';
+import { useQuickBet } from '../../lib/quickBet.ts';
 import './headlines.css';
 
 /**
@@ -13,8 +14,11 @@ import './headlines.css';
  * selects its stock (or its sector fund) in the list and chart.
  */
 export function HeadlinesPanel({ className }: { className?: string }) {
-  const { headlines, briefing, earnings, config } = useGame();
+  const { headlines, briefing, earnings, config, phase } = useGame();
   const mode = useUiMode();
+  const quick = useQuickBet();
+  // One bet function for the whole feed (rows never subscribe to prices themselves).
+  const onBet = mode === 'simple' && quick.ready && phase?.phase === 'TRADING' ? quick.bet : null;
   // Latest rate decision this quarter, else the rate the quarter opened with.
   const decided = headlines.find((h) => h.rate !== undefined && briefing !== null && dayToQuarter(config, h.ts) === briefing.quarter)?.rate;
   const current = decided ?? briefing?.rate;
@@ -43,7 +47,7 @@ export function HeadlinesPanel({ className }: { className?: string }) {
           )}
           <ol className="news__feed" data-testid="headlines">
             {headlines.map((h) => (
-              <HeadlineRow key={`${h.id}${h.early ? '-early' : ''}`} headline={h} label={`D${dayOfQuarter(config, h.ts)}`} />
+              <HeadlineRow key={`${h.id}${h.early ? '-early' : ''}`} headline={h} label={`D${dayOfQuarter(config, h.ts)}`} quickBets={mode === 'simple'} onBet={onBet} />
             ))}
           </ol>
         </>
@@ -102,14 +106,26 @@ function Earnings({ quarter, reports }: { quarter: number; reports: EarningsRepo
   );
 }
 
-function HeadlineRow({ headline, label }: { headline: Omit<HeadlineMsg, 't'>; label: string }) {
+interface HeadlineRowProps {
+  headline: Omit<HeadlineMsg, 't'>;
+  label: string;
+  quickBets: boolean;
+  /** null = betting is not possible right now. */
+  onBet: ((symbol: string, up: boolean) => boolean) | null;
+}
+
+function HeadlineRow({ headline, label, quickBets, onBet }: HeadlineRowProps) {
   const market = useMarketStore();
   const symbols = useSymbols();
   const sectorFund = (sector: Sector) => symbols.find((s) => s.kind === 'sector' && s.sector === sector)?.symbol;
   const tag = headline.symbol ?? (headline.sector ? SECTOR_LABELS[headline.sector] : 'MARKET');
   const target = headline.symbol ?? (headline.sector ? sectorFund(headline.sector) : symbols.find((s) => s.kind === 'index')?.symbol);
   return (
-    <li className={`news__item${headline.early ? ' news__item--early' : ''}`} data-testid="headline" data-symbol={headline.symbol ?? ''}>
+    <li
+      className={`news__item${headline.early ? ' news__item--early' : ''}${quickBets ? ' news__item--bet' : ''}`}
+      data-testid="headline"
+      data-symbol={headline.symbol ?? ''}
+    >
       <span className="news__time">{label}</span>
       <button type="button" className="news__tag" disabled={target === undefined} onClick={() => target && market.select(target)}>
         {tag}
@@ -118,6 +134,30 @@ function HeadlineRow({ headline, label }: { headline: Omit<HeadlineMsg, 't'>; la
         {headline.early && <strong className="news__early">EARLY </strong>}
         {headline.text}
       </span>
+      {quickBets && (
+        <span className="news__bet">
+          <button
+            type="button"
+            className="news__bet-btn news__bet-btn--up"
+            disabled={target === undefined || onBet === null}
+            title={`Quick bet UP on ${tag}`}
+            onClick={() => target && onBet && (market.select(target), onBet(target, true))}
+            data-testid="headline-up"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            className="news__bet-btn news__bet-btn--down"
+            disabled={target === undefined || onBet === null}
+            title={`Quick bet DOWN on ${tag}`}
+            onClick={() => target && onBet && (market.select(target), onBet(target, false))}
+            data-testid="headline-down"
+          >
+            ▼
+          </button>
+        </span>
+      )}
     </li>
   );
 }

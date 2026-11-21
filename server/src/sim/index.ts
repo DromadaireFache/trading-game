@@ -258,7 +258,12 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
         if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'the market is closed'), false;
         if (cards.isJailed(intent.playerId, market.getDay())) return reject(intent, 'jailed', 'you are in jail: no trading until you are out'), false;
-        const result = trading.order(intent.playerId, intent.symbol, intent.qty);
+        // Quick bet: the day in progress counts as its first day; it never outlives the quarter.
+        const closeAtDay =
+          intent.holdDays === undefined
+            ? undefined
+            : Math.min(market.getDay() + intent.holdDays - 1, quarter * config.time.daysPerQuarter - 1);
+        const result = trading.order(intent.playerId, intent.symbol, intent.qty, closeAtDay);
         if (!result.ok) return reject(intent, result.code, result.message), false;
         cards.onOrder(intent.playerId, intent.symbol);
         for (const event of result.events) {

@@ -8,6 +8,7 @@
  */
 import { defaultConfig } from '@tg/shared';
 import type {
+  BetResultMsg,
   Briefing,
   CardOffer,
   EarningsMsg,
@@ -77,6 +78,8 @@ export interface GameState {
   earnings: Omit<EarningsMsg, 't'> | null;
   /** This SHOP's offers for this player (prices are personal). */
   shop: CardOffer[];
+  /** Settled quick bets, newest first, at most MAX_BET_RESULTS. */
+  betResults: BetResult[];
   /** Latest quarter (or final) results; shown in RESULTS and FINAL, kept until the next ones. */
   results: Omit<ResultsMsg, 't'> | null;
   /** Latest projector moment and when it arrived (client ms); the floor shows it for a few seconds. */
@@ -84,6 +87,12 @@ export interface GameState {
 }
 
 export const MAX_HEADLINES = 60;
+export const MAX_BET_RESULTS = 8;
+
+export interface BetResult extends Omit<BetResultMsg, 't'> {
+  /** Running number, so the UI can celebrate a new result even when it looks like the last one. */
+  seq: number;
+}
 
 export type Portfolio = Omit<PortfolioMsg, 't'>;
 
@@ -112,6 +121,7 @@ export const initialGameState: GameState = {
   briefing: null,
   earnings: null,
   shop: [],
+  betResults: [],
   results: null,
   moment: null,
 };
@@ -123,7 +133,7 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       const game = msg.game ?? 1;
       // "Play again" started another game: nothing of the old one stays on screen.
       if (state.game !== 0 && game !== state.game) {
-        state = { ...state, portfolio: null, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null, shop: [] };
+        state = { ...state, portfolio: null, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null, shop: [], betResults: [] };
       }
       // Same seat after a reconnect: keep the trading history. Another seat: start clean.
       const sameSeat = state.me?.playerId === msg.playerId;
@@ -193,6 +203,11 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
     }
     case 'shop':
       return { ...state, shop: msg.offers };
+    case 'bet_result': {
+      const { t: _t, ...result } = msg;
+      const seq = (state.betResults[0]?.seq ?? 0) + 1;
+      return { ...state, betResults: [{ ...result, seq }, ...state.betResults].slice(0, MAX_BET_RESULTS) };
+    }
     default: {
       // Unknown `t` from a newer server: ignore rather than crash.
       const _exhaustive: never = msg;

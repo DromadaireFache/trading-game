@@ -25,7 +25,7 @@
  * always go through. Shares are whole numbers: qty is truncated toward zero.
  */
 import { isMarginCall, valuePortfolio } from '@tg/shared';
-import type { ForcedFillReason, GameConfig, PlayerId, Position, SymbolId } from '@tg/shared';
+import type { ForcedFillReason, GameConfig, PlayerId, Position, QuickBet, SymbolId } from '@tg/shared';
 import type { SimEventOf, SimRejectCode } from './types.ts';
 
 export interface TradingDeps {
@@ -38,7 +38,7 @@ export interface TradingDeps {
   now(): number;
 }
 
-export type TradingEvent = SimEventOf<'fill'> | SimEventOf<'portfolio'>;
+export type TradingEvent = SimEventOf<'fill'> | SimEventOf<'portfolio'> | SimEventOf<'bet_result'>;
 
 export type OrderResult = { ok: true; events: TradingEvent[] } | { ok: false; code: SimRejectCode; message: string };
 
@@ -56,6 +56,10 @@ export interface Account {
   eliminated: boolean;
   /** Borrow fees paid so far this game. */
   borrowFees: number;
+  /** Quick bets still running, oldest first. */
+  bets: QuickBet[];
+  /** Quick bets won in a row. */
+  streak: number;
 }
 
 export interface Trading {
@@ -63,8 +67,11 @@ export interface Trading {
   /** Lobby only: a player who left before the start. */
   removeAccount(id: PlayerId): void;
   getAccount(id: PlayerId): Account | undefined;
-  /** Market order. Assumes the caller checked the phase. */
-  order(id: PlayerId, symbol: SymbolId, qty: number): OrderResult;
+  /**
+   * Market order. Assumes the caller checked the phase. closeAtDay = quick bet: the filled shares
+   * cash out by themselves at the close of that game day.
+   */
+  order(id: PlayerId, symbol: SymbolId, qty: number, closeAtDay?: number): OrderResult;
   /** Impact to add to the coming market step (consumes this tick's fills and decays temporary impact). */
   stepInput(): Record<SymbolId, number> | undefined;
   /** After a market step. dayClosed = the step closed a daily candle. */
@@ -170,7 +177,42 @@ export function createTrading(deps: TradingDeps): Trading {
       heat: 0,
       buyingPower: v.buyingPower,
       eliminated: account.eliminated,
+      bets: account.bets.map((b) => ({ ...b })),
+      streak: account.streak,
     };
+  }
+
+  /** Settles the quick bets due at the close of `day` (what is left of each in the position). */
+  function settleBets(account: Account, day: number, events: TradingEvent[]): boolean {
+    let settled = false;
+    const keep: QuickBet[] = [];
+    for (const bet of account.bets) {
+      if (bet.closeAtDay > day) {
+        keep.push(bet);
+        continue;
+      }
+      settled = true;
+      const held = account.holdings.get(bet.symbol)?.qty ?? 0;
+      // The player may have cashed out (part of) it already, or a margin call did.
+      const qty = Math.sign(held) === Math.sign(bet.qty) ? Math.sign(bet.qty) * Math.min(Math.abs(held), Math.abs(bet.qty)) : 0;
+      if (qty === 0) continue;
+      const fill = execute(account, bet.symbol, -qty, 'timed');
+      events.push(fill);
+      const pnl = qty * (fill.price - bet.entryPrice);
+      account.streak = pnl > 0 ? account.streak + 1 : 0;
+      events.push({
+        e: 'bet_result',
+        playerId: account.id,
+        symbol: bet.symbol,
+        qty,
+        entryPrice: bet.entryPrice,
+        exitPrice: fill.price,
+        pnl,
+        streak: account.streak,
+      });
+    }
+    account.bets = keep;
+    return settled;
   }
 
   /** Close every open position (largest first) on the player's behalf. */
@@ -187,7 +229,7 @@ export function createTrading(deps: TradingDeps): Trading {
   return {
     addAccount(id) {
       if (accounts.has(id)) return;
-      accounts.set(id, { id, cash: config.economy.startingCash, holdings: new Map(), eliminated: false, borrowFees: 0 });
+      accounts.set(id, { id, cash: config.economy.startingCash, holdings: new Map(), eliminated: false, borrowFees: 0, bets: [], streak: 0 });
     },
 
     removeAccount(id) {
@@ -196,7 +238,7 @@ export function createTrading(deps: TradingDeps): Trading {
 
     getAccount: (id) => accounts.get(id),
 
-    order(id, symbol, qty) {
+    order(id, symbol, qty, closeAtDay) {
       const account = accounts.get(id);
       if (account === undefined) return { ok: false, code: 'unknown_player', message: 'unknown player' };
       if (account.eliminated) return { ok: false, code: 'eliminated', message: 'you have been eliminated' };
@@ -244,7 +286,9 @@ export function createTrading(deps: TradingDeps): Trading {
           q = clipped;
         }
       }
-      const events: TradingEvent[] = [execute(account, symbol, q)];
+      const fill = execute(account, symbol, q);
+      if (closeAtDay !== undefined) account.bets.push({ symbol, qty: q, entryPrice: fill.price, closeAtDay });
+      const events: TradingEvent[] = [fill];
       events.push(portfolio(account));
       return { ok: true, events };
     },
@@ -269,6 +313,9 @@ export function createTrading(deps: TradingDeps): Trading {
       for (const account of accounts.values()) {
         if (account.eliminated) continue;
         let changed = false;
+
+        // The candle of day (now - 1) just closed: its quick bets cash out first.
+        if (dayClosed && account.bets.length > 0 && settleBets(account, Math.floor(deps.now()) - 1, events)) changed = true;
 
         if (dayClosed) {
           for (const [symbol, h] of account.holdings) {

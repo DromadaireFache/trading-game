@@ -70,6 +70,10 @@ export interface GameConfig {
     quickSizeUsd: number[];
     /** At most this many margin-call liquidations per player per tick (the largest position goes first). */
     liquidationsPerTick: number;
+    /** Quick bets (Simple mode): trading days a bet runs before it cashes out by itself. */
+    quickBetDays: number;
+    /** Quick bet stakes (Small / Medium / Big) as shares of the player's buying power. */
+    quickBetStakes: number[];
   };
   market: {
     /** Must equal SECTORS.length (10): sector ids are fixed in shared/types.ts. */
@@ -298,6 +302,8 @@ export const defaultConfig: GameConfig = {
     quickSizePct: [0.1, 0.25, 0.5, 1],
     quickSizeUsd: [1_000_000, 10_000_000, 100_000_000, 500_000_000],
     liquidationsPerTick: 1,
+    quickBetDays: 5,
+    quickBetStakes: [0.1, 0.25, 0.5],
   },
   market: {
     sectors: 10,

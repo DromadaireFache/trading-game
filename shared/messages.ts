@@ -25,6 +25,7 @@ import type {
   Phase,
   PlayerId,
   Position,
+  QuickBet,
   Recap,
   Role,
   Sector,
@@ -66,6 +67,11 @@ export interface OrderMsg {
   t: 'order';
   symbol: SymbolId;
   qty: number;
+  /**
+   * Quick bet (Simple mode): cash this order out by itself at the close of its holdDays-th trading
+   * day (the day in progress counts as the first), and at the latest at the end of the quarter.
+   */
+  holdDays?: number;
 }
 
 export interface BuyCardMsg {
@@ -236,6 +242,22 @@ export interface PortfolioMsg {
   buyingPower?: number;
   hand?: Card[];
   eliminated?: boolean;
+  /** Quick bets still running. */
+  bets?: QuickBet[];
+  /** Quick bets won in a row (display only: it does not change any payout). */
+  streak?: number;
+}
+
+/** A quick bet settled (sent to its player only). */
+export interface BetResultMsg {
+  t: 'bet_result';
+  symbol: SymbolId;
+  qty: number;
+  entryPrice: number;
+  exitPrice: number;
+  pnl: number;
+  /** Wins in a row after this one (0 after a loss). */
+  streak: number;
 }
 
 /** Sent per player (prices scale with the buyer's net worth). */
@@ -299,6 +321,7 @@ export type ServerMsg =
   | BriefingMsg
   | EarningsMsg
   | FillMsg
+  | BetResultMsg
   | PortfolioMsg
   | ShopMsg
   | ResultsMsg

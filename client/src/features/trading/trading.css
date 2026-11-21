@@ -338,3 +338,133 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---------------------------------------------------------------- quick bets (Simple mode) */
+
+.quick__stakes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.quick__stake {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px 2px;
+  font: inherit;
+  color: var(--tg-color-text);
+  background: var(--tg-color-bg-inset);
+  border: 2px solid var(--tg-color-border);
+  border-radius: 10px;
+  box-shadow: 0 3px 0 var(--tg-color-shadow);
+  cursor: pointer;
+}
+.quick__stake--on {
+  color: var(--tg-color-on-accent);
+  background: var(--tg-color-accent);
+  border-color: var(--tg-color-accent);
+}
+.quick__stake-label {
+  font-family: var(--tg-font-display);
+  font-size: 14px;
+  font-weight: 900;
+}
+.quick__stake-usd {
+  font-size: 11px;
+  font-weight: 700;
+}
+.quick__dirs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.quick__dir {
+  padding: 8px 4px;
+  font: inherit;
+  font-family: var(--tg-font-display);
+  font-size: 15px;
+  font-weight: 900;
+  text-transform: uppercase;
+  border: 2px solid var(--tg-color-shadow);
+  border-radius: 12px;
+  box-shadow: 0 4px 0 var(--tg-color-shadow);
+  cursor: pointer;
+}
+.quick__dir--up {
+  color: var(--tg-color-on-up);
+  background: var(--tg-color-up);
+}
+.quick__dir--down {
+  color: var(--tg-color-on-down);
+  background: var(--tg-color-down);
+}
+.quick__dir:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.quick__dir:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--tg-color-shadow);
+}
+.quick__dir:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.quick__note {
+  font-size: 12px;
+  color: var(--tg-color-text-dim);
+}
+
+/* Results and streak in Your money. */
+.bets {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.bets__hint {
+  font-size: 12px;
+  color: var(--tg-color-text-dim);
+}
+.bets__streak {
+  align-self: flex-start;
+  padding: 1px 8px;
+  font-family: var(--tg-font-display);
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--tg-color-text-dim);
+  background: var(--tg-color-bg-inset);
+  border: 2px solid var(--tg-color-border);
+  border-radius: 999px;
+}
+.bets__streak--hot {
+  color: var(--tg-color-on-accent);
+  background: var(--tg-color-accent);
+  border-color: var(--tg-color-accent);
+}
+.bets__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bets__item {
+  display: grid;
+  grid-template-columns: 1.4em minmax(0, 1fr) auto;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.bets__item--win {
+  color: var(--tg-color-up);
+}
+.bets__item--loss {
+  color: var(--tg-color-down);
+}
+.bets__name {
+  color: var(--tg-color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.positions__ends {
+  color: var(--tg-color-info);
+  font-weight: 700;
+}

@@ -134,3 +134,40 @@
 .news__tag:disabled {
   cursor: default;
 }
+
+/* Simple mode: one-tap quick bets on a headline. */
+.news__item--bet {
+  grid-template-columns: 4ch auto minmax(0, 1fr) auto;
+}
+.news__bet {
+  display: flex;
+  gap: 4px;
+}
+.news__bet-btn {
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 900;
+  border: 2px solid var(--tg-color-shadow);
+  border-radius: 7px;
+  box-shadow: 0 2px 0 var(--tg-color-shadow);
+  cursor: pointer;
+}
+.news__bet-btn--up {
+  color: var(--tg-color-on-up);
+  background: var(--tg-color-up);
+}
+.news__bet-btn--down {
+  color: var(--tg-color-on-down);
+  background: var(--tg-color-down);
+}
+.news__bet-btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+.news__bet-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}

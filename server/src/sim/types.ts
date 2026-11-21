@@ -25,6 +25,7 @@ import type {
   Phase,
   PlayerId,
   Position,
+  QuickBet,
   Recap,
   Sector,
   Statement,
@@ -48,8 +49,8 @@ export type SimIntent =
   | { kind: 'remove_player'; playerId: PlayerId }
   /** LOBBY only; needs config.lobby.minPlayers players. */
   | { kind: 'start'; playerId: PlayerId }
-  /** TRADING only. qty in shares, < 0 = sell/short; truncated to whole shares. */
-  | { kind: 'order'; playerId: PlayerId; symbol: SymbolId; qty: number }
+  /** TRADING only. qty in shares, < 0 = sell/short; truncated to whole shares. holdDays = quick bet. */
+  | { kind: 'order'; playerId: PlayerId; symbol: SymbolId; qty: number; holdDays?: number }
   // --- later milestones (the stub rejects them) ---
   | { kind: 'buy_card'; playerId: PlayerId; offerId: string }
   | { kind: 'play_card'; playerId: PlayerId; cardId: string; target?: string; direction?: CardDirection };
@@ -111,7 +112,11 @@ export type SimEvent =
       buyingPower?: number;
       hand?: Card[];
       eliminated?: boolean;
+      bets?: QuickBet[];
+      streak?: number;
     }
+  /** A quick bet settled at the close of its last day. */
+  | { e: 'bet_result'; playerId: PlayerId; symbol: SymbolId; qty: number; entryPrice: number; exitPrice: number; pnl: number; streak: number }
   | { e: 'shop'; playerId: PlayerId; offers: CardOffer[] }
   | {
       e: 'results';

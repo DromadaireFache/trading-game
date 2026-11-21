@@ -197,7 +197,17 @@ export interface Position {
 }
 
 /** Why a fill happened when the player did not ask for it. */
-export type ForcedFillReason = 'margin_call' | 'elimination';
+export type ForcedFillReason = 'margin_call' | 'elimination' | 'timed';
+
+/** A quick bet still running (Simple mode): it cashes out by itself at the close of `closeAtDay`. */
+export interface QuickBet {
+  symbol: SymbolId;
+  /** Signed shares of the bet (> 0 = UP). */
+  qty: number;
+  entryPrice: number;
+  /** Game day whose close settles it. */
+  closeAtDay: number;
+}
 
 // ---------------------------------------------------------------------------
 // Headlines (DESIGN.md section 7)

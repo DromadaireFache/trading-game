@@ -49,7 +49,10 @@ export function parseClientMsg(text: string): ParseResult {
       if (typeof raw.qty !== 'number' || !Number.isFinite(raw.qty) || raw.qty === 0) {
         return bad('order.qty must be a finite, non-zero number');
       }
-      return { ok: true, msg: { t: 'order', symbol: raw.symbol, qty: raw.qty } };
+      if (raw.holdDays !== undefined && (typeof raw.holdDays !== 'number' || !Number.isInteger(raw.holdDays) || raw.holdDays < 1 || raw.holdDays > 365)) {
+        return bad('order.holdDays must be a whole number of days, 1 or more');
+      }
+      return { ok: true, msg: { t: 'order', symbol: raw.symbol, qty: raw.qty, ...(raw.holdDays === undefined ? {} : { holdDays: raw.holdDays }) } };
     }
     case 'buy_card': {
       if (!isNonEmptyString(raw.offerId)) return bad('buy_card.offerId must be a non-empty string');

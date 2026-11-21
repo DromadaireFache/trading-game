@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { defaultConfig, mergeConfig, valuePortfolio } from '@tg/shared';
 import type { DeepPartial, GameConfig } from '@tg/shared';
 import { createSim, createTrading } from '../index.ts';
-import type { Sim, SimEvent, Trading } from '../index.ts';
+import type { Sim, SimEvent, SimEventOf, Trading } from '../index.ts';
 
 /** No impact at all, so fills happen exactly at the mid and the arithmetic is easy to check. */
 const NO_IMPACT: DeepPartial<GameConfig> = { impact: { lambda: 0, kPermanent: 0, kTemporary: 0 } };
@@ -354,5 +354,49 @@ describe('orders through the sim', () => {
       expect(Number.isFinite(p.equity)).toBe(true);
       expect(Number.isFinite(p.cash)).toBe(true);
     }
+  });
+});
+
+describe('quick bets (holdDays)', () => {
+  const QUICK = mergeConfig(FAST, { time: { daysPerQuarter: 12 }, trading: { quickBetDays: 3 } });
+
+  function inTrading(seed = 21) {
+    const sim = started(seed, QUICK);
+    untilPhase(sim, 'TRADING');
+    return sim;
+  }
+
+  it('cash out by themselves at the close of their last day, with a bet_result and a streak', () => {
+    const sim = inTrading();
+    const symbol = sim.getUniverse().companies[0]!.symbol;
+    const day = sim.getMarketSnapshot().day;
+    sim.submit({ kind: 'order', playerId: 'p1', symbol, qty: 1000, holdDays: 3 });
+    const events: SimEvent[] = [];
+    events.push(...sim.tick());
+    expect(sim.getPortfolio('p1')!.bets).toEqual([expect.objectContaining({ symbol, qty: 1000, closeAtDay: day + 2 })]);
+    for (let i = 0; i < 3 * QUICK.time.ticksPerCandle; i++) events.push(...sim.tick());
+    const result = events.find((e) => e.e === 'bet_result');
+    expect(result).toMatchObject({ playerId: 'p1', symbol, qty: 1000 });
+    const r = result as SimEventOf<'bet_result'>;
+    expect(r.pnl).toBeCloseTo(1000 * (r.exitPrice - r.entryPrice), 6);
+    expect(r.streak).toBe(r.pnl > 0 ? 1 : 0);
+    expect(events.some((e) => e.e === 'fill' && e.reason === 'timed' && e.qty === -1000)).toBe(true);
+    expect(sim.getPortfolio('p1')!.positions).toHaveLength(0);
+    expect(sim.getPortfolio('p1')!.bets).toEqual([]);
+  });
+
+  it('never outlive the quarter, and a bet cashed out by hand reports nothing', () => {
+    const sim = inTrading(22);
+    const [a, b] = sim.getUniverse().companies;
+    sim.submit({ kind: 'order', playerId: 'p1', symbol: a!.symbol, qty: 500, holdDays: 99 });
+    sim.submit({ kind: 'order', playerId: 'p2', symbol: b!.symbol, qty: -500, holdDays: 2 });
+    sim.tick();
+    expect(sim.getPortfolio('p1')!.bets![0]!.closeAtDay).toBe(QUICK.time.daysPerQuarter - 1);
+    sim.submit({ kind: 'order', playerId: 'p2', symbol: b!.symbol, qty: 500 });
+    const events: SimEvent[] = [];
+    for (let i = 0; i < 2_000 && sim.getState().phase === 'TRADING'; i++) events.push(...sim.tick());
+    const results = events.filter((e) => e.e === 'bet_result') as Array<SimEventOf<'bet_result'>>;
+    expect(results.map((r) => r.playerId)).toEqual(['p1']);
+    expect(sim.getPortfolio('p1')!.positions).toHaveLength(0);
   });
 });
