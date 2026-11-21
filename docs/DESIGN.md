@@ -18,18 +18,21 @@ and manipulation.
 
 ### Phase loop (per quarter)
 ```
-LOBBY → [ BRIEFING → TRADING → EARNINGS → RESULTS → SHOP ] × N → FINAL
+LOBBY → [ BRIEFING → TRADING → EARNINGS → RESULTS → SHOP ] × (N − 1)
+      → BRIEFING → TRADING → EARNINGS → RESULTS → FINAL
 ```
 
 | Phase | Length | What happens |
 |---|---|---|
-| **BRIEFING** | 15 s | Macro outlook (rates, Fed meeting date), active regimes, earnings consensus, the quarter's **scheduled beats**. Trading is closed. |
+| **BRIEFING** | 5 s | Macro outlook (rates, Fed meeting date), active regimes, earnings consensus, the quarter's **scheduled beats**. Trading is closed. |
 | **TRADING** | 90 s | Prices tick live. Headlines drop throughout the quarter (scheduled, random, and from cards). Players trade and play cards. |
 | **EARNINGS** | 5 s | Quarter closes. Each company reports EPS against consensus, and prices gap on the surprise. |
-| **RESULTS** | 20 s | Leaderboard, P&L, statements, market recap, arrests, and card authors revealed. |
-| **SHOP** | 30 s | Buy cards for the next quarter. |
+| **RESULTS** | Up to 20 s | Leaderboard, P&L, statements, market recap, arrests, and card authors revealed. When every player selects **Ready Up**, the shop or final standings open. |
+| **SHOP** | Up to 30 s | Buy cards for the next quarter. When every player on the roster selects **Ready Up**, the next briefing starts. |
 
 Positions carry across quarters. Players are ranked by **net worth**.
+
+The player who starts the game can enable **Debug mode** in the lobby. When every player selects **Ready Up** during Trading, the remaining market days are simulated immediately and Earnings begins.
 
 **Elimination:** if equity falls below $100k, the player is **out for good** and becomes a spectator.
 

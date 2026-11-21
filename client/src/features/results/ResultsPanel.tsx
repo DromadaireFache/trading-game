@@ -2,6 +2,7 @@ import type React from 'react';
 import { SECTOR_LABELS } from '@tg/shared';
 import type { LeaderboardEntry, RecapMove, Sector, Statement } from '@tg/shared';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
+import { ReadyUp } from '../../components/ReadyUp.tsx';
 import { changeDirection, formatMoney, formatMoneyShort, formatPercent } from '../../lib/format.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 import { useSymbols } from '../../net/marketHooks.ts';
@@ -23,6 +24,7 @@ export function ResultsPanel({ className }: { className?: string }) {
   const mine = results.statements.find((s) => s.playerId === me?.playerId);
   return (
     <Panel title={`Q${results.recap.quarter} results`} aside="market recap / standings" className={`results ${className ?? ''}`}>
+      <ReadyUp />
       <div className="results__grid">
         <section className="results__block results__board">
           <h3 className="results__heading">Standings</h3>

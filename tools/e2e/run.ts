@@ -34,7 +34,7 @@ import type { DeepPartial, GameConfig, LobbyState, MarketMsg, Phase, ServerMsg, 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const outDir = resolve(repo, '.e2e');
 
-/** Short phases: one quarter = 1.5 + 26 + 0.8 + 1.5 + 1.5 = 31.3 s, two quarters to FINAL. */
+/** Short phases and two quarters to FINAL. */
 const QUARTERS = 2;
 /**
  * Trading days per quarter: long enough to click around, reload and watch candles appear. Every step up
@@ -51,7 +51,7 @@ const overrides: DeepPartial<GameConfig> = {
   phaseMs: { BRIEFING: 1500, EARNINGS: 800, RESULTS: 1500, SHOP: 3000 },
   lobby: { minPlayers: 2 },
 };
-const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800 + 1500 + 3000);
+const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800 + 1500) + (QUARTERS - 1) * 3000;
 const COMPANIES_PER_SECTOR = defaultConfig.market.companiesPerSector;
 const SYMBOL_COUNT = 1 + SECTORS.length + SECTORS.length * COMPANIES_PER_SECTOR;
 const WAIT_MS = 15_000;
@@ -216,7 +216,7 @@ function checkCadence(label: string, ticks: PhaseSeen[]): void {
     const [from, to] = [countdownSeconds(prev.countdown), countdownSeconds(cur.countdown)];
     const samePhase = prev.phase === cur.phase && prev.quarter === cur.quarter;
     if (samePhase && !prevOpensPhase && from !== null && to !== null && to > 0) steps.push(from - to === 1 ? cur.at - prev.at : Number.NaN);
-    if (!samePhase && from === 1) flips.push(cur.at - prev.at);
+    if (!samePhase && from === 1 && prev.phase !== 'SHOP') flips.push(cur.at - prev.at);
   }
   const worst = steps.reduce((m, ms) => (Number.isNaN(ms) ? Infinity : Math.max(m, Math.abs(ms - 1000))), 0);
   check(steps.length >= 6 && worst <= CADENCE_TOLERANCE_MS,
@@ -999,7 +999,12 @@ async function main(): Promise<void> {
       const floorFrozen = shownPrice(await textOf(floor, 'selected-price'));
       check(floorFrozen === q1Last.prices[indexSymbol], `in SHOP the floor still shows the Q1 close of ${indexSymbol} (${floorFrozen})`);
       await shot(floor, '14-floor-SHOP');
+      await a.locator(tid('ready-up')).click();
+      await waitFor('the shop shows one player ready', async () => (await textOf(b, 'ready-count')) === '1/2 players ready');
+      check(await a.locator(tid('ready-up')).isDisabled(), 'A is marked ready while B is still in the shop');
+      await b.locator(tid('ready-up')).click();
       await waitForPhase(a, 'BRIEFING');
+      check((await a.locator('.phase-strip').getByText('Shop', { exact: true }).count()) === 0, 'the final quarter phase list skips Shop');
       await a.waitForSelector(rowOf(stockA));
       const frozen1 = await boardOf(a);
       await sleep(700);
@@ -1071,9 +1076,9 @@ async function main(): Promise<void> {
       check((await boardOf(b)).length === SYMBOL_COUNT, `B lists ${SYMBOL_COUNT} symbols again`);
       await shot(b, '19-play-after-reload-q2');
 
-      // The floor chart holds every candle of the game by the last SHOP (in FINAL the standings replace it).
-      await waitFor('the floor in the last SHOP', async () => (await floor.locator(`${tid('phase')}[data-phase=SHOP]`).count()) === 1 && (await textOf(floor, 'quarter')).startsWith(`Q${QUARTERS}`), GAME_MS + WAIT_MS);
-      const floorEnd = await checkChartDrawn(floor, 'floor in the last SHOP', indexSymbol, QUARTERS * DAYS);
+      // The floor chart holds every candle of the game by the last EARNINGS, before the standings replace it.
+      await waitForPhase(floor, 'EARNINGS', GAME_MS + WAIT_MS);
+      const floorEnd = await checkChartDrawn(floor, 'floor in the last EARNINGS', indexSymbol, QUARTERS * DAYS);
       check(floorEnd.candles === QUARTERS * DAYS, `the floor chart ends with all ${QUARTERS * DAYS} candles`);
 
       await Promise.all([waitForPhase(a, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(floor, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(b, 'FINAL', GAME_MS + WAIT_MS)]);
@@ -1093,7 +1098,11 @@ async function main(): Promise<void> {
       await checkNoOverflow(floor, 'floor in FINAL');
 
       const expected: string[] = [`LOBBY Q-/${QUARTERS}`];
-      for (let q = 1; q <= QUARTERS; q++) for (const phase of QUARTER_PHASES) expected.push(`${phase} Q${q}/${QUARTERS}`);
+      for (let q = 1; q <= QUARTERS; q++) {
+        for (const phase of QUARTER_PHASES) {
+          if (phase !== 'SHOP' || q < QUARTERS) expected.push(`${phase} Q${q}/${QUARTERS}`);
+        }
+      }
       expected.push(`FINAL Q${QUARTERS}/${QUARTERS}`);
       for (const [label, page] of [['A', a], ['floor', floor]] as const) {
         const seen = await seenOn(page);

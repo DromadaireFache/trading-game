@@ -416,6 +416,16 @@ ol {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.phase-ready {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 13px;
+}
+.phase-header .phase-ready {
+  margin-top: 4px;
+}
 .phase-strip {
   display: flex;
   gap: 4px;
@@ -515,6 +525,12 @@ ol {
 .lobby__note {
   color: var(--tg-color-text-dim);
   font-size: 12px;
+}
+.lobby__debug {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
 }
 .rules {
   display: flex;

@@ -78,6 +78,7 @@ export interface GameState {
   earnings: Omit<EarningsMsg, 't'> | null;
   /** This SHOP's offers for this player (prices are personal). */
   shop: CardOffer[];
+  readyPlayerIds: PlayerId[];
   /** Settled quick bets, newest first, at most MAX_BET_RESULTS. */
   betResults: BetResult[];
   /** Latest quarter (or final) results; shown in RESULTS and FINAL, kept until the next ones. */
@@ -121,6 +122,7 @@ export const initialGameState: GameState = {
   briefing: null,
   earnings: null,
   shop: [],
+  readyPlayerIds: [],
   betResults: [],
   results: null,
   moment: null,
@@ -133,7 +135,7 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       const game = msg.game ?? 1;
       // "Play again" started another game: nothing of the old one stays on screen.
       if (state.game !== 0 && game !== state.game) {
-        state = { ...state, portfolio: null, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null, shop: [], betResults: [] };
+        state = { ...state, portfolio: null, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null, betResults: [] };
       }
       // Same seat after a reconnect: keep the trading history. Another seat: start clean.
       const sameSeat = state.me?.playerId === msg.playerId;
@@ -149,6 +151,8 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
         lobby: msg.lobby,
         joinUrls: Array.isArray(msg.joinUrls) ? msg.joinUrls : [],
         clockOffsetMs: msg.phase.serverTime - now,
+        shop: [],
+        readyPlayerIds: [],
         error: null,
       };
     }
@@ -167,7 +171,14 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
     }
     case 'phase': {
       const { t: _t, ...phase } = msg;
-      return { ...state, phase, clockOffsetMs: msg.serverTime - now };
+      const samePhase = phase.phase === state.phase?.phase && phase.quarter === state.phase.quarter;
+      return {
+        ...state,
+        phase,
+        clockOffsetMs: msg.serverTime - now,
+        shop: samePhase && phase.phase === 'SHOP' ? state.shop : [],
+        readyPlayerIds: samePhase ? state.readyPlayerIds : [],
+      };
     }
     case 'error':
       return { ...state, error: { code: msg.code, message: msg.message, at: now } };
@@ -203,6 +214,8 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
     }
     case 'shop':
       return { ...state, shop: msg.offers };
+    case 'phase_ready':
+      return { ...state, readyPlayerIds: msg.readyPlayerIds };
     case 'bet_result': {
       const { t: _t, ...result } = msg;
       const seq = (state.betResults[0]?.seq ?? 0) + 1;

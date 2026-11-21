@@ -11,8 +11,11 @@ describe('parseClientMsg', () => {
     });
     expect(parseClientMsg('{"t":"join","role":"spectator"}').ok).toBe(true);
     expect(parseClientMsg('{"t":"start"}')).toEqual({ ok: true, msg: { t: 'start' } });
+    expect(parseClientMsg('{"t":"start","debugMode":true}')).toEqual({ ok: true, msg: { t: 'start', debugMode: true } });
     expect(parseClientMsg('{"t":"order","symbol":"ACME","qty":-5}')).toEqual({ ok: true, msg: { t: 'order', symbol: 'ACME', qty: -5 } });
     expect(parseClientMsg('{"t":"buy_card","offerId":"o1"}').ok).toBe(true);
+    expect(parseClientMsg('{"t":"ready_up","quarter":1,"phase":"RESULTS"}')).toEqual({ ok: true, msg: { t: 'ready_up', quarter: 1, phase: 'RESULTS' } });
+    expect(parseClientMsg('{"t":"ready_up","quarter":1}')).toEqual({ ok: true, msg: { t: 'ready_up', quarter: 1, phase: 'SHOP' } });
     expect(parseClientMsg('{"t":"play_card","cardId":"c1","target":"tech","direction":"down"}').ok).toBe(true);
   });
 
@@ -38,6 +41,10 @@ describe('parseClientMsg', () => {
       '{"t":"order","symbol":"ACME","qty":1e999}',
       '{"t":"order","symbol":"ACME","qty":null}',
       '{"t":"buy_card"}',
+      '{"t":"start","debugMode":"true"}',
+      '{"t":"ready_up"}',
+      '{"t":"ready_up","quarter":1.5}',
+      '{"t":"ready_up","quarter":1,"phase":"EARNINGS"}',
       '{"t":"play_card","cardId":"c1","direction":"sideways"}',
       '{"t":"play_card","cardId":"c1","target":7}',
       '{"t":"join","role":"player"',

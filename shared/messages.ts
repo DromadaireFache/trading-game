@@ -26,6 +26,7 @@ import type {
   PlayerId,
   Position,
   QuickBet,
+  ReadyPhase,
   Recap,
   Role,
   Sector,
@@ -55,6 +56,8 @@ export interface JoinMsg {
 /** Any joined player may start the game while in LOBBY. */
 export interface StartMsg {
   t: 'start';
+  /** Enable Ready Up during Trading for this game. */
+  debugMode?: boolean;
 }
 
 /** FINAL only, any player: a fresh game (next seed) with the connected players back in the lobby. */
@@ -79,6 +82,13 @@ export interface BuyCardMsg {
   offerId: string;
 }
 
+/** Marks the player ready to leave this phase of the quarter. */
+export interface ReadyUpMsg {
+  t: 'ready_up';
+  quarter: number;
+  phase: ReadyPhase;
+}
+
 export interface PlayCardMsg {
   t: 'play_card';
   cardId: string;
@@ -87,7 +97,7 @@ export interface PlayCardMsg {
   direction?: CardDirection;
 }
 
-export type ClientMsg = JoinMsg | StartMsg | OrderMsg | BuyCardMsg | PlayCardMsg | NewGameMsg;
+export type ClientMsg = JoinMsg | StartMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg;
 export type ClientMsgType = ClientMsg['t'];
 
 // ---------------------------------------------------------------------------
@@ -102,6 +112,8 @@ export interface PhaseInfo {
   /** 0 in LOBBY, then 1..totalQuarters. Stays at totalQuarters in FINAL. */
   quarter: number;
   totalQuarters: number;
+  /** Set when the game was started in debug mode. */
+  debugMode?: boolean;
   /** Server clock when this was sent; clients use it to correct for clock offset. */
   serverTime: number;
 }
@@ -266,6 +278,11 @@ export interface ShopMsg {
   offers: CardOffer[];
 }
 
+export interface PhaseReadyMsg {
+  t: 'phase_ready';
+  readyPlayerIds: PlayerId[];
+}
+
 export interface ResultsMsg {
   t: 'results';
   leaderboard: LeaderboardEntry[];
@@ -324,6 +341,7 @@ export type ServerMsg =
   | BetResultMsg
   | PortfolioMsg
   | ShopMsg
+  | PhaseReadyMsg
   | ResultsMsg
   | MomentMsg
   | ErrorMsg;

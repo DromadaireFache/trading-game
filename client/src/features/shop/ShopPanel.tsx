@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
+import { ReadyUp } from '../../components/ReadyUp.tsx';
 import { formatMoney } from '../../lib/format.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
@@ -11,7 +12,7 @@ import '../cards/cards.css';
  * the hand (limit config.cards.handLimit) and is played in a later TRADING phase.
  */
 export function ShopPanel({ className }: { className?: string }) {
-  const { shop, config, phase } = useGame();
+  const { shop, config } = useGame();
   const client = useGameClient();
   const live = useLivePortfolio();
   // Offers this player clicked (the server refuses a second buy; this just greys the button).
@@ -21,7 +22,6 @@ export function ShopPanel({ className }: { className?: string }) {
 
   const handSize = live?.portfolio.hand?.length ?? 0;
   const full = handSize >= config.cards.handLimit;
-  const last = (phase?.quarter ?? 0) >= config.time.quarters;
 
   return (
     <Panel
@@ -29,8 +29,9 @@ export function ShopPanel({ className }: { className?: string }) {
       aside={`your cards ${handSize}/${config.cards.handLimit}${live ? ` · your money ${formatMoney(live.equity)}` : ''}`}
       className={`shop${className ? ` ${className}` : ''}`}
     >
+      <ReadyUp />
       {shop.length === 0 ? (
-        <Placeholder>{last ? 'The game is over after this quarter: no more cards.' : 'No cards on offer.'}</Placeholder>
+        <Placeholder>No cards on offer.</Placeholder>
       ) : (
         <>
         <p className="shop__intro">

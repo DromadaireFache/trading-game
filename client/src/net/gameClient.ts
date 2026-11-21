@@ -158,8 +158,8 @@ export class GameClient {
     return this.sendRaw(msg);
   }
 
-  startGame(): boolean {
-    return this.send({ t: 'start' });
+  startGame(debugMode = false): boolean {
+    return this.send(debugMode ? { t: 'start', debugMode } : { t: 'start' });
   }
 
   /** FINAL only: everyone back to the lobby for a fresh game. */

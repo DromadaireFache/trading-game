@@ -12,7 +12,7 @@
  * - First values come from docs/DESIGN.md; later milestones tune them with the balance harness.
  */
 import { SECTORS } from './types.ts';
-import type { HeadlineMagnitude, QuarterPhase, Sector } from './types.ts';
+import type { HeadlineMagnitude, Phase, QuarterPhase, ReadyPhase, Sector } from './types.ts';
 
 /**
  * Where a sector's companies sit inside the generation ranges of config.market: each value is a
@@ -281,7 +281,7 @@ export const defaultConfig: GameConfig = {
     quarters: 4,
   },
   phaseMs: {
-    BRIEFING: 15_000,
+    BRIEFING: 5_000,
     EARNINGS: 5_000,
     RESULTS: 20_000,
     SHOP: 30_000,
@@ -636,7 +636,11 @@ export function phaseTicks(config: GameConfig, phase: QuarterPhase): number {
   return msToTicks(config, config.phaseMs[phase]);
 }
 
-/** Total ticks of one full quarter (BRIEFING..SHOP). */
+export function canReadyUp(phase: Phase, debugMode = false): phase is ReadyPhase {
+  return phase === 'RESULTS' || phase === 'SHOP' || (phase === 'TRADING' && debugMode);
+}
+
+/** Total ticks of a quarter that runs through the full shop timer. */
 export function quarterTicks(config: GameConfig): number {
   return (
     phaseTicks(config, 'BRIEFING') +

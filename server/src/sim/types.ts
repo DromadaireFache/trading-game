@@ -26,6 +26,7 @@ import type {
   PlayerId,
   Position,
   QuickBet,
+  ReadyPhase,
   Recap,
   Sector,
   Statement,
@@ -48,11 +49,12 @@ export type SimIntent =
   /** LOBBY only (a player who leaves before the game starts). */
   | { kind: 'remove_player'; playerId: PlayerId }
   /** LOBBY only; needs config.lobby.minPlayers players. */
-  | { kind: 'start'; playerId: PlayerId }
+  | { kind: 'start'; playerId: PlayerId; debugMode?: boolean }
   /** TRADING only. qty in shares, < 0 = sell/short; truncated to whole shares. holdDays = quick bet. */
   | { kind: 'order'; playerId: PlayerId; symbol: SymbolId; qty: number; holdDays?: number }
   // --- later milestones (the stub rejects them) ---
   | { kind: 'buy_card'; playerId: PlayerId; offerId: string }
+  | { kind: 'ready_up'; playerId: PlayerId; quarter: number; phase: ReadyPhase }
   | { kind: 'play_card'; playerId: PlayerId; cardId: string; target?: string; direction?: CardDirection };
 
 export type SimIntentKind = SimIntent['kind'];
@@ -85,7 +87,7 @@ export type SimEvent =
   /** An intent was refused. The shell forwards it to that player as an `error` message. */
   | { e: 'reject'; playerId: PlayerId; intent: SimIntentKind; code: SimRejectCode; message: string }
   /**
-   * Market (milestone 2). Only while prices move, i.e. once per tick() during TRADING: all symbols,
+   * Market (milestone 2). One per live TRADING tick: all symbols,
    * UNROUNDED (the shell rounds with roundPrice). `day` = 0-based trading day since game start,
    * continuing across quarters; `tickOfDay` = 1..ticksPerCandle.
    */
@@ -118,6 +120,7 @@ export type SimEvent =
   /** A quick bet settled at the close of its last day. */
   | { e: 'bet_result'; playerId: PlayerId; symbol: SymbolId; qty: number; entryPrice: number; exitPrice: number; pnl: number; streak: number }
   | { e: 'shop'; playerId: PlayerId; offers: CardOffer[] }
+  | { e: 'phase_ready'; readyPlayerIds: PlayerId[] }
   | {
       e: 'results';
       leaderboard: LeaderboardEntry[];
@@ -144,6 +147,7 @@ export interface SimPlayer {
 /** Read-only view of where the sim is. Used by the shell for welcome/reconnect snapshots. */
 export interface SimState {
   phase: Phase;
+  debugMode: boolean;
   /** 0 in LOBBY, then 1..config.time.quarters. Stays at the last quarter in FINAL. */
   quarter: number;
   /** Number of tick() calls so far. */
@@ -210,6 +214,8 @@ export interface Sim {
   readonly news: News;
   /** This player's shop offers while the phase is SHOP (reconnect), else null. */
   getShop(playerId: PlayerId): SimEventOf<'shop'> | null;
+  /** Readiness for a reconnect, or null when the phase has no Ready Up option. */
+  getPhaseReady(): SimEventOf<'phase_ready'> | null;
   /** Hands, heat, jail, regimes (M5). */
   readonly cards: CardEngine;
 }
