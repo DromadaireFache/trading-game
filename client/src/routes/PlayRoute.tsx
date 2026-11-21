@@ -12,7 +12,7 @@ import { ResultsPanel } from '../features/results/ResultsPanel.tsx';
 import { ShopPanel } from '../features/shop/ShopPanel.tsx';
 import { OrderPanel } from '../features/trading/OrderPanel.tsx';
 import { MoneyPanel, PositionsPanel } from '../features/trading/PositionsPanel.tsx';
-import { HeadlineBanner } from '../features/news/HeadlineBanner.tsx';
+import { NewsPile } from '../features/news/NewsPile.tsx';
 import { RivalsPanel } from '../features/rivals/RivalsPanel.tsx';
 import { FxRoot } from '../features/fx/FxLayer.tsx';
 import { GameFx } from '../features/fx/GameFx.tsx';
@@ -52,8 +52,8 @@ function PlayScreen() {
 const STAGE_PHASES: readonly Phase[] = ['RESULTS', 'SHOP', 'FINAL'];
 
 /**
- * The trading desk grid. The stock list and the chart; on the right your bet buttons, your money, your
- * cards and, at the bottom right, the headline slot (the latest headline; click it to open its stock).
+ * The trading desk grid. The stock list and the chart; on the right your bet buttons, your money and
+ * your cards, with the headline papers piled messily over the cards (click one to open its stock).
  * At the bottom: the other players' positions, then yours. Between and after quarters one "stage"
  * panel (results / shop / final) takes the place of everything but the right column.
  */
@@ -72,7 +72,7 @@ function Desk({ phase }: { phase: Phase }) {
         <OrderPanel className="desk__order" />
         <MoneyPanel className="desk__money" />
         <HandPanel className="desk__hand" />
-        {!stage && <HeadlineBanner className="desk__news" />}
+        {!stage && <NewsPile />}
       </div>
       {!stage && <RivalsPanel className="desk__rivals" />}
       {!stage && <PositionsPanel className="desk__positions" />}
