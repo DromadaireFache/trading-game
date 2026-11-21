@@ -16,6 +16,7 @@ import { NewsPile } from '../features/news/NewsPile.tsx';
 import { RivalsPanel } from '../features/rivals/RivalsPanel.tsx';
 import { FxRoot } from '../features/fx/FxLayer.tsx';
 import { GameFx } from '../features/fx/GameFx.tsx';
+import { HypeMeter } from '../features/fx/hype.ts';
 import { GameProvider, useGame } from '../net/GameProvider.tsx';
 
 /** /play: the player's laptop view. */
@@ -25,6 +26,7 @@ export function PlayRoute() {
       <FxRoot>
         <PlayScreen />
         <GameFx role="player" />
+        <HypeMeter />
       </FxRoot>
     </GameProvider>
   );

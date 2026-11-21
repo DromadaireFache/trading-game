@@ -1262,14 +1262,19 @@ async function main(): Promise<void> {
         const cardEl = a.locator(tid('hand-card')).first();
         // The headline papers lie over the cards: throw them away first, as a player would.
         // (A thrown paper flies off with pointer-events off, so it no longer blocks the cards.)
+        // A new paper can land between clearing and clicking: clear and try again.
         const resting = a.locator(`${tid('headline')}:not(.paper--thrown) ${tid('headline-close')}`);
-        while ((await resting.count()) > 0) {
-          await resting.last().click().catch(() => undefined);
-          await sleep(50);
-        }
         const button = cardEl.locator(`${tid('play')}, ${tid('play-up')}`).first();
-        if (await button.isDisabled()) break; // e.g. a sector card with the index fund selected
-        await button.click();
+        let played = false;
+        for (let attempt = 0; attempt < 8 && !played; attempt++) {
+          while ((await resting.count()) > 0) {
+            await resting.last().click().catch(() => undefined);
+            await sleep(50);
+          }
+          if (await button.isDisabled()) break; // e.g. a sector card with the index fund selected
+          played = await button.click({ timeout: 1_500 }).then(() => true, () => false);
+        }
+        if (!played) break;
         await sleep(300);
       }
       await sleep(500);

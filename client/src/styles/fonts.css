@@ -1,0 +1,74 @@
+/*
+ * Bundled fonts (no network at runtime: Vite ships these files with the client). Each folder keeps its
+ * license next to the files (SIL Open Font License 1.1):
+ *   Bergoom        headlines and cards. An open font after the Bloomberg Terminal face (dchest/bergoom).
+ *   IBM Plex Mono  everything stock-related: tickers, prices, money.
+ *   Teko           condensed industrial titles on the stock side (the R.E.P.O. look).
+ * The families are used through theme.ts tokens only: --tg-font-paper, --tg-font-mono, --tg-font-repo.
+ */
+@font-face {
+  font-family: 'Bergoom';
+  src: url('../assets/fonts/bergoom/Bergoom-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Bergoom';
+  src: url('../assets/fonts/bergoom/Bergoom-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Bergoom';
+  src: url('../assets/fonts/bergoom/Bergoom-Semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Bergoom';
+  src: url('../assets/fonts/bergoom/Bergoom-Bold.woff2') format('woff2');
+  font-weight: 700 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('../assets/fonts/ibm-plex-mono/IBMPlexMono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('../assets/fonts/ibm-plex-mono/IBMPlexMono-500.woff2') format('woff2');
+  font-weight: 500 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  src: url('../assets/fonts/ibm-plex-mono/IBMPlexMono-700.woff2') format('woff2');
+  font-weight: 700 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Teko';
+  src: url('../assets/fonts/teko/Teko-500.woff2') format('woff2');
+  font-weight: 400 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Teko';
+  src: url('../assets/fonts/teko/Teko-600.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Teko';
+  src: url('../assets/fonts/teko/Teko-700.woff2') format('woff2');
+  font-weight: 700 900;
+  font-display: swap;
+}

@@ -1,6 +1,12 @@
 /**
  * THE one place for colors and fonts. Everything else uses the CSS variables (var(--tg-...)).
- * System font stacks only: no external fonts, the game runs offline on a LAN.
+ * Fonts are bundled with the client (styles/fonts.css), never fetched: the game runs offline on a LAN.
+ *
+ * Two looks share the table:
+ *   - the stock side (list, chart, bets, money, positions, rivals, header) is R.E.P.O.: dark gritty
+ *     hardware panels, amber readouts, scanlines, condensed industrial titles (repo) and a plain stock
+ *     font for every number (mono);
+ *   - cards and headlines are Balatro: cream newspaper cards (paper) with ink borders, tilts, wobbles.
  *
  * Look: a game table. Felt-green background, chunky dark panels with a hard drop shadow, gold for what
  * matters, green / red for up / down, and cream "playing card" faces for cards. Readability first:
@@ -53,14 +59,25 @@ export const theme = {
     sectorFinance: '#c9a2ff',
     sectorHealth: '#ff7aa2',
     sectorMarket: '#e8e2cf',
+    /** R.E.P.O. hardware: panel metal, its edge, the amber readout and its dim glow. */
+    repoPanel: '#121815',
+    repoEdge: '#2f3a33',
+    repoAmber: '#ffb42e',
+    repoAmberDim: '#7a5518',
+    /** Balatro chips: the red and blue of its scoring, for card effects. */
+    balatroRed: '#fe5f55',
+    balatroBlue: '#009dff',
   },
   font: {
-    mono: 'ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, "SF Mono", Menlo, monospace',
+    /** The stock font: tickers, prices, money (IBM Plex Mono, bundled). */
+    mono: '"IBM Plex Mono", ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, "SF Mono", Menlo, monospace',
     sans: '"Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif',
     /** Chunky headings and big numbers. */
     display: '"Trebuchet MS", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif',
-    /** Newsprint: the headline popups. */
-    serif: 'Georgia, "Times New Roman", Times, serif',
+    /** Headlines and cards: Bergoom, an open font after the Bloomberg Terminal face (bundled). */
+    paper: '"Bergoom", "Source Sans 3", "Segoe UI", system-ui, sans-serif',
+    /** R.E.P.O. titles on the stock side: condensed industrial capitals (Teko, bundled). */
+    repo: '"Teko", "Bahnschrift", "Arial Narrow", "Segoe UI", sans-serif',
   },
 } as const;
 

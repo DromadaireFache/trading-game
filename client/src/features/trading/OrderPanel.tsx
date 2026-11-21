@@ -6,6 +6,8 @@ import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
 import { sendOrder } from '../fx/buttonFx.ts';
+import { betBurst } from '../fx/betFx.ts';
+import { hotProps, profitHeat } from '../fx/hot.ts';
 import { JailOrderNotice } from './JailOrderNotice.tsx';
 import './trading.css';
 
@@ -36,8 +38,12 @@ export function OrderPanel({ className }: { className?: string }) {
   const open = phase?.phase === 'TRADING' && !eliminated && price > 0;
   const canBet = open && live.buyingPower > 0 && pendingOrder === null;
   const info = market.getInfo(symbol);
-  const held = live.portfolio.positions.find((p) => p.symbol === symbol)?.qty ?? 0;
+  const position = live.portfolio.positions.find((p) => p.symbol === symbol);
+  const held = position?.qty ?? 0;
   const stakes = config.trading.quickBetStakes;
+  // The cash-out button shakes on a winning bet, harder the more it made.
+  const heat = position && price > 0 ? profitHeat(held * (price - position.avgPrice), Math.abs(held) * position.avgPrice) : 0;
+  const hotCash = hotProps(heat, 'order__cash order__cash--primary');
 
   return (
     <Panel
@@ -60,7 +66,10 @@ export function OrderPanel({ className }: { className?: string }) {
                 type="button"
                 className={`bet-btn bet-btn--${up ? 'up' : 'down'}`}
                 disabled={!canBet}
-                onClick={(event) => bet(event.currentTarget, symbol, up, share)}
+                onClick={(event) => {
+                  const button = event.currentTarget;
+                  if (bet(button, symbol, up, share)) betBurst(button, up, share);
+                }}
                 title={`Bet ${formatMoney(usd)} that ${info?.name ?? symbol} goes ${up ? 'up' : 'down'}`}
                 data-testid={`bet-${up ? 'up' : 'down'}-${i}`}
                 data-share={share}
@@ -82,13 +91,14 @@ export function OrderPanel({ className }: { className?: string }) {
           <span />
           <button
             type="button"
-            className="order__cash order__cash--primary"
+            className={hotCash.className}
+            style={hotCash.style}
             disabled={!open || pendingOrder !== null}
             onClick={(event) => sendOrder(client, event.currentTarget, symbol, -held)}
             title="Close this bet and keep what it made (or lost)"
             data-testid="order-close"
           >
-            Cash out
+            <span className="fx-hot__label">Cash out</span>
           </button>
         </div>
       ) : (

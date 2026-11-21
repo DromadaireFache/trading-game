@@ -14,7 +14,9 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import { applyTheme } from './theme.ts';
+import './styles/fonts.css';
 import './styles/global.css';
+import './styles/look.css';
 
 applyTheme();
 

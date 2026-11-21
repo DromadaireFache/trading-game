@@ -6,6 +6,8 @@ import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
 import { sendOrder } from '../fx/buttonFx.ts';
+import { hotProps, profitHeat } from '../fx/hot.ts';
+import { MoneyScore } from './MoneyScore.tsx';
 import './trading.css';
 
 /** Your money: net worth as the big score number and how far you are from the start. */
@@ -30,9 +32,7 @@ export function MoneyPanel({ className }: { className?: string }) {
         </div>
       )}
       <div className="positions__score" title="Net worth = cash + what your bets are worth now. Highest at the end wins.">
-        <span className="positions__worth" data-testid="equity">
-          {formatMoney(live.equity)}
-        </span>
+        <MoneyScore equity={live.equity} />
         <span className={`positions__pnl change--${changeDirection(pnlFraction)}`} data-testid="total-pnl" title="Since the start of the game">
           {formatMoney(live.totalPnl, true)} ({formatPercent(pnlFraction)})
         </span>
@@ -102,6 +102,10 @@ function PositionRow({ position, decimals, canTrade }: { position: Position; dec
   const pnlFraction = cost > 0 ? pnl / cost : 0;
   const open = phase?.phase === 'TRADING' && canTrade && pendingOrder === null;
   const up = position.qty > 0;
+  // A winning bet's profit and its cash-out button shake, harder the more it made.
+  const heat = profitHeat(pnl, cost);
+  const hotProfit = hotProps(heat, `positions__profit-value`);
+  const hotButton = hotProps(heat, 'positions__close');
 
   return (
     <tr
@@ -119,13 +123,16 @@ function PositionRow({ position, decimals, canTrade }: { position: Position; dec
       </td>
       <td>{formatMoneyShort(Math.abs(position.qty) * last)}</td>
       <td className={`positions__profit change--${changeDirection(pnlFraction)}`} title={formatPercent(pnlFraction)}>
-        {pnl >= 0 ? '+' : ''}
-        {formatMoneyShort(pnl)}
+        <span className={hotProfit.className} style={hotProfit.style}>
+          {pnl >= 0 ? '+' : ''}
+          {formatMoneyShort(pnl)}
+        </span>
       </td>
       <td>
         <button
           type="button"
-          className="positions__close"
+          className={hotButton.className}
+          style={hotButton.style}
           disabled={!open}
           aria-label={`Cash out ${position.symbol}`}
           title={`Cash out ${position.symbol}`}
@@ -135,7 +142,7 @@ function PositionRow({ position, decimals, canTrade }: { position: Position; dec
           }}
           data-testid="position-close"
         >
-          Cash out
+          <span className="fx-hot__label">Cash out</span>
         </button>
       </td>
     </tr>

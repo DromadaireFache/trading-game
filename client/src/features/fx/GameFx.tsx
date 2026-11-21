@@ -5,6 +5,7 @@ import { useGameClient, useServerMessages } from '../../net/GameProvider.tsx';
 import { applyServerMsg } from '../../net/state.ts';
 import { popWinningButton, takeOrderButton } from './buttonFx.ts';
 import { anchorOf, fx } from './fx.ts';
+import { getHype } from './hype.ts';
 import { play } from './sound.ts';
 import type { SoundName } from './sound.ts';
 
@@ -15,6 +16,13 @@ const BIG_MOVE_COOLDOWN_MS = 6_000;
 /** Largest win effects kick in at a quarter of the starting bankroll. */
 const MAX_WIN_CASH_SHARE = 0.25;
 const BIG_LOSS_SHARE = 0.02;
+/** Balatro-style banner across the table when a phase starts (players only). */
+const PHASE_BANNER: Partial<Record<Phase, { text: string; tone: 'up' | 'down' | 'accent' | 'info' | 'warn' }>> = {
+  TRADING: { text: 'MARKET OPEN!', tone: 'up' },
+  EARNINGS: { text: 'CLOSING BELL', tone: 'warn' },
+  SHOP: { text: 'SHOP OPEN', tone: 'accent' },
+  FINAL: { text: 'GAME OVER', tone: 'accent' },
+};
 const PHASE_SOUND: Partial<Record<Phase, SoundName>> = {
   BRIEFING: 'briefing',
   TRADING: 'bell',
@@ -31,7 +39,9 @@ const PHASE_SOUND: Partial<Record<Phase, SoundName>> = {
  *  - own fill: chip click and a popup at the order panel; a forced sale (margin call) shakes and buzzes
  *  - a fill that closes or cuts a position: realized P&L from the server, with a stronger button
  *    pop and screen shake for larger profits, or a red popup with a thud for a loss.
- *  - a public headline: blip (the headline itself shows in the headline slot, see HeadlineBanner)
+ *  - a public headline: blip and a puff of paper dust where the papers pile up (NewsPile)
+ *  - own fills and wins scale with the bet's size and with how well the player is doing (hype.ts)
+ *  - a phase start: a Balatro-style banner across the table
  *  - the index moving BIG_MOVE within ~2 s: shake and whoosh
  *  - phase changes and quick-bet outcomes: distinct cues
  *  - a BREAKING moment: big shake and sting
@@ -94,7 +104,10 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
             return;
           }
           play('fill', msg.qty > 0 ? 1 : 0.85);
-          fx.popup({ text: `${msg.qty > 0 ? '+' : ''}${formatShares(msg.qty)} ${msg.symbol}`, tone: msg.qty > 0 ? 'up' : 'down', ...at, size: 0.8 });
+          // Bigger bets (share of net worth) and hotter players get bigger popups.
+          const notional = Math.abs(msg.qty * msg.price);
+          const weight = Math.min(1, notional / Math.max(1, equity.current));
+          fx.popup({ text: `${msg.qty > 0 ? '+' : ''}${formatShares(msg.qty)} ${msg.symbol}`, tone: msg.qty > 0 ? 'up' : 'down', ...at, size: 0.8 + 0.6 * weight + 0.4 * getHype() });
           if (msg.realizedPnl !== undefined) {
             celebrate(msg.realizedPnl, equity.current, client.getState().config.economy.startingCash, button);
           }
@@ -121,6 +134,11 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
             return;
           }
           play('news');
+          if (role === 'player') {
+            // Paper dust where the papers land (after the drop-in).
+            const pile = anchorOf('[data-testid=news-pile]', anchorOf('.desk__hand'));
+            window.setTimeout(() => fx.burst({ ...pile, y: pile.y + 60, tone: 'warn', count: 8, power: 3 }), 320);
+          }
           return;
         case 'phase': {
           // Clock resyncs resend the phase with a new deadline.
@@ -128,6 +146,11 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           phase.current = msg;
           const sound = PHASE_SOUND[msg.phase];
           if (sound) play(sound);
+          const banner = PHASE_BANNER[msg.phase];
+          if (banner && role === 'player') {
+            fx.popup({ ...banner, ...anchorOf('.desk__chart, .desk__stage'), size: 2.2 + getHype() });
+            fx.shake(1, 0.5 + getHype());
+          }
           return;
         }
         case 'error':
@@ -178,16 +201,22 @@ function celebrate(pnl: number, equity: number, startingCash: number, button: Re
   if (Math.abs(pnl) < 1) return;
   if (pnl > 0) {
     const at = button ? { x: button.rect.x + button.rect.width / 2, y: button.rect.y + button.rect.height / 2 } : anchorOf('.desk__positions');
+    // Scales with the win and with how well the player is doing overall.
+    const hype = getHype();
     const strength = Math.min(1, pnl / Math.max(1, startingCash * MAX_WIN_CASH_SHARE));
-    if (button) popWinningButton(button, strength);
-    fx.shake(3, strength);
-    fx.popup({ text: `+${formatMoneyShort(pnl)}`, tone: 'up', ...at, size: 1.1 + 0.7 * strength });
-    play('cash', 1 + 0.12 * strength);
-    fx.burst({ ...at, tone: 'accent', count: Math.round(22 + 38 * strength), power: 6 + 3 * strength });
+    if (button) popWinningButton(button, Math.min(1, strength + 0.5 * hype));
+    fx.shake(3, Math.min(1.6, strength + 0.6 * hype));
+    fx.popup({ text: `+${formatMoneyShort(pnl)}`, tone: 'up', ...at, size: 1.1 + 0.7 * strength + 0.6 * hype });
+    play('cash', 1 + 0.12 * strength + 0.08 * hype);
+    fx.burst({ ...at, tone: 'accent', count: Math.round(22 + 38 * strength + 40 * hype), power: 6 + 3 * strength + 3 * hype });
+    if (strength + hype > 0.8) window.setTimeout(() => fx.burst({ ...at, tone: 'up', count: Math.round(20 + 30 * hype), power: 9 }), 180);
   } else {
     const big = -pnl >= BIG_LOSS_SHARE * Math.max(1, equity);
-    fx.popup({ text: `-${formatMoneyShort(-pnl)}`, tone: 'down', ...anchorOf('[data-testid=positions]', anchorOf('.desk__positions')), size: big ? 1.8 : 1.1 });
+    const at = button ? { x: button.rect.x + button.rect.width / 2, y: button.rect.y + button.rect.height / 2 } : anchorOf('[data-testid=positions]', anchorOf('.desk__positions'));
+    fx.popup({ text: `-${formatMoneyShort(-pnl)}`, tone: 'down', ...at, size: big ? 1.8 : 1.1 });
     play('thump');
+    // A sad little puff of red: the money going away.
+    fx.burst({ ...at, tone: 'down', count: big ? 18 : 8, power: big ? 4 : 2.5 });
     if (big) fx.shake(1);
   }
 }
