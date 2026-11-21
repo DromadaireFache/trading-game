@@ -6,23 +6,20 @@ import { useCountdown } from '../../hooks/useCountdown.ts';
 import { PHASE_HINT, PHASE_LABEL } from '../../lib/phases.ts';
 import { formatQuarter } from '../../lib/time.ts';
 import { useGame } from '../../net/GameProvider.tsx';
-import { useSymbols } from '../../net/marketHooks.ts';
-import { CandleChart } from '../market/CandleChart.tsx';
-import { SymbolHeader } from '../market/SymbolHeader.tsx';
 import { FloorResults, MomentBanner } from '../results/FloorResults.tsx';
 import { SoundToggle } from '../fx/SoundToggle.tsx';
 import { HeadlineTape } from './HeadlineTape.tsx';
-import '../market/market.css';
+import { NetWorthChart, NetWorthStandings } from './NetWorthChart.tsx';
 
 /**
  * Projector view: phase, countdown and roster, readable from the back of the room. In the lobby the
  * phase and the join address fill the screen; once the game runs they shrink to a status line and
- * the index fund chart takes the space.
+ * the players' net-worth chart takes the space.
  * Between quarters and at the end the standings replace the chart (FloorResults); a `moment` shows a
  * full-screen BREAKING banner over everything (MomentBanner).
  */
 export function FloorView() {
-  const { phase, lobby, config, joinUrls, replaced, results } = useGame();
+  const { phase, lobby, config, joinUrls, replaced } = useGame();
   const countdown = useCountdown();
   const current = phase?.phase ?? 'LOBBY';
   const totalQuarters = phase?.totalQuarters ?? config.time.quarters;
@@ -30,12 +27,9 @@ export function FloorView() {
   // Opened on the host through localhost, this page's own address is no use to the other laptops.
   const isLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
   const playUrl = (isLoopback ? joinUrls[0] : undefined) ?? `${location.origin}/play`;
-  const players = lobby?.players.length ?? 0;
-  // The index fund is the market on the projector.
-  const index = useSymbols().find((s) => s.kind === 'index')?.symbol ?? null;
-  const showMarket = current !== 'LOBBY' && index !== null;
-  // RESULTS and FINAL: the standings take the chart's place. SHOP goes back to the market.
-  const showResults = (current === 'RESULTS' ? results?.final !== true : current === 'FINAL' ? results?.final === true : false) && results !== null;
+  const inLobby = current === 'LOBBY';
+  const isResults = current === 'RESULTS' || current === 'FINAL';
+  const showChart = !inLobby && !isResults && lobby !== null;
 
   if (replaced) return <SeatTaken />;
 
@@ -52,7 +46,7 @@ export function FloorView() {
         </span>
       </header>
 
-      <main className={`floor__main${showMarket ? ' floor__main--market' : ''}`}>
+      <main className={`floor__main${inLobby ? '' : ' floor__main--playing'}`}>
         <div className="floor__status">
           <div className="floor__phase" data-testid="phase" data-phase={current}>
             {PHASE_LABEL[current]}
@@ -76,25 +70,19 @@ export function FloorView() {
         <div className="floor__progress" aria-hidden="true">
           <div className="floor__progress-bar" style={{ transform: `scaleX(${countdown.progress ?? 0})` }} />
         </div>
-        {showResults ? (
-          <FloorResults />
-        ) : showMarket && (
-          <section className="floor__market" data-testid="floor-market">
-            <SymbolHeader symbol={index} size="large" />
-            <CandleChart symbol={index} size="large" />
-          </section>
-        )}
+        {isResults && <FloorResults />}
+        {showChart && <NetWorthChart players={lobby.players} config={config} />}
         <ErrorBanner />
       </main>
-      <MomentBanner />
+      {current !== 'FINAL' && <MomentBanner />}
 
       <aside className="floor__side">
         <h2 className="floor__side-title">
-          Traders <span className="floor__side-count">{players}/{lobby?.maxPlayers ?? config.lobby.maxPlayers}</span>
+          Traders <span className="floor__side-count">{lobby?.players.length ?? 0}/{lobby?.maxPlayers ?? config.lobby.maxPlayers}</span>
         </h2>
-        <Roster lobby={lobby} showEmptySeats={current === 'LOBBY'} />
+        {showChart ? <NetWorthStandings players={lobby.players} /> : <Roster lobby={lobby} showEmptySeats={inLobby} />}
       </aside>
-      <HeadlineTape />
+      {!isResults && <HeadlineTape />}
     </div>
   );
 }

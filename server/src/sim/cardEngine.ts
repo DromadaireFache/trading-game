@@ -79,7 +79,7 @@ interface PlayerCards {
   jailedUntil?: number;
   /** Card spend this quarter. */
   spend: number;
-  /** Fines paid at the last RESULTS. */
+  /** Fines paid at the last quarter close. */
   fines: number;
   /** Jail days sentenced over the whole game ("Longest sentence"). */
   jailDays: number;
@@ -125,12 +125,12 @@ export interface CardEngine {
   beforeStep(tick: number): SimEventOf<'headline'>[];
   /** Regimes' part of the coming market step; dRate is a one-off and is consumed. */
   marketInput(): Pick<MarketStepInput, 'volMult' | 'corrMult' | 'sectorDriftPerDay' | 'dRate'>;
-  /** At RESULTS: regimes count down, the SEC rolls, fines are charged. */
+  /** At the quarter close: regimes count down, the SEC rolls, fines are charged. */
   closeQuarter(quarter: number, nextTradingDay: number): QuarterClose;
   /** At BRIEFING: per-quarter counters start over. */
   startQuarter(): void;
   activeRegimeNames(): string[];
-  /** Card spend this quarter, fines at the last RESULTS, jail days over the game (statements, awards). */
+  /** Card spend this quarter, fines at the last quarter close, jail days over the game (statements, awards). */
   ledger(id: PlayerId): { spend: number; fines: number; jailDays: number };
 }
 

@@ -4,7 +4,7 @@
  * the delayed gap in the next quarter).
  */
 import { describe, expect, it } from 'vitest';
-import { defaultConfig, mergeConfig, msToTicks } from '@tg/shared';
+import { defaultConfig, mergeConfig, msToTicks, phaseTicks } from '@tg/shared';
 import type { GameConfig, HeadlineTemplate } from '@tg/shared';
 import { DEFAULT_HEADLINES, DEFAULT_PLACEHOLDERS } from '../data/headlineData.ts';
 import { createHeadlineBook, createNews, createRng, createSim, fillHeadline, generateUniverse } from '../index.ts';
@@ -388,7 +388,8 @@ describe('news through the sim', () => {
       }
     }
 
-    while (sim.getState().phase !== 'RESULTS') sim.tick();
+    for (let t = 0; t < phaseTicks(config, 'EARNINGS'); t++) sim.tick();
+    expect(sim.getState().phase).toBe('FINAL');
     const recap = sim.getResults()!.recap;
     expect(recap.quarter).toBe(2);
     expect(recap.topMoves.some((move) => move.cause.kind === 'earnings')).toBe(true);

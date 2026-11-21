@@ -26,15 +26,15 @@ function play(seed: number, trade?: (sim: Sim, tick: number) => void): { sim: Si
 const resultsOf = (events: SimEvent[]) => events.filter((e): e is SimEventOf<'results'> => e.e === 'results');
 
 describe('results', () => {
-  it('one results event per quarter, then a final one with awards', () => {
+  it('one results event per quarter, with only the final standings in the last quarter', () => {
     const { events, sim } = play(1);
     const all = resultsOf(events);
-    expect(all).toHaveLength(config.time.quarters + 1);
+    expect(all.map((r) => r.recap.quarter)).toEqual([1, 2]);
     expect(all.slice(0, -1).every((r) => !r.final)).toBe(true);
     expect(all.at(-1)!.final).toBe(true);
     expect(all.at(-1)!.awards).toBeDefined();
     expect(sim.getResults()).toBe(all.at(-1));
-    // Results come right after the RESULTS / FINAL phase event.
+    // The first quarter's results come right after the RESULTS phase event.
     const idx = events.findIndex((e) => e.e === 'phase' && e.phase === 'RESULTS');
     expect(events[idx + 1]!.e).toBe('results');
   });
@@ -109,6 +109,25 @@ describe('results', () => {
     expect(resultsOf(play(6).events)).toEqual(resultsOf(play(6).events));
   });
 
+  it('ends Trading early with current portfolio values and no extra market ticks', () => {
+    let equityAtEnd = 0;
+    const { sim, events } = play(9, (s) => {
+      const { phaseTick } = s.getState();
+      if (phaseTick === 0) {
+        s.submit({ kind: 'order', playerId: 'a', symbol: s.getUniverse().companies[0]!.symbol, qty: 20_000 });
+      }
+      if (phaseTick === 5) {
+        equityAtEnd = s.getPortfolio('a')!.equity;
+        s.submit({ kind: 'end_game', playerId: 'b' });
+      }
+    });
+    expect(sim.getState()).toMatchObject({ phase: 'FINAL', quarter: 1 });
+    expect(events.filter((event) => event.e === 'tick')).toHaveLength(5);
+    const [final] = resultsOf(events);
+    expect(final).toMatchObject({ final: true, recap: { quarter: 1 } });
+    expect(final!.leaderboard.find((row) => row.playerId === 'a')!.netWorth).toBe(equityAtEnd);
+  });
+
   it('a crash moment fires once per quarter and the game budget caps moments', () => {
     const universe = generateUniverse(createRng(1).fork(), defaultConfig);
     const index = universe.funds.find((f) => f.kind === 'index')!.symbol;
@@ -153,7 +172,7 @@ describe('final standings include the last earnings gap', () => {
         bought = Object.entries(plan.surprise).sort((x, y) => Math.abs(y[1]) - Math.abs(x[1]))[0]![0];
         sim.submit({ kind: 'order', playerId: 'a', symbol: bought, qty: 20_000 });
       }
-      if (s.phase === 'RESULTS' && s.quarter === config.time.quarters) {
+      if (s.phase === 'EARNINGS' && s.quarter === config.time.quarters) {
         quarterEquity = sim.getPortfolio('a')!.equity;
         priceBefore = sim.getMarketSnapshot().prices[bought!]!;
       }
@@ -167,9 +186,11 @@ describe('final standings include the last earnings gap', () => {
     const expected = qty * priceBefore * (Math.exp(gap) - 1);
     expect(Math.abs(finalEquity - quarterEquity - expected)).toBeLessThan(Math.abs(expected) * 1e-3);
     // The final standings and the last portfolio message say the same.
-    const fin = events.filter((e): e is SimEventOf<'results'> => e.e === 'results').at(-1)!;
+    const fin = resultsOf(events).at(-1)!;
     expect(fin.final).toBe(true);
     expect(fin.leaderboard.find((r) => r.playerId === 'a')!.netWorth).toBeCloseTo(finalEquity, 6);
+    const statement = fin.statements.find((s) => s.playerId === 'a')!;
+    expect((statement.bestTrade ?? statement.worstTrade)?.symbol).toBe(bought);
     const lastPortfolio = events.filter((e): e is SimEventOf<'portfolio'> => e.e === 'portfolio' && e.playerId === 'a').at(-1)!;
     expect(lastPortfolio.equity).toBeCloseTo(finalEquity, 6);
     // No price moved on the wire: FINAL sends no tick.

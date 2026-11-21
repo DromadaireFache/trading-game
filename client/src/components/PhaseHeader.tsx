@@ -1,7 +1,7 @@
 import { useCountdown } from '../hooks/useCountdown.ts';
 import { PHASE_HINT, PHASE_LABEL } from '../lib/phases.ts';
 import { formatQuarter } from '../lib/time.ts';
-import { useGame } from '../net/GameProvider.tsx';
+import { useGame, useGameClient } from '../net/GameProvider.tsx';
 import { SoundToggle } from '../features/fx/SoundToggle.tsx';
 import { ConnectionBadge } from './ConnectionBadge.tsx';
 import { ReadyUp } from './ReadyUp.tsx';
@@ -11,12 +11,14 @@ import { ReadyUp } from './ReadyUp.tsx';
  * countdown, who you are, sound and the connection state.
  */
 export function PhaseHeader() {
-  const { phase, me, config } = useGame();
+  const { phase, me, config, game, join } = useGame();
+  const client = useGameClient();
   const countdown = useCountdown();
   const current = phase?.phase ?? 'LOBBY';
   const quarter = phase?.quarter ?? 0;
   const totalQuarters = phase?.totalQuarters ?? config.time.quarters;
   const urgent = countdown.ms !== null && countdown.ms <= config.presentation.countdownUrgentMs;
+  const canEndGame = me?.role === 'player' && current !== 'LOBBY' && current !== 'FINAL';
 
   return (
     <header className={`phase-header phase--${current}`}>
@@ -39,7 +41,24 @@ export function PhaseHeader() {
       </div>
 
       <div className="phase-header__me">
-        {me && <span className="phase-header__player" data-testid="me-name">{me.name}</span>}
+        <div className="phase-header__player-actions">
+          {me && <span className="phase-header__player" data-testid="me-name">{me.name}</span>}
+          {canEndGame && (
+            <button
+              type="button"
+              className="btn btn--ghost phase-header__end"
+              disabled={join !== 'joined'}
+              onClick={() => {
+                if (window.confirm('End this game for everyone and show the final standings?')) {
+                  client.send({ t: 'end_game', game });
+                }
+              }}
+              data-testid="end-game"
+            >
+              End game
+            </button>
+          )}
+        </div>
         <span className="phase-header__status">
           <SoundToggle />
           <ConnectionBadge />

@@ -15,7 +15,7 @@
  * at 1366x768, countdown cadence, a duplicated tab (old tab is blocked) and a lost tab (back in by name).
  * Milestone 2 (market): the `market` snapshot through the proxy, 37 symbols in 7 groups on both players,
  * on-screen prices equal one server tick and agree between the two windows, a candle chart that grows one
- * candle per second and really has candles painted (stock, index fund, /floor), prices frozen outside
+ * candle per second and really has candles painted (stock and index fund), a projector net-worth chart, prices frozen outside
  * TRADING and continuing next quarter with continuing day numbers, a mid-quarter refresh that restores
  * list + chart history, and main-thread health at 10 Hz.
  * Later milestones: add a `step(...)` block in main() after the ones that are there.
@@ -28,7 +28,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 import type { Browser, Page } from 'playwright-core';
-import { QUARTER_PHASES, SECTORS, defaultConfig } from '@tg/shared';
+import { FINAL_QUARTER_PHASES, QUARTER_PHASES, SECTORS, defaultConfig } from '@tg/shared';
 import type { DeepPartial, EarningsMsg, GameConfig, LobbyState, MarketMsg, Phase, ServerMsg, TickMsg } from '@tg/shared';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -39,17 +39,17 @@ const earningsOnly = process.env.TG_E2E_EARNINGS === '1';
 const QUARTERS = 2;
 /**
  * Trading days per quarter: long enough to click around, reload and watch candles appear. Every step up
- * to the headline checks must fit in Q1's trading phase: they take about 25 s, with a reload step that
- * varies by several seconds; 26 and 32 days were too tight (the phase loop then caught Q2's EARNINGS).
+ * to the headline checks must fit in Q1's trading phase, including reloads and browser scheduling delays.
  */
-const DAYS = earningsOnly ? 8 : 40;
+const DAYS = earningsOnly ? 8 : 55;
 const TICKS_PER_DAY = defaultConfig.time.ticksPerCandle;
 const DAY_MS = TICKS_PER_DAY * defaultConfig.time.tickMs;
 const TRADING_MS = DAYS * DAY_MS;
+// Leave time for the browser to check and capture each screen before the next phase starts.
+const PHASE_MS = { BRIEFING: 1500, EARNINGS: 2000, RESULTS: 3500, SHOP: 5000 };
 const overrides: DeepPartial<GameConfig> = {
   time: { quarters: QUARTERS, daysPerQuarter: DAYS },
-  // SHOP is long enough to buy cards in (milestone 5).
-  phaseMs: { BRIEFING: 1500, EARNINGS: 800, RESULTS: 1500, SHOP: 3000 },
+  phaseMs: PHASE_MS,
   lobby: { minPlayers: 2 },
   ...(earningsOnly ? {
     news: { randomHeadlinesPerQuarter: 3, scheduledBeatsPerQuarter: 0, noiseShare: 1, quietDays: 0 },
@@ -60,7 +60,8 @@ const overrides: DeepPartial<GameConfig> = {
     news: { randomHeadlinesPerQuarter: 4, minGapMs: 2_000 },
   }),
 };
-const GAME_MS = QUARTERS * (1500 + TRADING_MS + 800 + 1500) + (QUARTERS - 1) * 3000;
+const GAME_MS = QUARTERS * (PHASE_MS.BRIEFING + TRADING_MS + PHASE_MS.EARNINGS)
+  + (QUARTERS - 1) * (PHASE_MS.RESULTS + PHASE_MS.SHOP);
 const COMPANIES_PER_SECTOR = defaultConfig.market.companiesPerSector;
 const SYMBOL_COUNT = 1 + SECTORS.length + SECTORS.length * COMPANIES_PER_SECTOR;
 const WAIT_MS = 15_000;
@@ -248,7 +249,8 @@ function checkCadence(label: string, ticks: PhaseSeen[]): void {
     `${label} countdown stepped 1 s at a time, ${steps.length} steps, worst off by ${Math.round(worst)} ms (limit ${CADENCE_TOLERANCE_MS})`);
   const flipMax = Math.max(...flips);
   const flipMin = Math.min(...flips);
-  check(flips.length >= 8 && flipMax <= 1000 + CADENCE_TOLERANCE_MS && flipMin >= 500,
+  const expectedFlips = (QUARTERS - 1) * (QUARTER_PHASES.length - 1) + FINAL_QUARTER_PHASES.length;
+  check(flips.length >= expectedFlips && flipMax <= 1000 + CADENCE_TOLERANCE_MS && flipMin >= 500,
     `${label} phases flipped ${Math.round(flipMin)}-${Math.round(flipMax)} ms after the display reached 0:01 (${flips.length} flips)`);
 }
 
@@ -873,14 +875,16 @@ async function main(): Promise<void> {
       await selectSymbol(a, stockA);
     });
 
-    await step('market: /floor shows the index fund chart', async () => {
-      check(await floor.locator(tid('floor-market')).isVisible(), 'the floor shows the market section');
-      check((await textOf(floor, 'selected-ticker')) === indexSymbol, `the floor header shows the index fund ${indexSymbol}`);
-      const floorChart = await checkChartDrawn(floor, 'floor', indexSymbol, 5);
+    await step('projector: net worth chart and current standings', async () => {
+      const chart = floor.locator(tid('net-worth-chart'));
+      await waitFor('projector net worth by trading day', async () => Number(await chart.getAttribute('data-day')) >= 5);
+      const floorChart = await chart.boundingBox();
+      check(floorChart !== null, 'the floor shows the net-worth chart');
       check(floorChart.width >= 900 && floorChart.height >= 400, `the floor chart is large (${floorChart.width}x${floorChart.height})`);
-      const price = shownPrice(await textOf(floor, 'selected-price'));
-      await sleep(130);
-      check(ticksOf('floor').slice(-8).some((t) => t.prices[indexSymbol] === price), `the floor price ${price} is a recent tick price of ${indexSymbol}`);
+      check(await chart.locator('canvas').count() > 0, 'the projector chart is drawn');
+      const values = await floor.locator(tid('net-worth-value')).allTextContents();
+      check(values.length === 2 && values.every((value) => Number(value.replace(/[$,]/g, '')) === defaultConfig.economy.startingCash),
+        'the projector shows the starting net worth for both players');
       await shot(floor, '17-floor-chart');
       await checkNoOverflow(floor, 'floor with the chart');
       await checkNoOverflow(a, 'desk with list and chart at 1366x768');
@@ -1170,6 +1174,7 @@ async function main(): Promise<void> {
           check(!framesOf('A').some((m) => m.t === 'bet_result') && lastPortfolio?.positions.some((p) => p.symbol === quickBetSymbol) === true,
             `A's quick bet on ${quickBetSymbol} is still open at RESULTS (nothing cashed out by itself)`);
           await shot(a, '14-play-RESULTS-board');
+          check((await floor.locator(tid('floor-tape')).count()) === 0, 'the projector hides the headline ticker in Results');
           await shot(floor, '14-floor-RESULTS');
         }
       }
@@ -1179,8 +1184,7 @@ async function main(): Promise<void> {
       const q1Last = q1Ticks.at(-1)!;
       check(q1Last.day === DAYS - 1 && q1Last.tickOfDay === TICKS_PER_DAY, `Q1 ended on day ${q1Last.day}, tick ${q1Last.tickOfDay}`);
       check(q1Ticks.length === DAYS * TICKS_PER_DAY, `A received all ${DAYS * TICKS_PER_DAY} ticks of Q1 (got ${q1Ticks.length})`);
-      const floorFrozen = shownPrice(await textOf(floor, 'selected-price'));
-      check(floorFrozen === q1Last.prices[indexSymbol], `in SHOP the floor still shows the Q1 close of ${indexSymbol} (${floorFrozen})`);
+      check(Number(await floor.locator(tid('net-worth-chart')).getAttribute('data-day')) === DAYS, 'the floor net-worth chart stays on the Q1 close during SHOP');
       await shot(floor, '14-floor-SHOP');
       await a.locator(tid('ready-up')).click();
       await waitFor('the shop shows one player ready', async () => (await textOf(b, 'ready-count')) === '1/2 players ready');
@@ -1238,7 +1242,9 @@ async function main(): Promise<void> {
       const heatText = await textOf(a, 'heat');
       check(/^heat \d+$/.test(heatText), `A sees its heat: "${heatText}"`);
       await shot(a, '19-play-cards-q2');
-      await checkChartDrawn(floor, 'floor in Q2', indexSymbol, DAYS + 4);
+      const floorChart = floor.locator(tid('net-worth-chart'));
+      await waitFor('the projector chart advances into Q2', async () => Number(await floorChart.getAttribute('data-day')) >= DAYS + 4);
+      check(await floorChart.locator('canvas').count() > 0, 'the projector draws the Q2 net-worth lines');
       await shot(floor, '19-floor-TRADING-q2');
 
       // Refresh mid-quarter in Q2: the list and the chart history of BOTH quarters come back.
@@ -1253,10 +1259,10 @@ async function main(): Promise<void> {
       check((await boardOf(b)).length === SYMBOL_COUNT, `B lists ${SYMBOL_COUNT} symbols again`);
       await shot(b, '19-play-after-reload-q2');
 
-      // The floor chart holds every candle of the game by the last EARNINGS, before the standings replace it.
+      // The live chart reaches the last trading day before the final standings replace it.
       await waitForPhase(floor, 'EARNINGS', GAME_MS + WAIT_MS);
-      const floorEnd = await checkChartDrawn(floor, 'floor in the last EARNINGS', indexSymbol, QUARTERS * DAYS);
-      check(floorEnd.candles === QUARTERS * DAYS, `the floor chart ends with all ${QUARTERS * DAYS} candles`);
+      check(Number(await floor.locator(tid('net-worth-chart')).getAttribute('data-day')) === QUARTERS * DAYS,
+        `the floor net-worth chart reaches day ${QUARTERS * DAYS}`);
 
       await Promise.all([waitForPhase(a, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(floor, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(b, 'FINAL', GAME_MS + WAIT_MS)]);
       // Milestone 6: the final standings and awards, on the desk and on the projector.
@@ -1267,6 +1273,7 @@ async function main(): Promise<void> {
       check((await a.locator(tid('award')).count()) === (finalMsg?.awards?.length ?? -1), 'every award is on screen');
       await floor.waitForSelector(tid('floor-winner'));
       check(true, 'the floor shows the winner in FINAL');
+      check((await floor.locator(tid('floor-tape')).count()) === 0, 'the projector hides the headline ticker in Final Standings');
       await sleep(200);
       await shot(a, '20-play-FINAL');
       check((await textOf(a, 'hand-empty')) === 'Game over', 'in FINAL the hand says the game is over');
@@ -1276,9 +1283,8 @@ async function main(): Promise<void> {
 
       const expected: string[] = [`LOBBY Q-/${QUARTERS}`];
       for (let q = 1; q <= QUARTERS; q++) {
-        for (const phase of QUARTER_PHASES) {
-          if (phase !== 'SHOP' || q < QUARTERS) expected.push(`${phase} Q${q}/${QUARTERS}`);
-        }
+        const phases = q < QUARTERS ? QUARTER_PHASES : FINAL_QUARTER_PHASES;
+        for (const phase of phases) expected.push(`${phase} Q${q}/${QUARTERS}`);
       }
       expected.push(`FINAL Q${QUARTERS}/${QUARTERS}`);
       for (const [label, page] of [['A', a], ['floor', floor]] as const) {

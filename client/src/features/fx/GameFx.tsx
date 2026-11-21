@@ -77,7 +77,7 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
             ring.current = [price];
             fx.shake(2);
             play('whoosh');
-            const at = anchorOf(role === 'player' ? '[data-testid=market-panel], .desk__chart' : '[data-testid=floor-market]');
+            const at = anchorOf(role === 'player' ? '[data-testid=market-panel], .desk__chart' : '[data-testid=net-worth-chart]');
             fx.popup({ text: `${move > 0 ? '▲' : '▼'} MARKET ${(move * 100).toFixed(1)}%`, tone: move > 0 ? 'up' : 'down', ...at, size: 1.6 });
           }
           return;

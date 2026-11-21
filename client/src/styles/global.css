@@ -480,6 +480,16 @@ ol {
   align-items: center;
   gap: 10px;
 }
+.phase-header__player-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.phase-header__end {
+  padding: 2px 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
 .phase-header__player {
   font-weight: 700;
   color: var(--tg-color-text-bright);
@@ -715,7 +725,7 @@ ol {
   padding: 3vh 3vw;
   min-width: 0;
 }
-/* Lobby: phase and countdown are stacked children of floor__main. Game: one status line (see --market). */
+/* Lobby: phase and countdown are stacked. While a game is running they share a status line. */
 .floor__status {
   display: contents;
 }
@@ -764,42 +774,90 @@ ol {
   transition: transform 0.2s linear;
   will-change: transform;
 }
-/* Game running: status line on top, the index fund chart fills the rest. */
-.floor__main--market {
+/* Game running: status line on top, with the chart or standings below. */
+.floor__main--playing {
   justify-content: flex-start;
   align-items: stretch;
   gap: 1.5vh;
   padding: 2vh 2vw;
 }
-.floor__main--market .floor__status {
+.floor__main--playing .floor__status {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 2vw;
 }
-.floor__main--market .floor__phase {
+.floor__main--playing .floor__phase {
   font-size: 4vw;
 }
-.floor__main--market .floor__countdown {
+.floor__main--playing .floor__countdown {
   font-size: 6vw;
 }
-.floor__main--market .floor__countdown--idle {
+.floor__main--playing .floor__countdown--idle {
   font-size: 2.5vw;
 }
-.floor__main--market .floor__hint {
+.floor__main--playing .floor__hint {
   font-size: 1.4vw;
   text-align: left;
 }
-.floor__main--market .floor__progress {
+.floor__main--playing .floor__progress {
   width: 100%;
   flex: none;
 }
-.floor__market {
+.floor__net-worth {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 1.5vh;
+}
+.floor__net-worth-title {
+  font-family: var(--tg-font-display);
+  font-size: clamp(20px, 2vw, 38px);
+  color: var(--tg-color-text-bright);
+}
+.floor__net-worth-chart {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--tg-color-bg-inset);
+  border: 2px solid var(--tg-color-border);
+  border-radius: 10px;
+}
+.floor-worth {
+  display: grid;
+  gap: 1vh;
+}
+.floor-worth__player {
+  display: grid;
+  gap: 0.3vh;
+  padding: 1.2vh 1vw;
+  background: var(--tg-color-bg-inset);
+  border: 1px solid var(--tg-color-border);
+  border-radius: 8px;
+}
+.floor-worth__name {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  overflow-wrap: anywhere;
+  font-size: clamp(16px, 1.5vw, 29px);
+}
+.floor-worth__swatch {
+  width: 0.8em;
+  height: 4px;
+  flex: none;
+}
+.floor-worth__offline {
+  margin-left: auto;
+  color: var(--tg-color-text-dim);
+}
+.floor-worth__value {
+  font-family: var(--tg-font-display);
+  font-size: clamp(18px, 2vw, 38px);
+  color: var(--tg-color-text-bright);
+  overflow-wrap: anywhere;
 }
 .floor__side {
   grid-area: side;

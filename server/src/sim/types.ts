@@ -19,6 +19,7 @@ import type {
   GameConfig,
   LeaderboardEntry,
   MarketSnapshot,
+  NetWorthSample,
   MomentKind,
   OHLC,
   Phase,
@@ -50,6 +51,8 @@ export type SimIntent =
   | { kind: 'remove_player'; playerId: PlayerId }
   /** LOBBY only; needs config.lobby.minPlayers players. */
   | { kind: 'start'; playerId: PlayerId; debugMode?: boolean }
+  /** During an active game only. */
+  | { kind: 'end_game'; playerId: PlayerId }
   /** TRADING only. qty in shares, < 0 = sell/short; truncated to whole shares. holdDays = quick bet. */
   | { kind: 'order'; playerId: PlayerId; symbol: SymbolId; qty: number; holdDays?: number; requestId?: number }
   // --- later milestones (the stub rejects them) ---
@@ -149,7 +152,7 @@ export interface SimPlayer {
 export interface SimState {
   phase: Phase;
   debugMode: boolean;
-  /** 0 in LOBBY, then 1..config.time.quarters. Stays at the last quarter in FINAL. */
+  /** 0 in LOBBY, then the current quarter. FINAL keeps the quarter where the game ended. */
   quarter: number;
   /** Number of tick() calls so far. */
   tick: number;
@@ -192,6 +195,8 @@ export interface Sim {
    * it, rounded, as the `market` message after each `welcome`. Returns fresh objects.
    */
   getMarketSnapshot(): MarketSnapshot;
+  /** Equity at each market tick, starting at fromTick (inclusive). */
+  getNetWorth(fromTick?: number): NetWorthSample[];
   /**
    * A player's portfolio at current prices (unrounded), or undefined for an unknown player.
    * The shell sends it after `welcome` so a reconnect restores cash and positions at once.
