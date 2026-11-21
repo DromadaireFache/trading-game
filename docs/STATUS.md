@@ -23,7 +23,8 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 ## Not verified / known gaps
 
 - **M2 reviewed (2026-11-21).** I read `market.ts` and `universe.ts` and ran probes over 2000 seeds: names and tickers are unique, and no symbol hit the price floor in 20 high-volatility full games. One bug, now fixed: a NaN or infinite `dRate` left the policy rate NaN for the rest of the game, and infinite `volMult`/`corrMult` could floor prices. Non-finite step inputs now fall back to their defaults (`marketInputs.test.ts`). The rate is now bounded by `market.rateMin` / `rateMax` (M4).
-- **M3 not independently reviewed.** Unit, websocket and e2e tests cover it; margin call and elimination are tested in the sim only, not seen in a browser. Impact constants are first guesses for M7.
+- **M3 reviewed (2026-11-21).** The order clip, flips, partial closes, borrow fee, liquidation order and elimination are correct. One bug is fixed: the leverage clip ignored the order's own slippage, so with $100M or more a max-size order into a thin stock landed at about 10x at mid, against the 4x cap. The clip now pays for slippage (`tradingReview.test.ts`). Two impact tests and one e2e threshold were moved to match. **Open balance exploit, for the M3 owner:** a player's own price impact is still in the mark when equity is valued. Buying the thinnest stock at the cap on the last tick of the game adds about 11% to final net worth at $10M and about 50% at $100M (`last-tick-pump` bot). Options are to value at mid without the player's own temporary impact, flush temporary impact at the close, or keep `impact.maxPermanent` well below `maxSlippage`.
+- **e2e fails on this machine (macOS), with or without the review changes.** The step "every phase of every quarter, then FINAL" times out (`waitForSelector`, 15 s) in BRIEFING of Q2, and a failed run leaves its game server listening on its port (`timed out waiting for ports ... to be free`). Not investigated.
 - **Generator never run.** It typechecks, but has never run, not even with `--dry-run`. It has no npm script, README or tests yet.
 - **No second machine tested.** A connection from another physical machine on the LAN is untested. Only this host was used, with the server bound to all interfaces.
 - **No restart.** Starting a new game needs a server restart.
@@ -32,7 +33,7 @@ npm run dev        # prints the LAN URLs: http://<host-ip>:5173/play (players) a
 
 1. **M5 Cards and shop.** Wire the catalog into the sim: shop offers, hand, card effects, heat, the SEC catch roll and jail.
 2. **M6 Results, final and floor.** Recap with causes, awards, and BREAKING moments.
-3. **M7 Balance harness.** `npm run balance`, tuned toward a median winner of $1B–3B.
+3. **M7 Balance harness.** `npm run balance` exists (`tools/balance/`): 6 bots (hold-index, levered-index, momentum, yolo, short-index, last-tick-pump) play whole games headless. Quiet-market baseline over 50 games: the median winner is about $15M (p90 $63M), roughly 100x below the $1B–3B target. Headlines and earnings are in the sim since M4; cards and regimes come with M5. Next: run it again and tune toward $1B–3B.
 
 ## Suggested split
 

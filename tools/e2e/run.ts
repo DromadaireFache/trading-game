@@ -807,7 +807,9 @@ async function main(): Promise<void> {
       };
       await waitFor('A portfolio after the second fill', async () => afterFill() !== undefined);
       const bpA = afterFill()!.buyingPower ?? NaN;
-      check(bpA < 0.01 * cap * afterFill()!.equity, `the $500M order was clipped to the leverage cap: ${Math.round(bpA)} buying power left at the fill`);
+      // The clip pays for the order's own slippage, and the order's impact then marks the position up a
+      // little, so a few percent of buying power can be left over.
+      check(bpA < 0.05 * cap * afterFill()!.equity, `the $500M order was clipped to the leverage cap: ${Math.round(bpA)} buying power left at the fill`);
       check(!(await a.locator(tid('error')).isVisible().catch(() => false)), 'the clipped order showed no error');
       await shot(a, '19-play-trading-A');
       await checkNoOverflow(a, 'desk with positions at 1366x768');

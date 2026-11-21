@@ -206,11 +206,12 @@ describe('price impact', () => {
 
   it('buys fill above the mid by lambda * notional / adv, sells below', () => {
     const d = desk({ impact: im });
-    d.trading.order('p1', 'AAA', 400_000); // $40M (the leverage cap) on $1B adv: x = 0.04
-    expect(holding(d, 'AAA')!.avgPrice).toBeCloseTo(100 * (1 + 0.05 * 0.04), 10);
+    // Half the leverage cap: the full cap no longer fits once the order's own slippage is paid.
+    d.trading.order('p1', 'AAA', 200_000); // $20M on $1B adv: x = 0.02
+    expect(holding(d, 'AAA')!.avgPrice).toBeCloseTo(100 * (1 + 0.05 * 0.02), 10);
     const e = desk({ impact: im });
-    e.trading.order('p1', 'AAA', -400_000);
-    expect(holding(e, 'AAA')!.avgPrice).toBeCloseTo(100 * (1 - 0.05 * 0.04), 10);
+    e.trading.order('p1', 'AAA', -200_000);
+    expect(holding(e, 'AAA')!.avgPrice).toBeCloseTo(100 * (1 - 0.05 * 0.02), 10);
   });
 
   it('the second buyer on the same tick pays more than the first', () => {
@@ -226,15 +227,15 @@ describe('price impact', () => {
 
   it('the price jumps by permanent + temporary, then the temporary part decays with the half-life', () => {
     const d = desk({ impact: im });
-    d.trading.order('p1', 'AAA', 400_000); // x = 0.04: perm 0.0008, temp 0.002
+    d.trading.order('p1', 'AAA', 200_000); // x = 0.02: perm 0.0004, temp 0.001
     const perHalfLife = im.temporaryHalfLifeMs / defaultConfig.time.tickMs;
     const logs: number[] = [];
     for (let i = 0; i < perHalfLife * 6; i++) {
       d.step();
       logs.push(Math.log(d.prices.AAA! / 100));
     }
-    const perm = 0.02 * 0.04;
-    const temp = 0.05 * 0.04;
+    const perm = 0.02 * 0.02;
+    const temp = 0.05 * 0.02;
     // Right after the fill: almost the full perm + temp (one tick of decay already).
     expect(logs[0]).toBeGreaterThan(perm + temp * 0.98);
     // After one half-life, half the temporary part is gone.

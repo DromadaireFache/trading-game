@@ -194,11 +194,25 @@ export function createTrading(deps: TradingDeps): Trading {
       if (!reducesOnly && next !== 0) {
         const v = value(account);
         const grossOthers = v.gross - Math.abs(cur) * mid;
-        const maxAbs = Math.max(0, Math.floor((t.leverageCap * v.equity - grossOthers) / mid));
-        if (Math.abs(next) > maxAbs) {
-          // Same side: never force a reduction of what is already held. Other side: up to maxAbs.
-          const allowed = Math.sign(next) === Math.sign(cur) ? Math.max(Math.abs(cur), maxAbs) : maxAbs;
-          next = Math.sign(next) * allowed;
+        const side = Math.sign(next);
+        const sameSide = side === Math.sign(cur);
+        // Largest |next| with gross <= leverageCap * equity AFTER paying this order's slippage (the
+        // slippage is lost equity, so ignoring it let a big order into a small cap land at ~10x).
+        const fits = (n: number): boolean => {
+          const traded = Math.abs(side * n - cur);
+          const cost = traded === 0 ? 0 : traded * mid * Math.min(im.maxSlippage, adv > 0 ? (im.lambda * traded * mid) / adv : Infinity);
+          return grossOthers + n * mid <= t.leverageCap * (v.equity - cost);
+        };
+        let lo = sameSide ? Math.abs(cur) : 0;
+        let hi = Math.max(lo, Math.floor((t.leverageCap * v.equity - grossOthers) / mid));
+        while (lo < hi) {
+          const probe = Math.ceil((lo + hi) / 2);
+          if (fits(probe)) lo = probe;
+          else hi = probe - 1;
+        }
+        if (Math.abs(next) > lo) {
+          // Same side: never forces a reduction of what is held (lo starts at |cur|). Other side: up to lo, at worst a close.
+          next = side * lo;
           const clipped = next - cur;
           if (clipped === 0 || Math.sign(clipped) !== Math.sign(q)) {
             return { ok: false, code: 'insufficient_buying_power', message: `not enough buying power for ${symbol}` };
