@@ -25,9 +25,10 @@ const THROW_MS = 520;
 
 /**
  * Headlines land as newspaper clippings (julien's paper look) on a pile at the bottom right, over your
- * cards, newest on top, each with its own slight tilt. A paper can only be moved (drag it) or removed
- * (its x, or a right click, throws it off screen); nothing else on it reacts. Otherwise it stays until
- * PILE newer papers bury it.
+ * cards, newest on top, each with its own slight tilt. A paper can be moved (drag it) or removed (its
+ * x, or a right click, throws it off screen), and its ticker opens the stock (or the sector fund, or the
+ * index for market-wide news); nothing else on it reacts. Otherwise it stays until PILE newer papers
+ * bury it.
  */
 export function NewsPile({ className }: { className?: string }) {
   const { headlines, config } = useGame();
@@ -89,6 +90,7 @@ export function NewsPile({ className }: { className?: string }) {
           pop={pop}
           depth={pop.thrown ? -1 : resting.length - 1 - resting.indexOf(pop)}
           symbols={symbols}
+          onOpen={(symbol) => market.select(symbol)}
           onThrow={() => throwOut(pop.key)}
           onGrab={() => raise(pop.key)}
         />
@@ -117,9 +119,11 @@ interface PaperProps {
   symbols: readonly SymbolInfo[];
   onThrow: () => void;
   onGrab: () => void;
+  /** The ticker was clicked: open that stock. */
+  onOpen: (symbol: string) => void;
 }
 
-function Paper({ pop, depth, symbols, onThrow, onGrab }: PaperProps) {
+function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
   const { config } = useGame();
   const { headline, thrown } = pop;
   const ticker = tickerOf(headline, symbols);
@@ -182,7 +186,7 @@ function Paper({ pop, depth, symbols, onThrow, onGrab }: PaperProps) {
       }}
       onContextMenu={onContextMenu}
       onKeyDown={onKeyDown}
-      title="Drag to move it. x or right-click throws it away."
+      title="Drag to move it. Click the ticker to open the stock. x or right-click throws it away."
       data-testid="headline"
       data-id={headline.id}
       data-depth={depth}
@@ -213,10 +217,17 @@ function Paper({ pop, depth, symbols, onThrow, onGrab }: PaperProps) {
         </figure>
       </div>
       <footer className="paper__foot">
-        <span className="paper__note">{headline.early ? 'Only you can see this. Not public yet.' : 'Find it in your list: the price moves in seconds.'}</span>
-        <span className="paper__ticker" data-testid="headline-ticker">
+        <span className="paper__note">{headline.early ? 'Only you can see this. Not public yet.' : 'Click the ticker to open it. The price moves in seconds.'}</span>
+        <button
+          type="button"
+          className="paper__ticker"
+          disabled={!symbols.some((s) => s.symbol === ticker)}
+          onClick={() => onOpen(ticker)}
+          title={`Open ${ticker}`}
+          data-testid="headline-ticker"
+        >
           {ticker}
-        </span>
+        </button>
       </footer>
     </article>
   );
