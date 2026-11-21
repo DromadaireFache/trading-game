@@ -22,9 +22,13 @@
 import type { GameConfig, Phase } from '@tg/shared';
 import { createMarket } from './market.ts';
 import { nextPhase, phaseLength } from './phases.ts';
+import { DEFAULT_HEADLINES, DEFAULT_PLACEHOLDERS } from './data/headlineData.ts';
+import { createHeadlineBook } from './headlines.ts';
+import { createNews } from './news.ts';
 import { createRng } from './rng.ts';
+import { addReturns } from './shocks.ts';
 import { createTrading } from './trading.ts';
-import type { Sim, SimEvent, SimIntent, SimPlayer, SimRejectCode, SimState } from './types.ts';
+import type { Sim, SimEvent, SimEventOf, SimIntent, SimOptions, SimPlayer, SimRejectCode, SimState } from './types.ts';
 import { generateUniverse } from './universe.ts';
 
 export * from './types.ts';
@@ -38,8 +42,12 @@ export { createMarket } from './market.ts';
 export type { CreateMarket, Market, MarketEvent, MarketStepInput } from './market.ts';
 export { createTrading } from './trading.ts';
 export type { Account, Holding, OrderResult, Trading, TradingDeps, TradingEvent } from './trading.ts';
+export { createHeadlineBook, fillHeadline, MAGNITUDES } from './headlines.ts';
+export type { FillContext, HeadlineBook, HeadlineQuery, PlaceholderLists } from './headlines.ts';
+export { createNews } from './news.ts';
+export type { HeadlineEvent, News, NewsDeps, NewsItem, NewsSource, PublishedHeadline } from './news.ts';
 
-export function createSim(seed: number, config: GameConfig): Sim {
+export function createSim(seed: number, config: GameConfig, options: SimOptions = {}): Sim {
   // One child stream per subsystem, forked in a fixed order. Append new forks at the END.
   const rng = createRng(seed);
   const universe = generateUniverse(rng.fork(), config);
@@ -54,6 +62,20 @@ export function createSim(seed: number, config: GameConfig): Sim {
     advOf: (symbol) => advBySymbol.get(symbol),
     now: () => market.getDay() + market.getTickOfDay() / config.time.ticksPerCandle,
   });
+  // Milestone 4 streams, appended after the market's so universes and price paths stay the same.
+  const newsRng = rng.fork();
+  const earningsRng = rng.fork();
+  const news = createNews({
+    config,
+    universe,
+    book: createHeadlineBook(options.headlines ?? DEFAULT_HEADLINES, newsRng),
+    lists: options.placeholders ?? DEFAULT_PLACEHOLDERS,
+    rng: newsRng,
+    earningsRng,
+  });
+  const tpc = config.time.ticksPerCandle;
+  /** Market tick of the step about to be made (shocks.ts / news.ts time). */
+  const marketTick = () => market.getDay() * tpc + market.getTickOfDay();
 
   const queue: SimIntent[] = [];
   const players: SimPlayer[] = [];
@@ -70,6 +92,8 @@ export function createSim(seed: number, config: GameConfig): Sim {
     quarter = next.quarter;
     phaseTick = 0;
     events.push({ e: 'phase', phase, quarter, durationTicks: phaseLength(config, phase) });
+    if (phase === 'BRIEFING') events.push({ e: 'briefing', ...news.startQuarter(quarter, marketTick(), market.getRate()) });
+    if (phase === 'EARNINGS') events.push({ e: 'earnings', quarter, reports: news.closeQuarter() });
   }
 
   function reject(intent: SimIntent, code: SimRejectCode, message: string): void {
@@ -152,9 +176,16 @@ export function createSim(seed: number, config: GameConfig): Sim {
         // Prices move only in TRADING: one market step per tick of the phase.
         // Later milestones add regimes / news to the step input next to the price impact.
         if (phase === 'TRADING') {
-          const symbolReturn = trading.stepInput();
+          const impact = trading.stepInput();
+          const headlines = news.beforeStep(marketTick(), market.getRate());
+          for (const event of headlines.events) events.push(event);
+          const symbolReturn = impact && headlines.symbolReturn ? addReturns(impact, headlines.symbolReturn) : (impact ?? headlines.symbolReturn);
+          const input = {
+            ...(symbolReturn === undefined ? {} : { symbolReturn }),
+            ...(headlines.dRate === 0 ? {} : { dRate: headlines.dRate }),
+          };
           let dayClosed = false;
-          for (const event of market.step(symbolReturn === undefined ? undefined : { symbolReturn })) {
+          for (const event of market.step(input)) {
             if (event.e === 'candle') dayClosed = true;
             events.push(event);
           }
@@ -182,5 +213,15 @@ export function createSim(seed: number, config: GameConfig): Sim {
     getUniverse: () => universe,
     getMarketSnapshot: () => market.getSnapshot(),
     getPortfolio: (playerId) => trading.portfolio(playerId),
+    getNewsSnapshot() {
+      const briefing = news.briefing();
+      const earnings = news.earnings();
+      return {
+        briefing: briefing === null ? null : ({ e: 'briefing', ...briefing } as SimEventOf<'briefing'>),
+        earnings: earnings === null ? null : { e: 'earnings', ...earnings },
+        headlines: news.recent(config.news.replayHeadlines),
+      };
+    },
+    news,
   };
 }

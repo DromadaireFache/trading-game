@@ -859,12 +859,40 @@ async function main(): Promise<void> {
       await late.context().close();
     });
 
+    await step('headlines: both players get the same news feed, slots filled, beats announced', async () => {
+      const headlineFrames = (label: string) => framesOf(label).filter((m) => m.t === 'headline') as Array<{ id: string; text: string; symbol?: string; early?: boolean }>;
+      await waitFor('at least 3 headlines', async () => headlineFrames('A').length >= 3);
+      const onA = headlineFrames('A');
+      check(onA.every((h) => !/\{[A-Z_]+\}/.test(h.text)), `every headline has its slots filled (${onA.length} so far)`);
+      check(new Set(onA.map((h) => h.id)).size === onA.length, 'no headline id repeats on the wire');
+      const shownA = await a.locator(tid('headline')).count();
+      check(shownA === Math.min(onA.length, 60), `A's feed lists the ${onA.length} headlines received (${shownA} shown)`);
+      const topA = (await a.locator(`${tid('headline')} .news__text`).first().textContent())?.trim();
+      check(topA === onA.at(-1)!.text, `the newest headline is on top: "${topA}"`);
+      const idsB = new Set(headlineFrames('B').map((h) => h.id));
+      check(onA.filter((h) => !h.early).slice(-3).every((h) => idsB.has(h.id)), 'B received the same latest headlines as A');
+      check(!headlineFrames('floor').some((h) => h.early), 'no early (insider) headline reached the floor');
+      const stockHeadline = onA.find((h) => h.symbol !== undefined);
+      if (stockHeadline) {
+        const name = stocks.find((s) => s.symbol === stockHeadline.symbol)?.name ?? '';
+        log(`  stock headline on ${stockHeadline.symbol} (${name}): "${stockHeadline.text}"`);
+      }
+      const beats = await a.locator(`${tid('beats')} li`).count();
+      check(beats === defaultConfig.news.scheduledBeatsPerQuarter, `the briefing beats are listed (${beats})`);
+      check((await b.locator(tid('headline')).count()) > 0, 'B (reloaded mid-quarter) shows headlines too');
+      await shot(a, '20-play-headlines');
+    });
+
     await step('every phase of every quarter, then FINAL', async () => {
       for (const phase of ['EARNINGS', 'RESULTS', 'SHOP'] as const) {
         await waitForPhase(a, phase);
         await shot(a, `14-play-${phase}`);
         await checkNoOverflow(a, `desk in ${phase} at 1366x768`);
         check(await a.locator(tid('size-usd-1000000')).isDisabled(), `order buttons are disabled in ${phase}`);
+        if (phase !== 'EARNINGS') {
+          await a.waitForSelector(tid('earnings'));
+          check(true, `A shows the Q1 earnings reports in ${phase}`);
+        }
       }
 
       // Frozen between quarters: the last tick of Q1 stays on screen until Q2 trades.
@@ -892,8 +920,16 @@ async function main(): Promise<void> {
       await waitFor('first ticks of Q2', async () => ticksOf('A').length >= q1Ticks.length + 3);
       const q2First = ticksOf('A')[q1Ticks.length]!;
       check(q2First.day === DAYS && q2First.tickOfDay === 1, `the first tick of Q2 is day ${q2First.day}, tick ${q2First.tickOfDay} (days continue)`);
-      const jump = Math.max(...Object.keys(q1Last.prices).map((s) => Math.abs(q2First.prices[s]! / q1Last.prices[s]! - 1)));
-      check(jump < 0.05, `Q2 opens at the Q1 level: largest one-tick move ${(jump * 100).toFixed(2)}% (limit 5%)`);
+      // Milestone 4: each company opens at its Q1 close moved by its earnings gap (plus one tick of noise).
+      const q1Earnings = framesOf('A').find((m) => m.t === 'earnings' && m.quarter === 1) as
+        | { reports: Array<{ symbol: string; gap: number }> }
+        | undefined;
+      check(q1Earnings !== undefined && q1Earnings.reports.length === stocks.length, `A got the Q1 earnings of all ${stocks.length} companies`);
+      const off = Math.max(
+        ...q1Earnings.reports.map((r) => Math.abs(Math.log(q2First.prices[r.symbol]! / q1Last.prices[r.symbol]!) - r.gap)),
+      );
+      const biggest = Math.max(...q1Earnings.reports.map((r) => Math.abs(r.gap)));
+      check(off < 0.05, `Q2 opens at the Q1 close plus the earnings gap: worst miss ${(off * 100).toFixed(2)}% (biggest gap ${(biggest * 100).toFixed(1)}%)`);
       await sleep(4 * DAY_MS);
       const q2Chart = await checkChartDrawn(a, 'A in Q2', stockA, DAYS + 4);
       const q2Open = framesOf('A').flatMap((m) => (m.t === 'candle' && m.day === DAYS ? [m.ohlc[stockA]!.o] : []))[0];

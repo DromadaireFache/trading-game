@@ -11,7 +11,9 @@
 import type {
   Arrest,
   Award,
+  Briefing,
   Card,
+  EarningsReport,
   CardDirection,
   CardOffer,
   ForcedFillReason,
@@ -28,6 +30,9 @@ import type {
   Statement,
   SymbolId,
 } from '@tg/shared';
+import type { HeadlineTemplate } from '@tg/shared';
+import type { PlaceholderLists } from './headlines.ts';
+import type { News } from './news.ts';
 import type { Universe } from './universe.ts';
 
 // ---------------------------------------------------------------------------
@@ -79,7 +84,11 @@ export type SimEvent =
   | { e: 'candle'; day: number; ohlc: Record<SymbolId, OHLC> }
   // --- later milestones: shapes mirror the wire messages in @tg/shared ---
   /** `to` set = private (insider preview with early: true); unset = broadcast. */
-  | { e: 'headline'; to?: PlayerId; id: string; text: string; symbol?: SymbolId; sector?: Sector; ts: number; early?: boolean }
+  | { e: 'headline'; to?: PlayerId; id: string; text: string; symbol?: SymbolId; sector?: Sector; ts: number; early?: boolean; rate?: number }
+  /** Milestone 4: right after the BRIEFING phase event. */
+  | ({ e: 'briefing' } & Briefing)
+  /** Milestone 4: right after the EARNINGS phase event. Gaps show at the next quarter's first tick. */
+  | { e: 'earnings'; quarter: number; reports: EarningsReport[] }
   /** Milestone 3: a market order (or a forced close) was filled. Price unrounded. */
   | { e: 'fill'; playerId: PlayerId; symbol: SymbolId; qty: number; price: number; ts: number; reason?: ForcedFillReason }
   | {
@@ -169,6 +178,24 @@ export interface Sim {
    * The shell sends it after `welcome` so a reconnect restores cash and positions at once.
    */
   getPortfolio(playerId: PlayerId): SimEventOf<'portfolio'> | undefined;
+  /**
+   * What a (re)joining client needs to show the news: this quarter's briefing, the latest earnings
+   * (until the next BRIEFING) and the last config.news.replayHeadlines public headlines, oldest first.
+   */
+  getNewsSnapshot(): {
+    briefing: SimEventOf<'briefing'> | null;
+    earnings: SimEventOf<'earnings'> | null;
+    headlines: SimEventOf<'headline'>[];
+  };
+  /** The news engine (published headlines with their causes, the queue, earnings plan). */
+  readonly news: News;
 }
 
-export type CreateSim = (seed: number, config: GameConfig) => Sim;
+export interface SimOptions {
+  /** Headline database (default: shared/data via ./data/headlineData.ts). */
+  headlines?: readonly HeadlineTemplate[];
+  /** Placeholder fill lists (default: shared/data/placeholders.json). */
+  placeholders?: PlaceholderLists;
+}
+
+export type CreateSim = (seed: number, config: GameConfig, options?: SimOptions) => Sim;

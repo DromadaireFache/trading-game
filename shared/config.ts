@@ -139,6 +139,9 @@ export interface GameConfig {
     /** Starting policy rate (0.03 = 3%) and the size of one rate move. */
     startRate: number;
     rateStep: number;
+    /** The rate decision never takes the policy rate outside [rateMin, rateMax]. */
+    rateMin: number;
+    rateMax: number;
   };
   impact: {
     /** fill_price = mid * (1 + sign(q) * lambda * notional / adv). */
@@ -169,6 +172,21 @@ export interface GameConfig {
     randomHeadlinesPerQuarter: number;
     /** Share of random headlines that are neutral noise. */
     noiseShare: number;
+    /** Relative odds of a random (non-noise) headline's scope. */
+    scopeWeights: Record<'market' | 'sector' | 'stock', number>;
+    /** Relative odds of a random headline's magnitude. */
+    magnitudeWeights: Record<HeadlineMagnitude, number>;
+    /** A shock's size is shock[magnitude] * (1 + shockJitter * u), u uniform in [-1, 1]. */
+    shockJitter: number;
+    /** No random headline in the first quietDays trading days of a quarter. */
+    quietDays: number;
+    /**
+     * Names of the quarter's scheduled beats, announced at BRIEFING with their day (direction hidden).
+     * The FIRST one is the central-bank rate decision: it also moves the policy rate by market.rateStep.
+     */
+    beatTitles: string[];
+    /** How many recent headlines a (re)joining client gets. */
+    replayHeadlines: number;
   };
   earnings: {
     /** Std-dev of true_surprise drawn at BRIEFING. */
@@ -326,6 +344,8 @@ export const defaultConfig: GameConfig = {
     priceDecimals: 2,
     startRate: 0.03,
     rateStep: 0.0025,
+    rateMin: 0,
+    rateMax: 0.12,
   },
   impact: {
     lambda: 0.05,
@@ -344,6 +364,12 @@ export const defaultConfig: GameConfig = {
     scheduledBeatsPerQuarter: 3,
     randomHeadlinesPerQuarter: 12,
     noiseShare: 0.25,
+    scopeWeights: { market: 0.2, sector: 0.3, stock: 0.5 },
+    magnitudeWeights: { small: 0.35, medium: 0.35, large: 0.22, huge: 0.08 },
+    shockJitter: 0.25,
+    quietDays: 2,
+    beatTitles: ['Central bank rate decision', 'Jobs report', 'GDP flash estimate', 'Inflation print'],
+    replayHeadlines: 30,
   },
   earnings: {
     surpriseSigma: 0.08,
@@ -532,6 +558,14 @@ export function validateConfig(config: GameConfig): GameConfig {
         if (position > 1) problems.push(`config.market.sectorProfiles.${sector}.${key} must be a position 0..1, got ${position}`);
       }
     }
+    if (m.rateMin > m.rateMax || m.startRate < m.rateMin || m.startRate > m.rateMax) {
+      problems.push('config.market.rateMin <= startRate <= rateMax must hold');
+    }
+    const n = config.news;
+    if (n.shockJitter > 1) problems.push('config.news.shockJitter must be <= 1');
+    if (Object.values(n.scopeWeights).every((w) => w === 0)) problems.push('config.news.scopeWeights must not all be 0');
+    if (Object.values(n.magnitudeWeights).every((w) => w === 0)) problems.push('config.news.magnitudeWeights must not all be 0');
+    if (n.scheduledBeatsPerQuarter > n.beatTitles.length) problems.push('config.news.beatTitles needs one title per scheduled beat');
     const e = config.earnings;
     if (e.leakShareMin > e.leakShareMax || e.leakShareMax > 1) problems.push('config.earnings.leakShareMin must be <= leakShareMax <= 1');
     for (const sector of m.rateLovingSectors) {
