@@ -1,10 +1,11 @@
 import { useCallback, useRef } from 'react';
-import type { ServerMsg } from '@tg/shared';
+import type { Phase, PhaseInfo, ServerMsg } from '@tg/shared';
 import { formatMoneyShort, formatShares } from '../../lib/format.ts';
 import { useGameClient, useServerMessages } from '../../net/GameProvider.tsx';
 import { applyServerMsg } from '../../net/state.ts';
 import { anchorOf, fx } from './fx.ts';
 import { play } from './sound.ts';
+import type { SoundName } from './sound.ts';
 
 /** Index move within BIG_MOVE_WINDOW ticks that shakes the screen (fraction). */
 const BIG_MOVE = 0.025;
@@ -12,6 +13,14 @@ const BIG_MOVE_WINDOW = 20;
 const BIG_MOVE_COOLDOWN_MS = 6_000;
 /** Realized P&L smaller than this share of equity gets a popup but no fanfare. */
 const BIG_WIN_SHARE = 0.02;
+const PHASE_SOUND: Partial<Record<Phase, SoundName>> = {
+  BRIEFING: 'briefing',
+  TRADING: 'bell',
+  EARNINGS: 'earnings',
+  RESULTS: 'pop',
+  SHOP: 'shop',
+  FINAL: 'final',
+};
 
 /**
  * Turns server messages into effects and sounds. Mounted once per page, renders nothing.
@@ -23,7 +32,7 @@ const BIG_WIN_SHARE = 0.02;
  *    which arrive right after each fill), because a closed position leaves the list.
  *  - a public headline: blip (the headline itself pops up as a newspaper, see NewsPopups)
  *  - the index moving BIG_MOVE within ~2 s: shake and whoosh
- *  - TRADING opens: bell; RESULTS / FINAL: pop
+ *  - phase changes and quick-bet outcomes: distinct cues
  *  - a BREAKING moment: big shake and sting
  */
 export function GameFx({ role }: { role: 'player' | 'spectator' }) {
@@ -37,12 +46,14 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
   /** Hand size, heat and jail as of the last `portfolio` (null = none seen yet this game). */
   const cards = useRef<{ hand: number; heat: number; jailed: boolean } | null>(null);
   const meId = useRef<string | null>(null);
+  const phase = useRef<PhaseInfo | null>(null);
 
   const handler = useCallback(
     (msg: ServerMsg) => {
       switch (msg.t) {
         case 'welcome':
           meId.current = msg.playerId;
+          phase.current = msg.phase;
           if ((msg.game ?? 1) !== game.current) {
             game.current = msg.game ?? 1;
             held.current.clear();
@@ -73,6 +84,8 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           return;
         }
         case 'fill': {
+          // The bet_result carries the outcome for an automatic cash-out.
+          if (msg.reason === 'timed') return;
           const at = anchorOf('[data-testid=last-fill]', anchorOf('.desk__order'));
           if (msg.reason) {
             fx.shake(2);
@@ -90,6 +103,11 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           }
           return;
         }
+        case 'bet_result':
+          if (msg.pnl > 0) play('betWin', 1 + Math.min(msg.streak - 1, 4) * 0.06);
+          else if (msg.pnl < 0) play('betLoss');
+          else play('pop', 0.9);
+          return;
         case 'portfolio': {
           held.current = new Map(msg.positions.map((p) => [p.symbol, { qty: p.qty, avgPrice: p.avgPrice }]));
           equity.current = msg.equity;
@@ -108,9 +126,16 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           }
           play('news');
           return;
-        case 'phase':
-          if (msg.phase === 'TRADING') play('bell');
-          else if (msg.phase === 'RESULTS' || msg.phase === 'FINAL') play('pop');
+        case 'phase': {
+          // Clock resyncs resend the phase with a new deadline.
+          if (msg.phase === phase.current?.phase && msg.quarter === phase.current.quarter) return;
+          phase.current = msg;
+          const sound = PHASE_SOUND[msg.phase];
+          if (sound) play(sound);
+          return;
+        }
+        case 'error':
+          if (role === 'player') play('reject');
           return;
         case 'moment':
           fx.shake(3);

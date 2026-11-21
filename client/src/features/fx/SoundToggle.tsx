@@ -7,13 +7,14 @@ export function SoundToggle() {
   return (
     <button
       type="button"
-      className={`sound-toggle${muted ? ' sound-toggle--off' : ''}`}
+      className="sound-toggle"
       data-testid="sound-toggle"
+      aria-label="Sound"
       aria-pressed={!muted}
-      title={muted ? 'Sound is off' : 'Sound is on (needs one click on the page first)'}
+      title={muted ? 'Enable sound' : 'Mute sound'}
       onClick={() => setMuted(!muted)}
     >
-      SOUND
+      {muted ? 'SOUND OFF' : 'SOUND ON'}
     </button>
   );
 }

@@ -208,11 +208,9 @@
   cursor: pointer;
   letter-spacing: 0.06em;
 }
+.sound-toggle[aria-pressed='true'],
 .sound-toggle:hover {
   color: var(--tg-color-text-bright);
-}
-.sound-toggle--off {
-  text-decoration: line-through;
 }
 
 @media (prefers-reduced-motion: reduce) {
