@@ -302,8 +302,10 @@ export const defaultConfig: GameConfig = {
     companiesPerSector: 5,
     marketCapMin: 5e9,
     marketCapMax: 500e9,
-    advFractionOfCapMin: 0.005,
-    advFractionOfCapMax: 0.02,
+    // M7 tuning: 8x the first guess (0.005..0.02), so a winner's orders don't drown in slippage as
+    // net worth grows, while a $500M order still visibly moves a mid-cap (x of about 0.06-0.25).
+    advFractionOfCapMin: 0.04,
+    advFractionOfCapMax: 0.16,
     fundAdvShareOfMembers: 0.25,
     betaMarketMin: 0.5,
     betaMarketMax: 1.6,
@@ -359,15 +361,17 @@ export const defaultConfig: GameConfig = {
     maxTemporary: 0.25,
   },
   news: {
-    shock: { small: 0.02, medium: 0.05, large: 0.12, huge: 0.25 },
+    // M7 tuning: only `huge` grew (0.25 -> 0.5). Scheduled beats use medium / large, so the whole market
+    // stays calm while big tradable news lands on stocks and sectors (see scopeWeights).
+    shock: { small: 0.02, medium: 0.05, large: 0.12, huge: 0.5 },
     rampMs: 3_000,
     overshoot: 0.15,
     minGapMs: 2_000,
     scheduledBeatsPerQuarter: 3,
     randomHeadlinesPerQuarter: 12,
     noiseShare: 0.25,
-    scopeWeights: { market: 0.2, sector: 0.3, stock: 0.5 },
-    magnitudeWeights: { small: 0.35, medium: 0.35, large: 0.22, huge: 0.08 },
+    scopeWeights: { market: 0.05, sector: 0.3, stock: 0.65 },
+    magnitudeWeights: { small: 0.3, medium: 0.3, large: 0.2, huge: 0.2 },
     shockJitter: 0.25,
     quietDays: 2,
     beatTitles: ['Central bank rate decision', 'Jobs report', 'GDP flash estimate', 'Inflation print'],
