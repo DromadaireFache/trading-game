@@ -19,7 +19,7 @@
  * RNG streams: forked from the root in a FIXED order (universe, market, then later subsystems at
  * the end), so adding a subsystem never changes the universe or the price path of a seed.
  */
-import { canReadyUp, msToTicks } from '@tg/shared';
+import { canReadyUp, msToTicks, quarterRamp } from '@tg/shared';
 import type { GameConfig, NetWorthSample, Phase, PlayerId } from '@tg/shared';
 import { createMarket } from './market.ts';
 import { nextPhase, phaseLength } from './phases.ts';
@@ -378,8 +378,11 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     const symbolReturn = impact && headlines.symbolReturn ? addReturns(impact, headlines.symbolReturn) : (impact ?? headlines.symbolReturn);
     const { dRate: regimeDRate = 0, ...regimeInput } = cards.marketInput();
     const dRate = headlines.dRate + regimeDRate;
+    // Volatility climbs each quarter (config.progression) on top of whatever the regimes do.
+    const volMult = (regimeInput.volMult ?? 1) * quarterRamp(config, quarter, config.progression.volLastQuarter);
     const input = {
       ...regimeInput,
+      volMult,
       ...(symbolReturn === undefined ? {} : { symbolReturn }),
       ...(dRate === 0 ? {} : { dRate }),
     };

@@ -67,10 +67,20 @@ export function drawShopSelection(
 }
 
 /** The selection as one player's offers. Offer ids are stable per quarter, slot and card. */
-export function priceShopOffers(selection: ShopSelection, config: GameConfig, netWorth: number): CardOffer[] {
+export function priceShopOffers(selection: ShopSelection, config: GameConfig, netWorth: number, discount = 0): CardOffer[] {
   return selection.entries.map((entry, slot) => ({
     offerId: `q${selection.quarter}_${slot}_${entry.defId}`,
     card: toCardDef(entry),
-    price: Math.round(cardPrice(config, entry, netWorth)),
+    price: Math.round(cardPrice(config, entry, netWorth) * (1 - discount)),
+    ...(discount > 0 ? { discount } : {}),
   }));
+}
+
+/**
+ * Ids of the players who get the underdog discount: the bottom half by net worth (strictly: with an
+ * odd count the middle player is not included). Ties keep the earlier-joined player higher.
+ */
+export function underdogs(standings: readonly { id: string; equity: number }[]): Set<string> {
+  const ranked = [...standings].sort((a, b) => b.equity - a.equity);
+  return new Set(ranked.slice(Math.ceil(ranked.length / 2)).map((p) => p.id));
 }

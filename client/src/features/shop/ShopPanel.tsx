@@ -37,15 +37,23 @@ export function ShopPanel({ className }: { className?: string }) {
         <p className="shop__intro">
           Cards let you make the news. Buy now, play them next quarter while the market is open. Prices grow with your
           money. Everyone gets a different shop. <strong>Illegal</strong> cards add heat: the SEC may fine you and put you in
-          jail. Legal cards never land you in jail.
+          jail. Legal cards never land you in jail. Cards hit harder each quarter.
         </p>
+        {shop[0]?.discount ? (
+          <p className="shop__underdog" data-testid="underdog">
+            Underdog deal: you are in the bottom half, so every card is {Math.round(shop[0].discount * 100)}% off.
+          </p>
+        ) : null}
         <div className="shop__grid" data-testid="shop">
           {shop.map((offer) => {
             const owned = bought.has(offer.offerId);
             const tooDear = live !== null && live.equity - offer.price < config.economy.eliminationEquity;
             return (
               <CardFace key={offer.offerId} card={offer.card} testId="offer">
-                <span className="card__price">{formatMoney(offer.price)}</span>
+                <span className="card__price">
+                  {formatMoney(offer.price)}
+                  {offer.discount ? <span className="card__discount">-{Math.round(offer.discount * 100)}%</span> : null}
+                </span>
                 <button
                   type="button"
                   className="card__btn"

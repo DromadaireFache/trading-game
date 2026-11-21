@@ -14,7 +14,10 @@ const BIG_MOVE_WINDOW = 20;
 const BIG_MOVE_COOLDOWN_MS = 6_000;
 /** Largest win effects kick in at a quarter of the starting bankroll. */
 const MAX_WIN_CASH_SHARE = 0.25;
-const BIG_LOSS_SHARE = 0.02;
+/** A realized gain or loss this share of the starting bankroll gets the full treatment. */
+const HUGE_PNL_SHARE = 0.1;
+/** A rival trade this share of their net worth is a "big" one: their column flares and the screen bumps. */
+const RIVAL_BIG_SHARE = 0.15;
 const PHASE_SOUND: Partial<Record<Phase, SoundName>> = {
   BRIEFING: 'briefing',
   TRADING: 'bell',
@@ -29,9 +32,12 @@ const PHASE_SOUND: Partial<Record<Phase, SoundName>> = {
  * Event-driven only: on a `tick` it does O(1) work (one price into a ring buffer), never DOM work
  * unless a big move just happened.
  *  - own fill: chip click and a popup at the order panel; a forced sale (margin call) shakes and buzzes
- *  - a fill that closes or cuts a position: realized P&L from the server, with a stronger button
- *    pop and screen shake for larger profits, or a red popup with a thud for a loss.
- *  - a public headline: blip (the headline itself shows in the headline slot, see HeadlineBanner)
+ *  - every own fill: a small shake
+ *  - a fill that closes or cuts a position: realized P&L from the server, scaled by size: a green or
+ *    red edge glow (a full wash for big ones), shake, chromatic split, hit-stop at the top; winning
+ *    closes in a row build a combo
+ *  - another player's trade: their column flares; a big one bumps the screen
+ *  - a public headline: blip and a light shake as the paper lands
  *  - the index moving BIG_MOVE within ~2 s: shake and whoosh
  *  - phase changes and quick-bet outcomes: distinct cues
  *  - a BREAKING moment: big shake and sting
@@ -42,11 +48,14 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
   const indexSymbol = useRef<string | null>(null);
   const lastBigMove = useRef(0);
   const game = useRef(0);
-  const equity = useRef(0);
   /** Hand size, heat and jail as of the last `portfolio` (null = none seen yet this game). */
   const cards = useRef<{ hand: number; heat: number; jailed: boolean } | null>(null);
   const meId = useRef<string | null>(null);
   const phase = useRef<PhaseInfo | null>(null);
+  /** Winning closes in a row (a losing close resets it). */
+  const combo = useRef(0);
+  /** Each rival's positions as of their last `holdings`, to spot their trades. */
+  const rivals = useRef(new Map<string, Map<string, { qty: number; avgPrice: number }>>());
 
   const handler = useCallback(
     (msg: ServerMsg) => {
@@ -57,6 +66,8 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           if ((msg.game ?? 1) !== game.current) {
             game.current = msg.game ?? 1;
             cards.current = null;
+            combo.current = 0;
+            rivals.current.clear();
           }
           return;
         case 'market':
@@ -76,6 +87,7 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
             lastBigMove.current = now;
             ring.current = [price];
             fx.shake(2);
+            fx.chroma(0.5);
             play('whoosh');
             const at = anchorOf(role === 'player' ? '[data-testid=market-panel], .desk__chart' : '[data-testid=net-worth-chart]');
             fx.popup({ text: `${move > 0 ? '▲' : '▼'} MARKET ${(move * 100).toFixed(1)}%`, tone: move > 0 ? 'up' : 'down', ...at, size: 1.6 });
@@ -88,15 +100,24 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           const button = takeOrderButton(msg.requestId);
           const at = anchorOf('[data-testid=last-fill]', anchorOf('.desk__order'));
           if (msg.reason) {
-            fx.shake(2);
+            combo.current = 0;
+            fx.shake(3);
+            fx.flash({ tone: 'down', strength: 1 });
+            fx.chroma(1);
             play('loss');
-            fx.popup({ text: msg.reason === 'margin_call' ? 'MARGIN CALL!' : 'WIPED OUT', tone: 'down', ...at, size: 1.5 });
+            fx.popup({ text: msg.reason === 'margin_call' ? 'MARGIN CALL!' : 'WIPED OUT', tone: 'down', ...at, size: 1.8 });
             return;
           }
           play('fill', msg.qty > 0 ? 1 : 0.85);
           fx.popup({ text: `${msg.qty > 0 ? '+' : ''}${formatShares(msg.qty)} ${msg.symbol}`, tone: msg.qty > 0 ? 'up' : 'down', ...at, size: 0.8 });
-          if (msg.realizedPnl !== undefined) {
-            celebrate(msg.realizedPnl, equity.current, client.getState().config.economy.startingCash, button);
+          if (msg.realizedPnl !== undefined && Math.abs(msg.realizedPnl) >= 1) {
+            const startingCash = client.getState().config.economy.startingCash;
+            if (msg.realizedPnl > 0) combo.current++;
+            else combo.current = 0;
+            celebrate(msg.realizedPnl, startingCash, button, combo.current);
+          } else {
+            // Opening or adding: a small kick so every trade feels like it landed.
+            fx.shake(1, 0.6);
           }
           return;
         }
@@ -106,7 +127,6 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           else play('pop', 0.9);
           return;
         case 'portfolio': {
-          equity.current = msg.equity;
           const now = { hand: msg.hand?.length ?? 0, heat: msg.heat, jailed: msg.jailedUntil !== undefined };
           const before = cards.current;
           cards.current = now;
@@ -121,6 +141,7 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
             return;
           }
           play('news');
+          fx.shake(1, 0.8);
           return;
         case 'phase': {
           // Clock resyncs resend the phase with a new deadline.
@@ -128,6 +149,15 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           phase.current = msg;
           const sound = PHASE_SOUND[msg.phase];
           if (sound) play(sound);
+          return;
+        }
+        case 'holdings': {
+          if (msg.playerId === meId.current) return;
+          const now = new Map(msg.positions.map((p) => [p.symbol, { qty: p.qty, avgPrice: p.avgPrice }]));
+          const before = rivals.current.get(msg.playerId);
+          rivals.current.set(msg.playerId, now);
+          if (before === undefined || role !== 'player') return;
+          rivalTrade(msg.playerId, before, now, msg.equity);
           return;
         }
         case 'error':
@@ -173,22 +203,70 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
   return null;
 }
 
-/** A realized gain or loss: popup at the positions panel, coins and an arpeggio for a win. */
-function celebrate(pnl: number, equity: number, startingCash: number, button: ReturnType<typeof takeOrderButton>): void {
-  if (Math.abs(pnl) < 1) return;
+/**
+ * A realized gain or loss, scaled by its size against the starting bankroll (strength 0..1, full at
+ * HUGE_PNL_SHARE): an edge glow (green or red) that turns into a full-screen wash, a shake, a popup at
+ * the order button or the positions panel, and for the bigger ones a chromatic split and, at the top,
+ * a hit-stop. Wins also throw coins and count the combo.
+ */
+function celebrate(pnl: number, startingCash: number, button: ReturnType<typeof takeOrderButton>, combo: number): void {
+  const strength = Math.min(1, Math.abs(pnl) / Math.max(1, startingCash * HUGE_PNL_SHARE)) ** 0.6;
+  const tone = pnl > 0 ? 'up' : 'down';
+  fx.flash({ tone, strength: 0.15 + 0.85 * strength });
+  const tier = strength >= 0.75 ? 3 : strength >= 0.4 ? 2 : 1;
+  fx.shake(tier, tier === 1 ? 0.6 + strength : 0.7 + 0.3 * strength);
+  if (strength >= 0.4) fx.chroma(strength);
+  if (strength >= 0.9) fx.punch(strength);
   if (pnl > 0) {
     const at = button ? { x: button.rect.x + button.rect.width / 2, y: button.rect.y + button.rect.height / 2 } : anchorOf('.desk__positions');
-    const strength = Math.min(1, pnl / Math.max(1, startingCash * MAX_WIN_CASH_SHARE));
     if (button) popWinningButton(button, strength);
-    fx.shake(3, strength);
-    fx.popup({ text: `+${formatMoneyShort(pnl)}`, tone: 'up', ...at, size: 1.1 + 0.7 * strength });
+    fx.popup({ text: `+${formatMoneyShort(pnl)}`, tone: 'up', ...at, size: 1.1 + 1.1 * strength });
     play('cash', 1 + 0.12 * strength);
-    fx.burst({ ...at, tone: 'accent', count: Math.round(22 + 38 * strength), power: 6 + 3 * strength });
+    fx.burst({ ...at, tone: 'accent', count: Math.round(22 + 60 * strength), power: 6 + 4 * strength });
+    if (combo >= 2) {
+      const c = Math.min(combo, 8);
+      fx.popup({ text: `COMBO x${combo}`, tone: 'accent', ...anchorOf('.desk__order'), size: 1 + 0.15 * c });
+      fx.burst({ ...anchorOf('.desk__order'), tone: 'warn', count: 10 + 6 * c, power: 5 + c / 2 });
+      play('betWin', 1 + Math.min(combo - 1, 6) * 0.07);
+    }
   } else {
-    const big = -pnl >= BIG_LOSS_SHARE * Math.max(1, equity);
-    fx.popup({ text: `-${formatMoneyShort(-pnl)}`, tone: 'down', ...anchorOf('[data-testid=positions]', anchorOf('.desk__positions')), size: big ? 1.8 : 1.1 });
-    play('thump');
-    if (big) fx.shake(1);
+    fx.popup({ text: `-${formatMoneyShort(-pnl)}`, tone: 'down', ...anchorOf('[data-testid=positions]', anchorOf('.desk__positions')), size: 1.1 + 1.1 * strength });
+    play(strength >= 0.4 ? 'loss' : 'thump');
+  }
+}
+
+/** A rival's position changed: their column flares, and a big trade bumps the screen. */
+function rivalTrade(
+  playerId: string,
+  before: Map<string, { qty: number; avgPrice: number }>,
+  now: Map<string, { qty: number; avgPrice: number }>,
+  equity: number,
+): void {
+  let moved = 0;
+  let biggest: { symbol: string; dq: number; notional: number } | null = null;
+  for (const symbol of new Set([...before.keys(), ...now.keys()])) {
+    const a = before.get(symbol);
+    const b = now.get(symbol);
+    const dq = (b?.qty ?? 0) - (a?.qty ?? 0);
+    if (dq === 0) continue;
+    const notional = Math.abs(dq) * (b?.avgPrice || a?.avgPrice || 0);
+    moved += notional;
+    if (biggest === null || notional > biggest.notional) biggest = { symbol, dq, notional };
+  }
+  if (biggest === null) return;
+  const el = document.querySelector<HTMLElement>(`[data-testid=rival][data-player="${CSS.escape(playerId)}"]`);
+  const big = moved >= RIVAL_BIG_SHARE * Math.max(1, equity);
+  if (el) {
+    el.classList.remove('rival--traded', 'rival--traded-big');
+    void el.offsetWidth; // restart the animation
+    el.classList.add(big ? 'rival--traded-big' : 'rival--traded');
+  }
+  if (big) {
+    const r = el?.getBoundingClientRect();
+    const at = r ? { x: r.left + r.width / 2, y: r.top + 24 } : anchorOf('.desk__rivals');
+    fx.shake(1, 0.7);
+    fx.popup({ text: `${biggest.dq > 0 ? '▲' : '▼'} ${biggest.symbol}`, tone: biggest.dq > 0 ? 'up' : 'down', ...at, size: 0.9 });
+    play('pop', 0.8);
   }
 }
 

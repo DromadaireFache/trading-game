@@ -281,6 +281,22 @@ export interface GameConfig {
     /** Counter-card trading halt length (stretch goal). */
     haltMs: number;
   };
+  /**
+   * The game gets wilder each quarter so a trailing player can still come back. Each multiplier runs
+   * linearly from 1 in the first quarter to its value in the last (see quarterRamp):
+   *   volLastQuarter    all random volatility (market, sector, stock) and the engine's headline moves
+   *   cardsLastQuarter  the price effect of a card played that quarter (headline size, regime drift,
+   *                     regime vol and correlation boosts, a lobbying bill's drift)
+   */
+  progression: {
+    volLastQuarter: number;
+    cardsLastQuarter: number;
+    /**
+     * Shop discount (0.25 = 25% off) for the players in the bottom half of net worth when the shop
+     * opens (with an odd count the middle player pays full price).
+     */
+    underdogDiscount: number;
+  };
   regimes: {
     maxActive: number;
     minQuarters: number;
@@ -519,6 +535,11 @@ export const defaultConfig: GameConfig = {
     fakeDebunkMaxMs: 20_000,
     haltMs: 5_000,
   },
+  progression: {
+    volLastQuarter: 2,
+    cardsLastQuarter: 2,
+    underdogDiscount: 0.25,
+  },
   regimes: {
     maxActive: 2,
     minQuarters: 1,
@@ -637,6 +658,10 @@ export function validateConfig(config: GameConfig): GameConfig {
     positiveInt('time.ticksPerCandle', config.time.ticksPerCandle);
     positiveInt('time.daysPerQuarter', config.time.daysPerQuarter);
     positiveInt('time.quarters', config.time.quarters);
+    const pr = config.progression;
+    if (!(pr.volLastQuarter > 0)) problems.push('config.progression.volLastQuarter must be > 0');
+    if (!(pr.cardsLastQuarter > 0)) problems.push('config.progression.cardsLastQuarter must be > 0');
+    if (!(pr.underdogDiscount >= 0 && pr.underdogDiscount < 1)) problems.push('config.progression.underdogDiscount must be in [0, 1)');
     positiveInt('lobby.minPlayers', config.lobby.minPlayers);
     positiveInt('lobby.maxPlayers', config.lobby.maxPlayers);
     positiveInt('lobby.nameMinLength', config.lobby.nameMinLength);
@@ -778,4 +803,15 @@ export function quarterTicks(config: GameConfig): number {
     phaseTicks(config, 'RESULTS') +
     phaseTicks(config, 'SHOP')
   );
+}
+
+/**
+ * Multiplier for `quarter` (1-based) on a ramp from 1 in the first quarter to `last` in the final one.
+ * A one-quarter game stays at 1.
+ */
+export function quarterRamp(config: GameConfig, quarter: number, last: number): number {
+  const n = config.time.quarters;
+  if (n <= 1) return 1;
+  const t = Math.min(1, Math.max(0, (quarter - 1) / (n - 1)));
+  return 1 + (last - 1) * t;
 }
