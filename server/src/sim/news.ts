@@ -1,0 +1,327 @@
+/**
+ * The news engine (DESIGN.md sections 3 and 5): decides the quarter's shocks, then publishes them as
+ * headlines through ONE global queue. Pure; randomness from its own Rng streams.
+ *
+ * Built on the teammates' number modules, which it does not change:
+ *   ./shocks.ts    a move -> per-tick returns (ramp, overshoot, revert)
+ *   ./earnings.ts  surprises, leaks and the EARNINGS gap
+ *   ./headlines.ts template lookup (no repeats) and slot filling
+ *
+ * Per quarter, at BRIEFING (startQuarter):
+ *   - earnings: drawEarnings -> one leak item per leak (an earnings_leak headline on the company);
+ *   - scheduled beats: scheduledBeatsPerQuarter market-wide macro headlines on evenly spaced days,
+ *     announced with their day and title (direction hidden). The first one is the rate decision and
+ *     also moves the policy rate by +-market.rateStep (kept inside [rateMin, rateMax]);
+ *   - random headlines: randomHeadlinesPerQuarter, of which noiseShare are neutral (no move); the rest
+ *     draw scope, magnitude and direction from config.news, at a random tick after quietDays.
+ * Every TRADING tick (beforeStep): publish at most ONE due item, and only when news.minGapMs has
+ * passed since the last headline (the global queue; later items wait), then turn all live shocks into
+ * this tick's symbolReturn. Items still waiting at the close are dropped.
+ * At EARNINGS (closeQuarter): reports with gap = gapFactor * (surprise - what PUBLISHED leaks priced
+ * in). The gap goes into the first step of the next quarter (prices are frozen outside TRADING).
+ *
+ * Time is the market tick (day * ticksPerCandle + tickOfDay), like ./shocks.ts.
+ * Cards and regimes (M5) publish through enqueue() so they share the queue and the gap.
+ */
+import { msToTicks } from '@tg/shared';
+import type { Briefing, EarningsReport, GameConfig, HeadlineMagnitude, HeadlineTemplate, Sector, SymbolId } from '@tg/shared';
+import { SECTORS } from '@tg/shared';
+import { drawEarnings, earningsGap } from './earnings.ts';
+import type { EarningsPlan } from './earnings.ts';
+import { fillHeadline } from './headlines.ts';
+import type { HeadlineBook, HeadlineQuery, PlaceholderLists } from './headlines.ts';
+import type { Rng } from './rng.ts';
+import { addReturns, createShock, nearestMagnitude, shockSize, stepShocks } from './shocks.ts';
+import type { Shock, ShockTarget } from './shocks.ts';
+import type { SimEventOf } from './types.ts';
+import type { Universe } from './universe.ts';
+
+export type NewsSource = 'random' | 'beat' | 'rate' | 'leak' | 'card' | 'regime';
+
+/** Something waiting to be published. */
+export interface NewsItem {
+  /** Earliest market tick it may go out. */
+  tick: number;
+  source: NewsSource;
+  /** How to find its headline, unless templateId names one. */
+  query: HeadlineQuery;
+  templateId?: string;
+  target: ShockTarget;
+  /** Total log-move of its shock (0 = a headline without a move). */
+  logReturn: number;
+  /** Policy-rate change applied when it is published. */
+  dRate?: number;
+  /** Who played it (cards); revealed at RESULTS. */
+  ownerId?: string;
+  /** Earnings leak: surprise units it prices in. */
+  leakAmount?: number;
+}
+
+/** A published headline with everything the recap (M6) needs to explain a move. */
+export interface PublishedHeadline {
+  id: string;
+  templateId: string;
+  text: string;
+  quarter: number;
+  tick: number;
+  /** Game day (fractional). */
+  ts: number;
+  source: NewsSource;
+  target: ShockTarget;
+  logReturn: number;
+  ownerId?: string;
+  /** Policy rate after it (rate decisions only). */
+  rate?: number;
+}
+
+export type HeadlineEvent = SimEventOf<'headline'>;
+
+export interface NewsDeps {
+  config: GameConfig;
+  universe: Universe;
+  book: HeadlineBook;
+  lists: PlaceholderLists;
+  /** Scheduling and slot filling. */
+  rng: Rng;
+  /** Earnings draws (its own stream, as earnings.ts asks). */
+  earningsRng: Rng;
+}
+
+export interface News {
+  /** At BRIEFING. `tradingStartTick` = market tick of the quarter's first TRADING step; `rate` = policy rate now. */
+  startQuarter(quarter: number, tradingStartTick: number, rate: number): Briefing;
+  /** Before each TRADING market step. */
+  beforeStep(tick: number, rate: number): { symbolReturn: Record<SymbolId, number> | undefined; dRate: number; events: HeadlineEvent[] };
+  /** At EARNINGS: every company's report, largest |gap| first. */
+  closeQuarter(): EarningsReport[];
+  /** Queue an extra item (cards, regimes). */
+  enqueue(item: NewsItem): void;
+  /** Items not published yet, earliest first (insider tips peek here). */
+  upcoming(): readonly NewsItem[];
+  briefing(): Briefing | null;
+  /** Latest earnings reports and their quarter, until the next BRIEFING. */
+  earnings(): { quarter: number; reports: EarningsReport[] } | null;
+  /** Gap waiting for the next quarter's first step (after the last quarter: never applied by the market). */
+  pendingGap(): Record<SymbolId, number> | null;
+  /** The last `n` public headlines, oldest first. */
+  recent(n: number): HeadlineEvent[];
+  /** Everything published so far. */
+  log(): readonly PublishedHeadline[];
+  /** This quarter's earnings plan (the Boardroom Mole card reads it). */
+  plan(): EarningsPlan | null;
+}
+
+function weighted<K extends string>(rng: Rng, weights: Record<K, number>): K {
+  const entries = Object.entries(weights) as [K, number][];
+  const total = entries.reduce((s, [, w]) => s + Math.max(0, w), 0);
+  let u = rng.next() * total;
+  for (const [key, w] of entries) {
+    u -= Math.max(0, w);
+    if (u < 0) return key;
+  }
+  return entries[entries.length - 1]![0];
+}
+
+export function createNews(deps: NewsDeps): News {
+  const { config, universe, book, lists, rng, earningsRng } = deps;
+  const tpc = config.time.ticksPerCandle;
+  const tradingTicks = config.time.daysPerQuarter * tpc;
+  const minGapTicks = msToTicks(config, config.news.minGapMs);
+  const settleTicks = 2 * msToTicks(config, config.news.rampMs);
+  const companyBySymbol = new Map(universe.companies.map((c) => [c.symbol, c]));
+
+  let queue: NewsItem[] = [];
+  let shocks: Shock[] = [];
+  let lastPublished: number | null = null;
+  let seq = 0;
+  let quarter = 0;
+  let currentPlan: EarningsPlan | null = null;
+  let priced: Record<SymbolId, number> = {};
+  let gap: Record<SymbolId, number> | null = null;
+  let currentBriefing: Briefing | null = null;
+  let lastEarnings: { quarter: number; reports: EarningsReport[] } | null = null;
+  const published: PublishedHeadline[] = [];
+  const events: HeadlineEvent[] = [];
+
+  function sortQueue(): void {
+    queue.sort((a, b) => a.tick - b.tick);
+  }
+
+  function randomTarget(scope: ShockTarget['scope']): ShockTarget {
+    if (scope === 'market') return { scope };
+    if (scope === 'sector') return { scope, sector: SECTORS[rng.int(SECTORS.length)]! };
+    return { scope, symbol: universe.companies[rng.int(universe.companies.length)]!.symbol };
+  }
+
+  function publish(item: NewsItem, tick: number, newRate?: number): HeadlineEvent | null {
+    let template: HeadlineTemplate | undefined;
+    if (item.templateId !== undefined) {
+      template = book.byId(item.templateId);
+      if (template) book.use(template);
+    }
+    template ??= book.pick(item.query);
+    if (template === undefined) return null; // nothing in the database fits: no headline, no move
+
+    const target = item.target;
+    const company = target.scope === 'stock' ? companyBySymbol.get(target.symbol) : undefined;
+    const sector: Sector | undefined = target.scope === 'sector' ? target.sector : company?.sector;
+    const text = fillHeadline(template.text, rng, { universe, lists, ...(company ? { company } : {}), ...(sector ? { sector } : {}) });
+    const id = `n${++seq}`;
+    if (item.logReturn !== 0) shocks.push(createShock(config, universe, { id, target, logReturn: item.logReturn, startTick: tick }));
+    if (item.leakAmount !== undefined && target.scope === 'stock') priced[target.symbol] = (priced[target.symbol] ?? 0) + item.leakAmount;
+
+    const ts = tick / tpc;
+    published.push({
+      id,
+      templateId: template.id,
+      text,
+      quarter,
+      tick,
+      ts,
+      source: item.source,
+      target,
+      logReturn: item.logReturn,
+      ...(item.ownerId === undefined ? {} : { ownerId: item.ownerId }),
+      ...(newRate === undefined ? {} : { rate: newRate }),
+    });
+    const event: HeadlineEvent = { e: 'headline', id, text, ts };
+    if (newRate !== undefined) event.rate = newRate;
+    if (target.scope === 'stock') event.symbol = target.symbol;
+    if (sector !== undefined && target.scope !== 'market') event.sector = sector;
+    events.push(event);
+    return event;
+  }
+
+  return {
+    startQuarter(q, tradingStartTick, rate) {
+      quarter = q;
+      queue = [];
+      priced = {};
+      lastEarnings = null;
+      const n = config.news;
+
+      // 1. Earnings plan and its leaks.
+      currentPlan = drawEarnings(earningsRng, config, universe, q, tradingStartTick);
+      for (const leak of currentPlan.leaks) {
+        queue.push({
+          tick: leak.tick,
+          source: 'leak',
+          query: { kind: 'real', scope: 'stock', category: 'earnings_leak', direction: leak.logReturn >= 0 ? 'up' : 'down', magnitude: nearestMagnitude(config, leak.logReturn) },
+          target: { scope: 'stock', symbol: leak.symbol },
+          logReturn: leak.logReturn,
+          leakAmount: leak.amount,
+        });
+      }
+
+      // 2. Scheduled beats on evenly spaced days; the first is the rate decision.
+      const beats: Briefing['beats'] = [];
+      const count = Math.min(n.scheduledBeatsPerQuarter, n.beatTitles.length);
+      for (let k = 0; k < count; k++) {
+        const dayInQuarter = Math.min(config.time.daysPerQuarter - 1, Math.round(((k + 1) * config.time.daysPerQuarter) / (count + 1)));
+        const tick = tradingStartTick + dayInQuarter * tpc;
+        const magnitude: HeadlineMagnitude = rng.next() < 0.5 ? 'medium' : 'large';
+        let up = rng.next() < 0.5;
+        let dRate: number | undefined;
+        if (k === 0) {
+          // A cut lifts the market, a hike sinks it. Never leave [rateMin, rateMax].
+          const step = config.market.rateStep;
+          if (rate - step < config.market.rateMin - 1e-12) up = false;
+          else if (rate + step > config.market.rateMax + 1e-12) up = true;
+          dRate = up ? -step : step;
+        }
+        const direction = up ? 'up' : 'down';
+        queue.push({
+          tick,
+          source: k === 0 ? 'rate' : 'beat',
+          query: { kind: 'real', scope: 'market', direction, magnitude, category: 'macro', ...(k === 0 ? { prefer: /rate/i } : {}) },
+          target: { scope: 'market' },
+          logReturn: shockSize(config, magnitude, direction),
+          ...(dRate === undefined ? {} : { dRate }),
+        });
+        beats.push({ day: tradingStartTick / tpc + dayInQuarter, title: n.beatTitles[k]! });
+      }
+
+      // 3. Random headlines (noise included).
+      const first = tradingStartTick + n.quietDays * tpc;
+      const window = Math.max(1, tradingStartTick + tradingTicks - settleTicks - first);
+      for (let i = 0; i < n.randomHeadlinesPerQuarter; i++) {
+        const tick = first + rng.int(window);
+        const scope = weighted(rng, n.scopeWeights);
+        const target = randomTarget(scope);
+        if (rng.next() < n.noiseShare) {
+          const magnitude: HeadlineMagnitude = rng.next() < 0.5 ? 'small' : 'medium';
+          queue.push({ tick, source: 'random', query: { kind: 'real', scope, direction: 'neutral', magnitude }, target, logReturn: 0 });
+          continue;
+        }
+        const magnitude = weighted(rng, n.magnitudeWeights);
+        const direction = rng.next() < 0.5 ? 'up' : 'down';
+        const jitter = 1 + n.shockJitter * (2 * rng.next() - 1);
+        queue.push({ tick, source: 'random', query: { kind: 'real', scope, direction, magnitude }, target, logReturn: shockSize(config, magnitude, direction) * jitter });
+      }
+      sortQueue();
+
+      currentBriefing = { quarter: q, rate, beats, regimes: [] };
+      return currentBriefing;
+    },
+
+    beforeStep(tick, rate) {
+      events.length = 0;
+      let dRate = 0;
+      let extra: Record<SymbolId, number> | undefined;
+      if (gap !== null) {
+        extra = gap;
+        gap = null;
+      }
+
+      const due = queue[0];
+      if (due !== undefined && due.tick <= tick && (lastPublished === null || tick - lastPublished >= minGapTicks)) {
+        queue.shift();
+        const next = due.dRate === undefined ? undefined : Math.min(config.market.rateMax, Math.max(config.market.rateMin, rate + due.dRate));
+        if (publish(due, tick, next) !== null) {
+          lastPublished = tick;
+          if (next !== undefined) dRate = next - rate;
+        }
+      }
+
+      const stepped = stepShocks(shocks, tick);
+      shocks = stepped.live;
+      const symbolReturn = extra === undefined ? stepped.symbolReturn : addReturns(stepped.symbolReturn, extra);
+      return { symbolReturn: Object.keys(symbolReturn).length > 0 ? symbolReturn : undefined, dRate, events: [...events] };
+    },
+
+    closeQuarter() {
+      queue = [];
+      if (currentPlan === null) return [];
+      const g = earningsGap(config, currentPlan, priced);
+      gap = g;
+      const reports = Object.entries(currentPlan.surprise).map(([symbol, surprise]) => ({ symbol, surprise, gap: g[symbol] ?? 0 }));
+      reports.sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap) || (a.symbol < b.symbol ? -1 : 1));
+      lastEarnings = { quarter, reports };
+      return reports;
+    },
+
+    enqueue(item) {
+      queue.push(item);
+      sortQueue();
+    },
+
+    upcoming: () => queue,
+    briefing: () => currentBriefing,
+    earnings: () => lastEarnings,
+    pendingGap: () => gap,
+    recent(n) {
+      return published.slice(-n).map((p) => {
+        const event: HeadlineEvent = { e: 'headline', id: p.id, text: p.text, ts: p.ts };
+        if (p.rate !== undefined) event.rate = p.rate;
+        if (p.target.scope === 'stock') {
+          event.symbol = p.target.symbol;
+          const sector = companyBySymbol.get(p.target.symbol)?.sector;
+          if (sector) event.sector = sector;
+        } else if (p.target.scope === 'sector') event.sector = p.target.sector;
+        return event;
+      });
+    },
+    log: () => published,
+    plan: () => currentPlan,
+  };
+}

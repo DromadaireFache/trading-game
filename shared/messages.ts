@@ -11,7 +11,9 @@ import type { GameConfig } from './config.ts';
 import type {
   Arrest,
   Award,
+  Briefing,
   Card,
+  EarningsReport,
   CardDirection,
   CardOffer,
   ForcedFillReason,
@@ -165,6 +167,7 @@ export interface CandleMsg {
 
 export interface HeadlineMsg {
   t: 'headline';
+  /** Unique per publication (the same template can appear twice in a long game). */
   id: string;
   text: string;
   symbol?: SymbolId;
@@ -173,6 +176,24 @@ export interface HeadlineMsg {
   ts: number;
   /** true = insider preview, sent only to the card holder ahead of the public headline. */
   early?: boolean;
+  /** Set on a rate decision: the policy rate it leaves (0.0325 = 3.25%). */
+  rate?: number;
+}
+
+/** Broadcast when BRIEFING starts, and sent after `welcome` during the quarter it belongs to. */
+export interface BriefingMsg extends Briefing {
+  t: 'briefing';
+}
+
+/**
+ * Broadcast when EARNINGS starts (and replayed after `welcome` until the next BRIEFING). Prices are
+ * frozen outside TRADING, so the gaps show at the next quarter's first tick.
+ */
+export interface EarningsMsg {
+  t: 'earnings';
+  quarter: number;
+  /** Every company, sorted by |gap|, largest first. */
+  reports: EarningsReport[];
 }
 
 /** Sent to the player whose order was filled. */
@@ -265,6 +286,8 @@ export type ServerMsg =
   | TickMsg
   | CandleMsg
   | HeadlineMsg
+  | BriefingMsg
+  | EarningsMsg
   | FillMsg
   | PortfolioMsg
   | ShopMsg

@@ -1,0 +1,112 @@
+/*
+ * Headlines feature: beats, earnings, live feed.
+ * Colors and fonts only through var(--tg-...) from theme.ts.
+ */
+
+.news .panel__body {
+  gap: 6px;
+  padding: 8px;
+}
+.news__time {
+  color: var(--tg-color-text-dim);
+  font-size: 11px;
+}
+.news__dim {
+  color: var(--tg-color-text-dim);
+}
+
+.news__beats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0 0 4px;
+  list-style: none;
+  font-size: 11px;
+  border-bottom: 1px solid var(--tg-color-border);
+}
+.news__beat {
+  color: var(--tg-color-info);
+  white-space: nowrap;
+}
+.news__beat--past {
+  color: var(--tg-color-text-dim);
+  text-decoration: line-through;
+}
+
+.news__earnings {
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid var(--tg-color-border-strong);
+  border-radius: 3px;
+  background: var(--tg-color-bg-inset);
+}
+.news__earnings-title {
+  font-weight: 700;
+  color: var(--tg-color-accent);
+}
+.news__earnings-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.news__earnings ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.news__feed {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+}
+.news__item {
+  display: grid;
+  grid-template-columns: 4ch auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 2px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--tg-color-border);
+}
+/* Only a NEW row animates (rows are keyed by id), so this is not a per-tick animation. */
+.news__item:first-child {
+  animation: tg-news-in 1.2s ease-out;
+}
+@keyframes tg-news-in {
+  from {
+    background: color-mix(in srgb, var(--tg-color-accent) 30%, transparent);
+  }
+}
+.news__item--early {
+  background: color-mix(in srgb, var(--tg-color-warn) 12%, transparent);
+}
+.news__early {
+  color: var(--tg-color-warn);
+}
+.news__text {
+  font-family: var(--tg-font-sans);
+  color: var(--tg-color-text-bright);
+}
+.news__tag {
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 4px;
+  color: var(--tg-color-accent);
+  background: transparent;
+  border: 1px solid var(--tg-color-border-strong);
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.news__tag:hover:not(:disabled) {
+  border-color: var(--tg-color-accent);
+}
+.news__tag:disabled {
+  cursor: default;
+}

@@ -169,6 +169,24 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     };
   }
 
+  function newsMsg(event: SimEventOf<'briefing'> | SimEventOf<'earnings'>): ServerMsg {
+    if (event.e === 'briefing') {
+      const { e: _e, ...rest } = event;
+      return { t: 'briefing', ...rest };
+    }
+    const round4 = (n: number) => Math.round(n * 1e4) / 1e4;
+    return { t: 'earnings', quarter: event.quarter, reports: event.reports.map((r) => ({ symbol: r.symbol, surprise: round4(r.surprise), gap: round4(r.gap) })) };
+  }
+
+  /** Replays a public news event to one socket (join / reconnect). */
+  function dispatchTo(socket: WebSocket, event: SimEventOf<'briefing'> | SimEventOf<'earnings'> | SimEventOf<'headline'>): void {
+    if (event.e === 'headline') {
+      const { e: _e, to: _to, ...rest } = event;
+      return send(socket, { t: 'headline', ...rest });
+    }
+    send(socket, newsMsg(event));
+  }
+
   function broadcastLobby(): void {
     broadcast({ t: 'lobby', ...lobbyState() });
   }
@@ -214,6 +232,11 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     // A player who reconnects mid-game gets cash and positions back at once (none yet in the lobby).
     const portfolio = session.role === 'player' ? sim.getPortfolio(session.id) : undefined;
     if (portfolio !== undefined) send(socket, portfolioMsg(portfolio));
+    // The news so far: this quarter's briefing, the latest earnings, the recent headlines (oldest first).
+    const news = sim.getNewsSnapshot();
+    if (news.briefing !== null) dispatchTo(socket, news.briefing);
+    if (news.earnings !== null) dispatchTo(socket, news.earnings);
+    for (const headline of news.headlines) dispatchTo(socket, headline);
     broadcastLobby();
   }
 
@@ -397,6 +420,9 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
         const msg: ServerMsg = { t: 'headline', ...rest };
         return to === undefined ? broadcast(msg) : sendTo(to, msg);
       }
+      case 'briefing':
+      case 'earnings':
+        return broadcast(newsMsg(event));
       case 'fill': {
         const { e: _e, playerId, price, ...rest } = event;
         return sendTo(playerId, { t: 'fill', ...rest, price: roundPrice(config, price) });

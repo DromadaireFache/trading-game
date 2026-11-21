@@ -9,7 +9,9 @@
     ".": "./index.ts",
     "./config": "./config.ts",
     "./cards": "./cards.ts",
-    "./data/cards.json": "./data/cards.json"
+    "./data/cards.json": "./data/cards.json",
+    "./data/headlines.seed.json": "./data/headlines.seed.json",
+    "./data/placeholders.json": "./data/placeholders.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json"

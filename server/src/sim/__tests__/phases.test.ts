@@ -176,9 +176,10 @@ describe('lobby intents', () => {
     expect(sim.getState().players.map((p) => p.id)).toEqual(['p1', 'p2']);
 
     sim.submit({ kind: 'start', playerId: 'p2' });
-    // Milestone 3: the start also hands every player their opening portfolio.
-    expect(sim.tick().map((e) => (e.e === 'portfolio' ? `portfolio:${e.playerId}` : e))).toEqual([
+    // Milestone 3: the start also hands every player their opening portfolio. Milestone 4: the briefing.
+    expect(sim.tick().map((e) => (e.e === 'portfolio' ? `portfolio:${e.playerId}` : e.e === 'briefing' ? 'briefing' : e))).toEqual([
       { e: 'phase', phase: 'BRIEFING', quarter: 1, durationTicks: 3 },
+      'briefing',
       'portfolio:p1',
       'portfolio:p2',
     ]);

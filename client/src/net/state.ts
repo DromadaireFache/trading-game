@@ -7,7 +7,20 @@
  * to raw messages with GameClient.onMessage and keep their own buffers.
  */
 import { defaultConfig } from '@tg/shared';
-import type { ErrorCode, FillMsg, GameConfig, LobbyState, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg } from '@tg/shared';
+import type {
+  Briefing,
+  EarningsMsg,
+  ErrorCode,
+  FillMsg,
+  GameConfig,
+  HeadlineMsg,
+  LobbyState,
+  PhaseInfo,
+  PlayerId,
+  PortfolioMsg,
+  Role,
+  ServerMsg,
+} from '@tg/shared';
 
 /**
  * idle: not started. connecting: first attempt. open: socket is up.
@@ -51,7 +64,15 @@ export interface GameState {
   portfolio: Portfolio | null;
   /** This player's fills, newest first, at most MAX_FILLS. */
   fills: FillRecord[];
+  /** Public headlines, newest first, at most MAX_HEADLINES, unique by id. */
+  headlines: Omit<HeadlineMsg, 't'>[];
+  /** This quarter's briefing (beats, rate). */
+  briefing: Briefing | null;
+  /** Latest earnings reports, until the next briefing. */
+  earnings: Omit<EarningsMsg, 't'> | null;
 }
+
+export const MAX_HEADLINES = 60;
 
 export type Portfolio = Omit<PortfolioMsg, 't'>;
 
@@ -75,6 +96,9 @@ export const initialGameState: GameState = {
   replaced: false,
   portfolio: null,
   fills: [],
+  headlines: [],
+  briefing: null,
+  earnings: null,
 };
 
 /** Folds one server message into the state. Returns the same object when nothing changed. */
@@ -122,7 +146,22 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
     case 'candle':
       return state;
     // Later milestones: fold these into their own slices.
-    case 'headline':
+    case 'headline': {
+      // Replays after a reconnect repeat ids we already have.
+      if (state.headlines.some((h) => h.id === msg.id && !h.early === !msg.early)) return state;
+      const { t: _t, ...headline } = msg;
+      const rest = msg.early ? state.headlines : state.headlines.filter((h) => h.id !== msg.id);
+      return { ...state, headlines: [headline, ...rest].slice(0, MAX_HEADLINES) };
+    }
+    case 'briefing': {
+      const { t: _t, ...briefing } = msg;
+      // A new quarter: last quarter's earnings are history.
+      return { ...state, briefing, earnings: null };
+    }
+    case 'earnings': {
+      const { t: _t, ...earnings } = msg;
+      return { ...state, earnings };
+    }
     case 'shop':
     case 'results':
     case 'moment':
