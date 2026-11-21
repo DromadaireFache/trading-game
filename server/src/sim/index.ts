@@ -284,7 +284,10 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         if (!result.ok) return reject(intent, result.code, result.message), false;
         cards.onOrder(intent.playerId, intent.symbol);
         for (const event of result.events) {
-          if (event.e === 'fill') results.recordFill(event);
+          if (event.e === 'fill') {
+            if (intent.requestId !== undefined) event.requestId = intent.requestId;
+            results.recordFill(event);
+          }
           events.push(event);
         }
         return false;

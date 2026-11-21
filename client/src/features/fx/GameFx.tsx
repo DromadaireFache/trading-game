@@ -3,6 +3,7 @@ import type { ServerMsg } from '@tg/shared';
 import { formatMoneyShort, formatShares } from '../../lib/format.ts';
 import { useGameClient, useServerMessages } from '../../net/GameProvider.tsx';
 import { applyServerMsg } from '../../net/state.ts';
+import { popWinningButton, takeOrderButton } from './buttonFx.ts';
 import { anchorOf, fx } from './fx.ts';
 import { play } from './sound.ts';
 
@@ -10,25 +11,24 @@ import { play } from './sound.ts';
 const BIG_MOVE = 0.025;
 const BIG_MOVE_WINDOW = 20;
 const BIG_MOVE_COOLDOWN_MS = 6_000;
-/** Realized P&L smaller than this share of equity gets a popup but no fanfare. */
-const BIG_WIN_SHARE = 0.02;
+/** Largest win effects kick in at a quarter of the starting bankroll. */
+const MAX_WIN_CASH_SHARE = 0.25;
+const BIG_LOSS_SHARE = 0.02;
 
 /**
  * Turns server messages into effects and sounds. Mounted once per page, renders nothing.
  * Event-driven only: on a `tick` it does O(1) work (one price into a ring buffer), never DOM work
  * unless a big move just happened.
  *  - own fill: chip click and a popup at the order panel; a forced sale (margin call) shakes and buzzes
- *  - a fill that closes or cuts a position: its realized P&L as a +$ popup with coins, or a red -$
- *    with a thud. Computed from the position held before the fill (kept from `portfolio` messages,
- *    which arrive right after each fill), because a closed position leaves the list.
+ *  - a fill that closes or cuts a position: realized P&L from the server, with a stronger button
+ *    pop and screen shake for larger profits, or a red popup with a thud for a loss.
  *  - a public headline: blip (the headline itself pops up as a newspaper, see NewsPopups)
  *  - the index moving BIG_MOVE within ~2 s: shake and whoosh
  *  - TRADING opens: bell; RESULTS / FINAL: pop
  *  - a BREAKING moment: big shake and sting
  */
 export function GameFx({ role }: { role: 'player' | 'spectator' }) {
-  /** symbol -> { qty, avgPrice } as of the last `portfolio`. */
-  const held = useRef(new Map<string, { qty: number; avgPrice: number }>());
+  const client = useGameClient();
   const ring = useRef<number[]>([]);
   const indexSymbol = useRef<string | null>(null);
   const lastBigMove = useRef(0);
@@ -45,7 +45,6 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           meId.current = msg.playerId;
           if ((msg.game ?? 1) !== game.current) {
             game.current = msg.game ?? 1;
-            held.current.clear();
             cards.current = null;
           }
           return;
@@ -73,6 +72,7 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           return;
         }
         case 'fill': {
+          const button = takeOrderButton(msg.requestId);
           const at = anchorOf('[data-testid=last-fill]', anchorOf('.desk__order'));
           if (msg.reason) {
             fx.shake(2);
@@ -82,16 +82,12 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           }
           play('fill', msg.qty > 0 ? 1 : 0.85);
           fx.popup({ text: `${msg.qty > 0 ? '+' : ''}${formatShares(msg.qty)} ${msg.symbol}`, tone: msg.qty > 0 ? 'up' : 'down', ...at, size: 0.8 });
-          // Realized P&L of this fill: the part that closes (some of) the position held before it.
-          const before = held.current.get(msg.symbol);
-          if (before && before.qty !== 0 && Math.sign(before.qty) !== Math.sign(msg.qty)) {
-            const closed = Math.min(Math.abs(msg.qty), Math.abs(before.qty));
-            celebrate(closed * (msg.price - before.avgPrice) * Math.sign(before.qty), equity.current);
+          if (msg.realizedPnl !== undefined) {
+            celebrate(msg.realizedPnl, equity.current, client.getState().config.economy.startingCash, button);
           }
           return;
         }
         case 'portfolio': {
-          held.current = new Map(msg.positions.map((p) => [p.symbol, { qty: p.qty, avgPrice: p.avgPrice }]));
           equity.current = msg.equity;
           const now = { hand: msg.hand?.length ?? 0, heat: msg.heat, jailed: msg.jailedUntil !== undefined };
           const before = cards.current;
@@ -133,12 +129,11 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           return;
       }
     },
-    [role],
+    [client, role],
   );
   useServerMessages(handler);
   // Dev only: try effects from the console, e.g. __tgFx.fire({ t: 'moment', kind: 'crash', text: 'x' })
   // plays the effect AND puts the message in the client state as if the server had sent it.
-  const client = useGameClient();
   if (import.meta.env.DEV) {
     (window as unknown as { __tgFx?: unknown }).__tgFx = {
       fx,
@@ -154,18 +149,22 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
 }
 
 /** A realized gain or loss: popup at the positions panel, coins and an arpeggio for a win. */
-function celebrate(pnl: number, equity: number): void {
+function celebrate(pnl: number, equity: number, startingCash: number, button: ReturnType<typeof takeOrderButton>): void {
   if (Math.abs(pnl) < 1) return;
-  const at = anchorOf('[data-testid=positions]', anchorOf('.desk__positions'));
-  const big = Math.abs(pnl) >= BIG_WIN_SHARE * Math.max(1, equity);
-  fx.popup({ text: `${pnl > 0 ? '+' : '-'}${formatMoneyShort(Math.abs(pnl))}`, tone: pnl > 0 ? 'up' : 'down', ...at, size: big ? 1.8 : 1.1 });
   if (pnl > 0) {
-    play('cash', big ? 1.12 : 1);
-    fx.burst({ ...at, tone: 'accent', count: big ? 60 : 22, power: big ? 9 : 6 });
+    const at = button ? { x: button.rect.x + button.rect.width / 2, y: button.rect.y + button.rect.height / 2 } : anchorOf('.desk__positions');
+    const strength = Math.min(1, pnl / Math.max(1, startingCash * MAX_WIN_CASH_SHARE));
+    if (button) popWinningButton(button, strength);
+    fx.shake(3, strength);
+    fx.popup({ text: `+${formatMoneyShort(pnl)}`, tone: 'up', ...at, size: 1.1 + 0.7 * strength });
+    play('cash', 1 + 0.12 * strength);
+    fx.burst({ ...at, tone: 'accent', count: Math.round(22 + 38 * strength), power: 6 + 3 * strength });
   } else {
+    const big = -pnl >= BIG_LOSS_SHARE * Math.max(1, equity);
+    fx.popup({ text: `-${formatMoneyShort(-pnl)}`, tone: 'down', ...anchorOf('[data-testid=positions]', anchorOf('.desk__positions')), size: big ? 1.8 : 1.1 });
     play('thump');
+    if (big) fx.shake(1);
   }
-  if (big) fx.shake(1);
 }
 
 /** Hand, heat and jail changes between two `portfolio` messages. */

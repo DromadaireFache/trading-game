@@ -8,40 +8,40 @@
   height: 100%;
 }
 /* Clip only while shaking, so a shake never adds scrollbars (the e2e checks overflow). */
-.fx-root--shake-1,
-.fx-root--shake-2,
-.fx-root--shake-3 {
+.fx-root--shaking {
   overflow: hidden;
 }
-.fx-root--shake-1 > :first-child {
-  animation: fx-shake 0.28s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-  --fx-shake: 3px;
+.fx-root--shaking > :first-child {
+  animation: fx-shake var(--fx-shake-time) cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
 }
-.fx-root--shake-2 > :first-child {
-  animation: fx-shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-  --fx-shake: 7px;
+.fx-button-copy {
+  position: fixed;
+  z-index: 44;
+  display: grid;
+  place-items: center;
+  white-space: nowrap;
+  pointer-events: none;
 }
-.fx-root--shake-3 > :first-child {
-  animation: fx-shake 0.7s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-  --fx-shake: 14px;
+.fx-button-copy--win {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--tg-color-up) 65%, transparent);
 }
 @keyframes fx-shake {
   10%,
   90% {
-    transform: translate(calc(var(--fx-shake) * -0.3), calc(var(--fx-shake) * 0.2)) rotate(-0.15deg);
+    transform: translate(calc(var(--fx-shake) * -0.3), calc(var(--fx-shake) * 0.2)) rotate(calc(var(--fx-shake-angle) * -0.43));
   }
   20%,
   80% {
-    transform: translate(calc(var(--fx-shake) * 0.6), calc(var(--fx-shake) * -0.4)) rotate(0.25deg);
+    transform: translate(calc(var(--fx-shake) * 0.6), calc(var(--fx-shake) * -0.4)) rotate(calc(var(--fx-shake-angle) * 0.71));
   }
   30%,
   50%,
   70% {
-    transform: translate(calc(var(--fx-shake) * -1), calc(var(--fx-shake) * 0.5)) rotate(-0.35deg);
+    transform: translate(calc(var(--fx-shake) * -1), calc(var(--fx-shake) * 0.5)) rotate(calc(var(--fx-shake-angle) * -1));
   }
   40%,
   60% {
-    transform: translate(var(--fx-shake), calc(var(--fx-shake) * -0.6)) rotate(0.35deg);
+    transform: translate(var(--fx-shake), calc(var(--fx-shake) * -0.6)) rotate(var(--fx-shake-angle));
   }
 }
 
@@ -217,7 +217,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .fx-root > :first-child,
-  .fx-popup,
   .fx-deal,
   .fx-flip,
   .fx-bump,
@@ -225,11 +224,21 @@
   .fx-pulse {
     animation: none !important;
   }
+  .fx-popup {
+    animation: fx-fade 1.15s ease-out forwards;
+  }
+  .fx-button-copy {
+    display: none;
+  }
   .fx-tilt,
   .fx-tilt:hover {
     transition: none;
     transform: none;
   }
+}
+@keyframes fx-fade {
+  75% { opacity: 1; }
+  to { opacity: 0; }
 }
 
 .phase-header__status,

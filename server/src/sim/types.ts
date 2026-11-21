@@ -51,7 +51,7 @@ export type SimIntent =
   /** LOBBY only; needs config.lobby.minPlayers players. */
   | { kind: 'start'; playerId: PlayerId; debugMode?: boolean }
   /** TRADING only. qty in shares, < 0 = sell/short; truncated to whole shares. holdDays = quick bet. */
-  | { kind: 'order'; playerId: PlayerId; symbol: SymbolId; qty: number; holdDays?: number }
+  | { kind: 'order'; playerId: PlayerId; symbol: SymbolId; qty: number; holdDays?: number; requestId?: number }
   // --- later milestones (the stub rejects them) ---
   | { kind: 'buy_card'; playerId: PlayerId; offerId: string }
   | { kind: 'ready_up'; playerId: PlayerId; quarter: number; phase: ReadyPhase }
@@ -102,7 +102,7 @@ export type SimEvent =
   /** Right after the EARNINGS phase event. The price impact is server-only. */
   | { e: 'earnings'; quarter: number; reports: EarningsImpactReport[] }
   /** Milestone 3: a market order (or a forced close) was filled. Price unrounded. */
-  | { e: 'fill'; playerId: PlayerId; symbol: SymbolId; qty: number; price: number; ts: number; reason?: ForcedFillReason }
+  | { e: 'fill'; playerId: PlayerId; symbol: SymbolId; qty: number; price: number; ts: number; reason?: ForcedFillReason; realizedPnl?: number; requestId?: number }
   | {
       e: 'portfolio';
       playerId: PlayerId;

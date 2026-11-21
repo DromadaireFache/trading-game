@@ -7,6 +7,7 @@ import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
 import { useUiMode } from '../../lib/uiMode.ts';
+import { sendOrder } from '../fx/buttonFx.ts';
 import { QuickBetPanel } from './QuickBetPanel.tsx';
 import './trading.css';
 
@@ -54,10 +55,10 @@ export function OrderPanel({ className }: { className?: string }) {
   const sign = side === 'buy' ? 1 : -1;
   const info = market.getInfo(symbol);
 
-  const send = (qty: number) => {
-    if (qty !== 0) client.send({ t: 'order', symbol, qty });
+  const send = (button: HTMLButtonElement, qty: number) => {
+    if (qty !== 0) sendOrder(client, button, symbol, qty);
   };
-  const sendNotional = (notional: number) => send(sign * sharesForNotional(notional, price));
+  const sendNotional = (button: HTMLButtonElement, notional: number) => send(button, sign * sharesForNotional(notional, price));
 
   const status = eliminated ? 'You are out of the game.' : open ? null : 'Betting is closed until the market opens.';
   const risk = Number.isFinite(live.leverage) ? Math.min(1, live.leverage / cap) : 1;
@@ -110,7 +111,7 @@ export function OrderPanel({ className }: { className?: string }) {
             type="button"
             className={`order__size order__size--${side}`}
             disabled={disabled}
-            onClick={() => sendNotional(usd)}
+            onClick={(event) => sendNotional(event.currentTarget, usd)}
             title={`${verb} ${symbol} with ${formatMoney(usd)}`}
             data-testid={`size-usd-${usd}`}
           >
@@ -126,7 +127,7 @@ export function OrderPanel({ className }: { className?: string }) {
             type="button"
             className={`order__size order__size--${side}`}
             disabled={disabled || live.buyingPower <= 0}
-            onClick={() => sendNotional(pct * live.buyingPower)}
+            onClick={(event) => sendNotional(event.currentTarget, pct * live.buyingPower)}
             title={`${verb} ${symbol} with ${formatMoney(pct * live.buyingPower)}`}
             data-testid={`size-pct-${Math.round(pct * 100)}`}
           >
@@ -145,10 +146,10 @@ export function OrderPanel({ className }: { className?: string }) {
             ? `No bet on ${symbol} yet`
             : `${held > 0 ? '▲ UP' : '▼ DOWN'} · ${formatMoneyShort(Math.abs(held) * price)}${mode === 'pro' ? ` · ${formatShares(Math.abs(held))} sh` : ''}`}
         </span>
-        <button type="button" className="order__cash" disabled={disabled || Math.abs(held) < 2} onClick={() => send(-Math.trunc(held / 2))} data-testid="order-half" title="Close half of this bet">
+        <button type="button" className="order__cash" disabled={disabled || Math.abs(held) < 2} onClick={(event) => send(event.currentTarget, -Math.trunc(held / 2))} data-testid="order-half" title="Close half of this bet">
           Cash out ½
         </button>
-        <button type="button" className="order__cash" disabled={disabled || held === 0} onClick={() => send(-held)} data-testid="order-close" title="Close this bet and keep what it made (or lost)">
+        <button type="button" className="order__cash order__cash--primary" disabled={disabled || held === 0} onClick={(event) => send(event.currentTarget, -held)} data-testid="order-close" title="Close this bet and keep what it made (or lost)">
           Cash out
         </button>
       </div>

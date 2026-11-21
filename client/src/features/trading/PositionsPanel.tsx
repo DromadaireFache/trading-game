@@ -7,6 +7,7 @@ import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHoo
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
 import { useUiMode } from '../../lib/uiMode.ts';
 import type { UiMode } from '../../lib/uiMode.ts';
+import { sendOrder } from '../fx/buttonFx.ts';
 import './trading.css';
 
 /** Your money: net worth as the big score number and how far you are from the start. */
@@ -142,14 +143,15 @@ function PositionRow({ position, decimals, canTrade, mode }: { position: Positio
           type="button"
           className="positions__close"
           disabled={!open}
+          aria-label={`Cash out ${position.symbol}`}
           title={`Cash out ${position.symbol}`}
           onClick={(e) => {
             e.stopPropagation();
-            client.send({ t: 'order', symbol: position.symbol, qty: -position.qty });
+            sendOrder(client, e.currentTarget, position.symbol, -position.qty);
           }}
           data-testid="position-close"
         >
-          ×
+          Cash out
         </button>
       </td>
     </tr>

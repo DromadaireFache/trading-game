@@ -8,6 +8,7 @@ import { sharesForNotional, valuePortfolio } from '@tg/shared';
 import type { SymbolId } from '@tg/shared';
 import { useGame, useGameClient } from '../net/GameProvider.tsx';
 import { useMarketStore } from '../net/marketHooks.ts';
+import { sendOrder } from '../features/fx/buttonFx.ts';
 
 export const STAKE_LABELS = ['Small', 'Medium', 'Big'] as const;
 
@@ -45,23 +46,23 @@ export function useStake(): number {
 }
 
 /**
- * Returns `bet(symbol, up)`: places a quick bet with the chosen stake, or does nothing (returns false)
+ * Places a quick bet with the chosen stake, or does nothing (returns false)
  * when it cannot (no money to bet, no price). The stake is computed at the moment of the click, so this
  * hook does not follow the 10 Hz prices (one per panel, never one per row).
  */
-export function useQuickBet(): { bet: (symbol: SymbolId, up: boolean) => boolean; ready: boolean } {
+export function useQuickBet(): { bet: (button: HTMLButtonElement, symbol: SymbolId, up: boolean) => boolean; ready: boolean } {
   const client = useGameClient();
   const market = useMarketStore();
   const { config, portfolio } = useGame();
   const index = useStake();
   const share = config.trading.quickBetStakes[index] ?? config.trading.quickBetStakes[0] ?? 0.1;
   const bet = useCallback(
-    (symbol: SymbolId, up: boolean) => {
+    (button: HTMLButtonElement, symbol: SymbolId, up: boolean) => {
       if (portfolio === null) return false;
       const { buyingPower } = valuePortfolio(config, portfolio.cash, portfolio.positions, (s) => market.getQuote(s)?.price);
       const qty = sharesForNotional(buyingPower * share, market.getQuote(symbol)?.price ?? 0);
       if (qty <= 0) return false;
-      return client.send({ t: 'order', symbol, qty: up ? qty : -qty });
+      return sendOrder(client, button, symbol, up ? qty : -qty);
     },
     [client, market, config, portfolio, share],
   );

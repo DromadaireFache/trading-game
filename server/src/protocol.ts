@@ -54,7 +54,10 @@ export function parseClientMsg(text: string): ParseResult {
       if (raw.holdDays !== undefined && (typeof raw.holdDays !== 'number' || !Number.isInteger(raw.holdDays) || raw.holdDays < 1 || raw.holdDays > 365)) {
         return bad('order.holdDays must be a whole number of days, 1 or more');
       }
-      return { ok: true, msg: { t: 'order', symbol: raw.symbol, qty: raw.qty, ...(raw.holdDays === undefined ? {} : { holdDays: raw.holdDays }) } };
+      if (raw.requestId !== undefined && (typeof raw.requestId !== 'number' || !Number.isSafeInteger(raw.requestId) || raw.requestId < 1)) {
+        return bad('order.requestId must be a positive safe integer');
+      }
+      return { ok: true, msg: { t: 'order', symbol: raw.symbol, qty: raw.qty, ...(raw.holdDays === undefined ? {} : { holdDays: raw.holdDays }), ...(raw.requestId === undefined ? {} : { requestId: raw.requestId }) } };
     }
     case 'buy_card': {
       if (!isNonEmptyString(raw.offerId)) return bad('buy_card.offerId must be a non-empty string');

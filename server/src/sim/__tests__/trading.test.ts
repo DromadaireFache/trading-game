@@ -67,7 +67,8 @@ describe('fills and average prices', () => {
     d.trading.order('p1', 'AAA', 1000);
     expect(holding(d, 'AAA')!.avgPrice).toBeCloseTo(105, 10);
     d.prices.AAA = 120;
-    d.trading.order('p1', 'AAA', -500);
+    const sale = d.trading.order('p1', 'AAA', -500);
+    expect(sale).toMatchObject({ ok: true, events: [expect.objectContaining({ e: 'fill', realizedPnl: 7500 }), expect.objectContaining({ e: 'portfolio' })] });
     const h = holding(d, 'AAA')!;
     expect(h.qty).toBe(1500);
     expect(h.avgPrice).toBeCloseTo(105, 10);

@@ -13,6 +13,7 @@ describe('parseClientMsg', () => {
     expect(parseClientMsg('{"t":"start"}')).toEqual({ ok: true, msg: { t: 'start' } });
     expect(parseClientMsg('{"t":"start","debugMode":true}')).toEqual({ ok: true, msg: { t: 'start', debugMode: true } });
     expect(parseClientMsg('{"t":"order","symbol":"ACME","qty":-5}')).toEqual({ ok: true, msg: { t: 'order', symbol: 'ACME', qty: -5 } });
+    expect(parseClientMsg('{"t":"order","symbol":"ACME","qty":-5,"requestId":42}')).toEqual({ ok: true, msg: { t: 'order', symbol: 'ACME', qty: -5, requestId: 42 } });
     expect(parseClientMsg('{"t":"buy_card","offerId":"o1"}').ok).toBe(true);
     expect(parseClientMsg('{"t":"ready_up","quarter":1,"phase":"RESULTS"}')).toEqual({ ok: true, msg: { t: 'ready_up', quarter: 1, phase: 'RESULTS' } });
     expect(parseClientMsg('{"t":"ready_up","quarter":1}')).toEqual({ ok: true, msg: { t: 'ready_up', quarter: 1, phase: 'SHOP' } });
@@ -40,6 +41,7 @@ describe('parseClientMsg', () => {
       '{"t":"order","symbol":"ACME","qty":0}',
       '{"t":"order","symbol":"ACME","qty":1e999}',
       '{"t":"order","symbol":"ACME","qty":null}',
+      '{"t":"order","symbol":"ACME","qty":1,"requestId":0}',
       '{"t":"buy_card"}',
       '{"t":"start","debugMode":"true"}',
       '{"t":"ready_up"}',

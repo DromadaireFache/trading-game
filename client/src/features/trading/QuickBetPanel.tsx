@@ -4,6 +4,7 @@ import { STAKE_LABELS, setStake, useQuickBet, useStake } from '../../lib/quickBe
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
+import { sendOrder } from '../fx/buttonFx.ts';
 import { LastFill } from './OrderPanel.tsx';
 import './trading.css';
 
@@ -53,10 +54,10 @@ export function QuickBetPanel({ className }: { className?: string }) {
         ))}
       </div>
       <div className="quick__dirs">
-        <button type="button" className="quick__dir quick__dir--up" disabled={!canBet} onClick={() => bet(symbol, true)} data-testid="quick-up">
+        <button type="button" className="quick__dir quick__dir--up" disabled={!canBet} onClick={(event) => bet(event.currentTarget, symbol, true)} data-testid="quick-up">
           ▲ Going up
         </button>
-        <button type="button" className="quick__dir quick__dir--down" disabled={!canBet} onClick={() => bet(symbol, false)} data-testid="quick-down">
+        <button type="button" className="quick__dir quick__dir--down" disabled={!canBet} onClick={(event) => bet(event.currentTarget, symbol, false)} data-testid="quick-down">
           ▼ Going down
         </button>
       </div>
@@ -73,7 +74,7 @@ export function QuickBetPanel({ className }: { className?: string }) {
             {held > 0 ? '▲ UP' : '▼ DOWN'} · {formatMoneyShort(Math.abs(held) * (quote?.price ?? 0))}
           </span>
           <span />
-          <button type="button" className="order__cash" disabled={!open} onClick={() => client.send({ t: 'order', symbol, qty: -held })} data-testid="order-close">
+          <button type="button" className="order__cash order__cash--primary" disabled={!open} onClick={(event) => sendOrder(client, event.currentTarget, symbol, -held)} data-testid="order-close">
             Cash out now
           </button>
         </div>

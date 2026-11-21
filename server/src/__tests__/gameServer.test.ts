@@ -827,6 +827,11 @@ describe('trading', () => {
     await back.join('player', undefined, welcome.token);
     const restored = await back.next('portfolio');
     expect(restored.positions).toEqual([expect.objectContaining({ symbol, qty: 1000 })]);
+    back.send({ t: 'order', symbol, qty: -250, requestId: 42 });
+    const sale = await back.next('fill');
+    expect(sale).toMatchObject({ symbol, qty: -250, requestId: 42, realizedPnl: expect.any(Number) });
+    const reduced = await back.next('portfolio', (m) => m.positions[0]?.qty === 750);
+    expect(sale.realizedPnl).toBe(reduced.positions[0]!.realized);
   });
 });
 

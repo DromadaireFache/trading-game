@@ -129,7 +129,7 @@ export function createTrading(deps: TradingDeps): Trading {
   }
 
   /** Books a fill: cash, average price, realized P&L. */
-  function book(account: Account, symbol: SymbolId, q: number, price: number): void {
+  function book(account: Account, symbol: SymbolId, q: number, price: number): number | undefined {
     let h = account.holdings.get(symbol);
     if (h === undefined) {
       h = { qty: 0, avgPrice: 0, realized: 0 };
@@ -137,16 +137,19 @@ export function createTrading(deps: TradingDeps): Trading {
     }
     account.cash -= q * price;
     const next = h.qty + q;
+    let realizedPnl: number | undefined;
     if (h.qty === 0 || Math.sign(h.qty) === Math.sign(q)) {
       // Opening or adding: volume-weighted average.
       h.avgPrice = (Math.abs(h.qty) * h.avgPrice + Math.abs(q) * price) / Math.abs(next);
     } else {
       // Reducing, closing or flipping.
       const closed = Math.min(Math.abs(q), Math.abs(h.qty));
-      h.realized += closed * (price - h.avgPrice) * Math.sign(h.qty);
+      realizedPnl = closed * (price - h.avgPrice) * Math.sign(h.qty);
+      h.realized += realizedPnl;
       if (next !== 0 && Math.sign(next) !== Math.sign(h.qty)) h.avgPrice = price;
     }
     h.qty = next;
+    return realizedPnl;
   }
 
   /** Fills q shares at the effective mid plus slippage and records the impact. */
@@ -160,9 +163,10 @@ export function createTrading(deps: TradingDeps): Trading {
     const perm = side * Math.min(im.maxPermanent, im.kPermanent * x);
     pending.set(symbol, (pending.get(symbol) ?? 0) + perm + temp);
     temporary.set(symbol, (temporary.get(symbol) ?? 0) + temp);
-    book(account, symbol, q, price);
+    const realizedPnl = book(account, symbol, q, price);
     const fill: SimEventOf<'fill'> = { e: 'fill', playerId: account.id, symbol, qty: q, price, ts: deps.now() };
     if (reason !== undefined) fill.reason = reason;
+    if (realizedPnl !== undefined) fill.realizedPnl = realizedPnl;
     return fill;
   }
 

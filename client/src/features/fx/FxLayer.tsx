@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { pressButton } from './buttonFx.ts';
 import { onFx, reducedMotion } from './fx.ts';
 import type { FxTone } from './fx.ts';
 import './fx.css';
@@ -102,9 +103,12 @@ export function FxRoot({ children }: { children: ReactNode }) {
       if (e.kind === 'shake') {
         const el = rootRef.current;
         if (!el) return;
-        el.classList.remove('fx-root--shake-1', 'fx-root--shake-2', 'fx-root--shake-3');
+        el.classList.remove('fx-root--shaking');
+        el.style.setProperty('--fx-shake', `${e.distance}px`);
+        el.style.setProperty('--fx-shake-angle', `${e.distance / 40}deg`);
+        el.style.setProperty('--fx-shake-time', `${e.duration}ms`);
         void el.offsetWidth; // restart the animation
-        el.classList.add(`fx-root--shake-${e.strength}`);
+        el.classList.add('fx-root--shaking');
         return;
       }
       const color = colorOf(e.tone);
@@ -138,8 +142,14 @@ export function FxRoot({ children }: { children: ReactNode }) {
     <div
       ref={rootRef}
       className="fx-root"
+      onClickCapture={(ev) => {
+        const button = ev.target instanceof Element ? ev.target.closest('button') : null;
+        if (button) pressButton(button);
+      }}
       onAnimationEnd={(ev) => {
-        if (ev.target === rootRef.current) rootRef.current?.classList.remove('fx-root--shake-1', 'fx-root--shake-2', 'fx-root--shake-3');
+        if (ev.animationName === 'fx-shake' && ev.target === rootRef.current?.firstElementChild) {
+          rootRef.current?.classList.remove('fx-root--shaking');
+        }
       }}
     >
       {children}

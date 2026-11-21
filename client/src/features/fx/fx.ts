@@ -27,7 +27,13 @@ export interface BurstFx {
   power?: number;
 }
 
-type FxEvent = { kind: 'shake'; strength: 1 | 2 | 3 } | ({ kind: 'popup' } & PopupFx) | ({ kind: 'burst' } & BurstFx);
+type FxEvent = { kind: 'shake'; distance: number; duration: number } | ({ kind: 'popup' } & PopupFx) | ({ kind: 'burst' } & BurstFx);
+
+const SHAKES = {
+  1: { distance: 3, duration: 280 },
+  2: { distance: 7, duration: 420 },
+  3: { distance: 14, duration: 700 },
+};
 
 const listeners = new Set<(e: FxEvent) => void>();
 
@@ -49,7 +55,10 @@ export function onFx(listener: (e: FxEvent) => void): () => void {
 export type { FxEvent };
 
 export const fx = {
-  shake: (strength: 1 | 2 | 3 = 1) => emit({ kind: 'shake', strength }),
+  shake: (strength: 1 | 2 | 3 = 1, scale = 1) => {
+    const { distance, duration } = SHAKES[strength];
+    emit({ kind: 'shake', distance: distance * scale, duration });
+  },
   popup: (p: PopupFx) => emit({ kind: 'popup', ...p }),
   burst: (b: BurstFx) => emit({ kind: 'burst', ...b }),
 };

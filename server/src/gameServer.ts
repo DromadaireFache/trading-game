@@ -385,8 +385,10 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
 
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'spectators cannot do that');
     switch (msg.t) {
-      case 'order':
-        return sim.submit({ kind: 'order', playerId: session.id, symbol: msg.symbol, qty: msg.qty, ...(msg.holdDays === undefined ? {} : { holdDays: msg.holdDays }) });
+      case 'order': {
+        const { t: _t, ...order } = msg;
+        return sim.submit({ kind: 'order', playerId: session.id, ...order });
+      }
       case 'buy_card':
         return sim.submit({ kind: 'buy_card', playerId: session.id, offerId: msg.offerId });
       case 'ready_up':
@@ -483,8 +485,11 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       case 'earnings':
         return broadcast(newsMsg(event));
       case 'fill': {
-        const { e: _e, playerId, price, ...rest } = event;
-        return sendTo(playerId, { t: 'fill', ...rest, price: roundPrice(config, price) });
+        const { e: _e, playerId, price, realizedPnl, ...rest } = event;
+        return sendTo(playerId, {
+          t: 'fill', ...rest, price: roundPrice(config, price),
+          ...(realizedPnl === undefined ? {} : { realizedPnl: Math.round(realizedPnl * 100) / 100 }),
+        });
       }
       case 'portfolio': {
         const msg = portfolioMsg(event);

@@ -70,6 +70,8 @@ export interface OrderMsg {
   t: 'order';
   symbol: SymbolId;
   qty: number;
+  /** Optional client request ID echoed on the fill. */
+  requestId?: number;
   /**
    * Quick bet (Simple mode): cash this order out by itself at the close of its holdDays-th trading
    * day (the day in progress counts as the first), and at the latest at the end of the quarter.
@@ -231,6 +233,9 @@ export interface FillMsg {
   qty: number;
   /** Fill price including slippage. */
   price: number;
+  /** P&L on the part of the fill that closed an existing position. */
+  realizedPnl?: number;
+  requestId?: number;
   /** Set when the server traded on the player's behalf (margin call, elimination). */
   reason?: ForcedFillReason;
   /** Game day (fractional) of the fill. */
