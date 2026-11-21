@@ -794,9 +794,16 @@ async function main(): Promise<void> {
       await b.waitForSelector(positionRow(stockB));
       const qtyB = money(await b.locator(`${positionRow(stockB)} ${tid('position-qty')}`).textContent() ?? '');
       check(qtyB < 0, `B is short ${qtyB} ${stockB}`);
-      await sleep(150);
-      const bpB = money(await textOf(b, 'buying-power'));
-      check(bpB > 0.7 * cap * startCash && bpB < 0.8 * cap * startCash, `B has about 75% of its buying power left (${bpB})`);
+      // From the server portfolio sent with the fill: the live value moves with every tick (and with the
+      // short's own impact, which pushes the price down and B's equity up).
+      const portfolioAfterFill = (label: string) => {
+        const frames = framesOf(label);
+        const at = frames.lastIndexOf(frames.filter((m) => m.t === 'fill').at(-1)!);
+        return frames.slice(at).find((m) => m.t === 'portfolio') as { buyingPower?: number } | undefined;
+      };
+      await waitFor('B portfolio after its fill', async () => portfolioAfterFill('B') !== undefined);
+      const bpB = portfolioAfterFill('B')!.buyingPower ?? NaN;
+      check(bpB > 0.7 * cap * startCash && bpB < 0.8 * cap * startCash, `B has about 75% of its buying power left at the fill (${Math.round(bpB)})`);
       await shot(b, '19-play-trading-B');
 
       // A tries to buy far more than allowed: the order is clipped to the cap, not rejected.
@@ -871,10 +878,12 @@ async function main(): Promise<void> {
       const onA = headlineFrames('A');
       check(onA.every((h) => !/\{[A-Z_]+\}/.test(h.text)), `every headline has its slots filled (${onA.length} so far)`);
       check(new Set(onA.map((h) => h.id)).size === onA.length, 'no headline id repeats on the wire');
+      // A headline can land between reading the wire and reading the page: accept anything in between.
       const shownA = await a.locator(tid('headline')).count();
-      check(shownA === Math.min(onA.length, 60), `A's feed lists the ${onA.length} headlines received (${shownA} shown)`);
       const topA = (await a.locator(`${tid('headline')} .news__text`).first().textContent())?.trim();
-      check(topA === onA.at(-1)!.text, `the newest headline is on top: "${topA}"`);
+      const afterA = headlineFrames('A');
+      check(shownA >= Math.min(onA.length, 60) && shownA <= Math.min(afterA.length, 60), `A's feed lists the headlines received (${shownA} shown, ${onA.length}..${afterA.length} received)`);
+      check(afterA.slice(-2).some((h) => h.text === topA), `the newest headline is on top: "${topA}"`);
       const idsB = new Set(headlineFrames('B').map((h) => h.id));
       check(onA.filter((h) => !h.early).slice(-3).every((h) => idsB.has(h.id)), 'B received the same latest headlines as A');
       check(!headlineFrames('floor').some((h) => h.early), 'no early (insider) headline reached the floor');
