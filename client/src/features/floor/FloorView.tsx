@@ -6,7 +6,7 @@ import { useCountdown } from '../../hooks/useCountdown.ts';
 import { PHASE_HINT, PHASE_LABEL } from '../../lib/phases.ts';
 import { formatQuarter } from '../../lib/time.ts';
 import { useGame } from '../../net/GameProvider.tsx';
-import { FloorResults, MomentBanner } from '../results/FloorResults.tsx';
+import { FloorResults, MomentBanner, useVisibleMoment } from '../results/FloorResults.tsx';
 import { SoundToggle } from '../fx/SoundToggle.tsx';
 import { HeadlineTape } from './HeadlineTape.tsx';
 import { NetWorthChart, NetWorthStandings } from './NetWorthChart.tsx';
@@ -21,6 +21,7 @@ import { NetWorthChart, NetWorthStandings } from './NetWorthChart.tsx';
 export function FloorView() {
   const { phase, lobby, config, joinUrls, replaced } = useGame();
   const countdown = useCountdown();
+  const moment = useVisibleMoment();
   const current = phase?.phase ?? 'LOBBY';
   const totalQuarters = phase?.totalQuarters ?? config.time.quarters;
   const urgent = countdown.ms !== null && countdown.ms <= config.presentation.countdownUrgentMs;
@@ -70,11 +71,11 @@ export function FloorView() {
         <div className="floor__progress" aria-hidden="true">
           <div className="floor__progress-bar" style={{ transform: `scaleX(${countdown.progress ?? 0})` }} />
         </div>
-        {isResults && <FloorResults />}
+        {isResults && <FloorResults pauseReplay={moment !== null} />}
         {showChart && <NetWorthChart players={lobby.players} config={config} />}
         <ErrorBanner />
       </main>
-      {current !== 'FINAL' && <MomentBanner />}
+      {current !== 'FINAL' && moment && <MomentBanner moment={moment} />}
 
       <aside className="floor__side">
         <h2 className="floor__side-title">

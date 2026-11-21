@@ -11,6 +11,11 @@
   gap: 12px 16px;
   align-content: start;
 }
+.results__grid:has(> .quarter-worth) {
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: auto minmax(170px, 1fr);
+}
 .results__block {
   display: flex;
   flex-direction: column;
@@ -79,26 +84,12 @@
   background: var(--tg-color-accent);
   vertical-align: middle;
 }
-.results__cause .results__tag {
-  margin-left: 0;
-}
 .results__tag--down,
 .results__tag--card {
   background: var(--tg-color-down);
 }
-.results__tag--warn,
-.results__tag--regime {
+.results__tag--warn {
   background: var(--tg-color-warn);
-}
-.results__tag--headline {
-  background: var(--tg-color-info);
-}
-.results__tag--earnings {
-  background: var(--tg-color-up);
-}
-.results__tag--noise {
-  background: var(--tg-color-border-strong);
-  color: var(--tg-color-text);
 }
 .results__pnl--up {
   color: var(--tg-color-up);
@@ -129,48 +120,92 @@
   text-align: right;
 }
 
-/* ---------------------------------------------------------------- recap */
+/* ---------------------------------------------------------------- quarter net worth */
 
-.results__recap {
+.quarter-worth {
   grid-column: 1 / -1;
-}
-.results__moves {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-.results__move {
-  padding: 8px;
-  background: var(--tg-color-bg-inset);
-  border: 1px solid var(--tg-color-border);
-  border-radius: 3px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
-.results__move-head {
+.quarter-worth__legend {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+}
+.quarter-worth__legend li {
+  display: flex;
+  align-items: center;
   gap: 6px;
 }
-.results__move-name {
-  color: var(--tg-color-text-bright);
-  overflow: hidden;
-  text-overflow: ellipsis;
+.quarter-worth__legend span {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+}
+.quarter-worth__plot {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  padding: 10px 12px 6px 8px;
+  background: var(--tg-color-bg-inset);
+  border: 1px solid var(--tg-color-border);
+  border-radius: 4px;
+  color: var(--tg-color-text-dim);
+  font-size: 11px;
+}
+.results .quarter-worth__plot {
+  flex: 1;
+  height: 0;
+  min-height: 120px;
+}
+.quarter-worth__prices {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.quarter-worth__plot svg {
+  width: 100%;
+  height: 100%;
+}
+.quarter-worth__plot line {
+  stroke: var(--tg-color-border);
+}
+.quarter-worth__plot path {
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.quarter-worth__days {
+  grid-column: 2;
+  position: relative;
+  height: 1.4em;
+}
+.quarter-worth__days span {
+  position: absolute;
+  transform: translateX(-50%);
   white-space: nowrap;
 }
-.results__sym {
-  font-weight: 700;
+.quarter-worth__days span:first-child {
+  transform: none;
 }
-.results__move-change {
-  font-size: 18px;
-  font-weight: 700;
+.quarter-worth__days span:last-child {
+  transform: translateX(-100%);
 }
-.results__cause {
-  font-size: 12px;
-  line-height: 1.35;
+.quarter-worth__reveal {
+  animation: quarter-worth-reveal 1.4s linear both;
+  transform-origin: 0 0;
 }
+@keyframes quarter-worth-reveal {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
 .results__news {
   grid-column: 1 / -1;
 }
@@ -259,18 +294,21 @@
   font-size: 0.8vw;
   line-height: 1.4;
 }
-.floor-board .results__moves {
-  gap: 1.5vw;
+.floor-board .quarter-worth {
+  flex: 1;
+  min-height: 0;
 }
-.floor-board .results__move {
-  padding: 1vw;
+.floor-board .quarter-worth__legend,
+.floor-board .quarter-worth__plot,
+.floor-board .quarter-worth .results__heading {
+  font-size: clamp(13px, 1.15vw, 24px);
 }
-.floor-board .results__move-name,
-.floor-board .results__cause {
-  font-size: 1.2vw;
+.floor-board .quarter-worth__plot {
+  flex: 1;
+  min-height: 0;
 }
-.floor-board .results__move-change {
-  font-size: 2vw;
+.floor-board .quarter-worth__plot path {
+  stroke-width: 3;
 }
 .floor-board .results__winner {
   font-size: 2.6vw;
@@ -382,6 +420,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .quarter-worth__reveal,
   .moment,
   .moment__label,
   .moment__text {

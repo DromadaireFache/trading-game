@@ -1,24 +1,21 @@
 import type React from 'react';
-import { SECTOR_LABELS } from '@tg/shared';
-import type { Sector } from '@tg/shared';
 import { useEffect, useState } from 'react';
-import { changeDirection, formatMoneyShort, formatPercent } from '../../lib/format.ts';
+import { formatMoneyShort } from '../../lib/format.ts';
 import { useGame } from '../../net/GameProvider.tsx';
-import { useSymbols } from '../../net/marketHooks.ts';
 import { CountUp } from '../fx/CountUp.tsx';
 import { Leaderboard } from './ResultsPanel.tsx';
+import { QuarterNetWorth } from './QuarterNetWorth.tsx';
 import './results.css';
 
 /**
- * Projector, in RESULTS and FINAL: the standings plus either the market recap (RESULTS) or the winner
+ * Projector, in RESULTS and FINAL: the standings plus either the quarter replay (RESULTS) or the winner
  * and awards (FINAL). Null when there is nothing to show yet.
  */
-export function FloorResults() {
+export function FloorResults({ pauseReplay }: { pauseReplay: boolean }) {
   const { results, phase, config } = useGame();
-  const symbols = useSymbols();
   const current = phase?.phase;
   if (!results || !current) return null;
-  if (current === 'FINAL' ? !results.final : current !== 'RESULTS') return null;
+  if (current === 'FINAL' ? !results.final : current !== 'RESULTS' || results.final || results.recap.quarter !== phase.quarter) return null;
 
   const winner = results.leaderboard[0];
   return (
@@ -42,26 +39,13 @@ export function FloorResults() {
           ))}
         </ul>
       ) : (
-        <ol className="results__moves">
-          {results.recap.topMoves.map((m, i) => (
-            <li key={m.target} className="results__move fx-flip" style={{ '--fx-i': i } as React.CSSProperties}>
-              <div className="results__move-head">
-                <span className="results__move-name">
-                  {m.kind === 'sector' ? `${SECTOR_LABELS[m.target as Sector]} sector` : (symbols.find((s) => s.symbol === m.target)?.name ?? m.target)}
-                </span>
-                <span className={`results__move-change results__pnl--${changeDirection(m.change)}`}>{formatPercent(m.change)}</span>
-              </div>
-              <div className="results__cause">{m.cause.text}</div>
-            </li>
-          ))}
-        </ol>
+        <QuarterNetWorth key={results.recap.quarter} results={results} paused={pauseReplay} />
       )}
     </section>
   );
 }
 
-/** Full-screen BREAKING banner for presentation.momentVisibleMs after a `moment` arrives. */
-export function MomentBanner() {
+export function useVisibleMoment() {
   const { moment, config } = useGame();
   const visibleMs = config.presentation.momentVisibleMs;
   const [, rerender] = useState(0);
@@ -71,7 +55,11 @@ export function MomentBanner() {
     const timer = setTimeout(() => rerender((n) => n + 1), left);
     return () => clearTimeout(timer);
   }, [moment, left]);
-  if (!moment || left <= 0) return null;
+  return left > 0 ? moment : null;
+}
+
+/** Full-screen BREAKING banner while a moment is visible. */
+export function MomentBanner({ moment }: { moment: NonNullable<ReturnType<typeof useVisibleMoment>> }) {
   return (
     <div className={`moment moment--${moment.kind}`} data-testid="moment" data-kind={moment.kind} role="alert">
       <div className="moment__label">BREAKING</div>

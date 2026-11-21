@@ -838,7 +838,7 @@ describe('trading', () => {
     const bob = await open(s);
     const { playerId: bobId } = await bob.join('player', 'Bob');
     const floor = await open(s);
-    await floor.join('spectator');
+    const spectator = await floor.join('spectator');
     expect(await floor.next('net_worth')).toMatchObject({ reset: true, samples: [] });
 
     ann.send({ t: 'start', debugMode: true });
@@ -863,12 +863,23 @@ describe('trading', () => {
     expect(history.reset).toBe(true);
     expect(history.samples.map((sample) => sample.tick)).toEqual(Array.from({ length: lastTick + 1 }, (_, i) => i));
     expect(history.samples.slice(close.samples[0]!.tick, lastTick)).toEqual(close.samples.slice(0, -1));
+    const replay = await floor.next('results');
+    expect((await ann.next('results')).netWorthHistory).toEqual(replay.netWorthHistory);
+    expect(replay.netWorthHistory?.map(({ tick }) => tick)).toEqual(history.samples.map(({ tick }) => tick));
+    for (const { playerId, startEquity, endEquity } of replay.statements) {
+      expect(replay.netWorthHistory?.[0]?.equity[playerId]).toBe(startEquity);
+      expect(replay.netWorthHistory?.at(-1)?.equity[playerId]).toBe(endEquity);
+    }
     const offer = (await bob.next('shop')).offers[0]!;
     bob.send({ t: 'buy_card', offerId: offer.offerId });
     const correction = await floor.next('net_worth', (m) => m.samples.at(-1)?.equity[bobId] === startingCash - offer.price);
     expect(correction.samples.map((sample) => sample.tick)).toEqual([lastTick]);
     expect((await late.next('net_worth', (m) => m.samples.at(-1)?.equity[bobId] === startingCash - offer.price)).samples)
       .toEqual(correction.samples);
+    // A reconnect in Shop gets the frozen quarter close, even after a purchase changed live equity.
+    const rejoined = await open(s);
+    await rejoined.join('spectator', undefined, spectator.token);
+    expect((await rejoined.next('results')).netWorthHistory).toEqual(replay.netWorthHistory);
     expect(ann.received.some((m) => m.t === 'net_worth')).toBe(false);
   });
 

@@ -1146,8 +1146,13 @@ async function main(): Promise<void> {
           // Milestone 6: the quarter's results on the desk and on the projector.
           await a.waitForSelector(tid('leaderboard'));
           const rows = await a.locator(tid('leaderboard-row')).count();
-          const moves = await a.locator(tid('recap-move')).count();
-          check(rows === 2 && moves === 3, `A shows the Q1 standings (${rows} players) and ${moves} recap moves`);
+          check(rows === 2, `A shows the Q1 standings (${rows} players)`);
+          for (const [label, page] of [['A', a], ['the projector', floor]] as const) {
+            const replay = page.locator(tid('quarter-net-worth'));
+            await replay.waitFor({ state: 'visible' });
+            check(await replay.locator('path[data-player]').count() === rows && (await replay.textContent())?.includes(`Day ${DAYS}`),
+              `${label} shows both net-worth paths through the last day of the quarter`);
+          }
           check(await a.locator(tid('my-statement')).isVisible(), 'A sees its own quarter statement');
           await floor.waitForSelector(tid('floor-results'));
           check((await floor.locator(tid('leaderboard-row')).count()) === 2, 'the floor shows the standings in RESULTS');

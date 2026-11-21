@@ -243,6 +243,9 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       // Cards that publish no headline (insider tips, earnings peeks) are revealed too.
       event.recap.cardAuthors.push(...close.reveals);
       if (!final) {
+        recordNetWorth();
+        const openingTick = (quarter - 1) * config.time.daysPerQuarter * tpc;
+        event.netWorthHistory = netWorthHistory.slice(openingTick, marketTick() + 1);
         events.push(event);
         for (const m of close.moments) {
           const moment = results.addMoment(m.kind, m.text);

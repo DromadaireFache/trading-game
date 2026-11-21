@@ -4,35 +4,18 @@ import type { IPrimitivePaneRenderer, Logical, Time, UTCTimestamp } from 'lightw
 import type { GameConfig, LobbyPlayer, NetWorthMsg, NetWorthSample, PlayerId } from '@tg/shared';
 import { chartTimeToDay, dayToChartTime, formatAxisDay, formatGameDay } from '../../lib/chartTime.ts';
 import { formatMoney } from '../../lib/format.ts';
+import { fitWorthRange, playerColor } from '../../lib/netWorth.ts';
 import { useGameClient } from '../../net/GameProvider.tsx';
 import { theme } from '../../theme.ts';
 import { reducedMotion } from '../fx/fx.ts';
 
 const VISIBLE_DAYS = 30;
 const SECONDS_PER_DAY = 86_400;
-const COLORS = [theme.color.accent, theme.color.info, theme.color.up, theme.color.sectorHealth, theme.color.sectorFinance, theme.color.warn] as const;
-const playerColor = (index: number) => COLORS[index % COLORS.length]!;
 const interpolate = (from: number, to: number, progress: number) => from + (to - from) * progress;
 
 interface WorthRange {
   from: number;
   to: number;
-}
-
-function fitWorthRange(samples: readonly NetWorthSample[]): WorthRange | null {
-  let min = Infinity;
-  let max = -Infinity;
-  for (const sample of samples) {
-    for (const value of Object.values(sample.equity)) {
-      if (!Number.isFinite(value)) continue;
-      min = Math.min(min, value);
-      max = Math.max(max, value);
-    }
-  }
-  if (min > max) return null;
-  // Fit the recent paths and every current balance. Keep a little room when balances tie.
-  const padding = Math.max(1, (max - min) * 0.12, Math.max(Math.abs(min), Math.abs(max)) * 0.001);
-  return { from: min - padding, to: max + padding };
 }
 
 export function NetWorthChart({ players, config }: { players: readonly LobbyPlayer[]; config: GameConfig }) {

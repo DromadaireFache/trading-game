@@ -1,16 +1,15 @@
 import type React from 'react';
-import { SECTOR_LABELS } from '@tg/shared';
-import type { LeaderboardEntry, RecapMove, Sector, Statement } from '@tg/shared';
+import type { LeaderboardEntry, Statement } from '@tg/shared';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
 import { ReadyUp } from '../../components/ReadyUp.tsx';
 import { changeDirection, formatMoney, formatMoneyShort, formatPercent } from '../../lib/format.ts';
 import { useGame } from '../../net/GameProvider.tsx';
-import { useSymbols } from '../../net/marketHooks.ts';
 import { CountUp } from '../fx/CountUp.tsx';
+import { QuarterNetWorth } from './QuarterNetWorth.tsx';
 import '../fx/fx.css';
 import './results.css';
 
-/** RESULTS: leaderboard, this player's quarter, the market recap, arrests and card authors. */
+/** RESULTS: leaderboard, each player's net-worth path, statements, arrests and card authors. */
 export function ResultsPanel({ className }: { className?: string }) {
   const { results, phase, me } = useGame();
   const quarter = phase?.quarter ?? 0;
@@ -23,7 +22,7 @@ export function ResultsPanel({ className }: { className?: string }) {
   }
   const mine = results.statements.find((s) => s.playerId === me?.playerId);
   return (
-    <Panel title={`Q${results.recap.quarter} results`} aside="market recap / standings" className={`results ${className ?? ''}`}>
+    <Panel title={`Q${results.recap.quarter} results`} className={`results ${className ?? ''}`}>
       <ReadyUp />
       <div className="results__grid">
         <section className="results__block results__board">
@@ -36,10 +35,7 @@ export function ResultsPanel({ className }: { className?: string }) {
             <MyStatement statement={mine} />
           </section>
         )}
-        <section className="results__block results__recap">
-          <h3 className="results__heading">What moved the market</h3>
-          <Recap moves={results.recap.topMoves} />
-        </section>
+        <QuarterNetWorth key={quarter} results={results} />
         {(results.arrests.length > 0 || results.recap.cardAuthors.length > 0) && (
           <section className="results__block results__news">
             {results.arrests.length > 0 && (
@@ -149,39 +145,5 @@ function MyStatement({ statement: s }: { statement: Statement }) {
         </div>
       )}
     </dl>
-  );
-}
-
-const CAUSE_LABEL: Record<RecapMove['cause']['kind'], string> = {
-  headline: 'NEWS',
-  earnings: 'EARNINGS',
-  card: 'CARD',
-  regime: 'REGIME',
-  noise: 'DRIFT',
-};
-
-function Recap({ moves }: { moves: readonly RecapMove[] }) {
-  const symbols = useSymbols();
-  if (moves.length === 0) return <div className="results__dim">A quiet quarter.</div>;
-  return (
-    <ol className="results__moves">
-      {moves.map((m, i) => {
-        const name = m.kind === 'sector' ? SECTOR_LABELS[m.target as Sector] : (symbols.find((s) => s.symbol === m.target)?.name ?? m.target);
-        return (
-          <li key={m.target} className="results__move fx-flip fx-tilt" style={fxIndex(i)} data-testid="recap-move" data-cause={m.cause.kind}>
-            <div className="results__move-head">
-              <span className="results__move-name">
-                {m.kind === 'stock' && <span className="results__sym">{m.target}</span>} {name}
-                {m.kind === 'sector' && <span className="results__dim"> sector</span>}
-              </span>
-              <span className={`results__move-change results__pnl--${changeDirection(m.change)}`}>{formatPercent(m.change)}</span>
-            </div>
-            <div className="results__cause">
-              <span className={`results__tag results__tag--${m.cause.kind}`}>{CAUSE_LABEL[m.cause.kind]}</span> {m.cause.text}
-            </div>
-          </li>
-        );
-      })}
-    </ol>
   );
 }

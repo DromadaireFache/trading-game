@@ -333,6 +333,8 @@ export interface ResultsMsg {
   statements: Statement[];
   recap: Recap;
   arrests: Arrest[];
+  /** Opening balance through settlement for the completed quarter, one sample per market tick. */
+  netWorthHistory?: NetWorthSample[];
   /** Set on the last quarter / FINAL. */
   final?: boolean;
   awards?: Award[];

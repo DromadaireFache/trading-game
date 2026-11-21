@@ -131,6 +131,7 @@ export type SimEvent =
       statements: Statement[];
       recap: Recap;
       arrests: Arrest[];
+      netWorthHistory?: NetWorthSample[];
       final?: boolean;
       awards?: Award[];
     }
