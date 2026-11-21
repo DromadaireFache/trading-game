@@ -36,6 +36,12 @@
   flex-direction: column;
   min-width: 0;
 }
+.sym-group--index {
+  grid-column: 1 / -1;
+}
+.sym-group--index:not(:last-child) {
+  margin-bottom: 6px;
+}
 .sym-group__title {
   height: 18px;
   padding: 0 4px;
@@ -68,6 +74,13 @@
   border-left: 2px solid transparent;
   cursor: pointer;
   white-space: nowrap;
+}
+.sym-row:where([data-kind='index']) {
+  grid-template-columns: 5ch 8ch 6.5ch;
+  height: 30px;
+}
+.sym-row[data-kind='sector'] + .sym-row[data-kind='stock'] {
+  margin-top: 6px;
 }
 .sym-row:hover {
   background: var(--tg-color-panel-raised);

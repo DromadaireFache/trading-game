@@ -780,14 +780,21 @@ async function main(): Promise<void> {
       for (const [label, page] of [['A', a], ['B', b]] as const) {
         const board = await boardOf(page);
         check(board.length === SYMBOL_COUNT, `${label} lists ${SYMBOL_COUNT} symbols (got ${board.length})`);
-        check(board.map((r) => r.symbol).join(',') === universe.map((s) => s.symbol).join(','), `${label} lists them in the server's canonical order`);
         const groups = [...new Set(board.map((r) => r.group))];
-        check(groups.join(',') === ['funds', ...SECTORS].join(','), `${label} groups: funds, then the ${SECTORS.length} sectors (got ${groups.join(',')})`);
-        const funds = board.filter((r) => r.group === 'funds');
-        check(funds.length === 1 + SECTORS.length && funds.every((r) => r.kind !== 'stock'), `${label} funds group holds the index and ${SECTORS.length} sector funds`);
-        check(stocks.every((s) => board.find((r) => r.symbol === s.symbol)?.group === s.sector), `${label} shows every stock under its own sector`);
-        check(SECTORS.every((sector) => board.filter((r) => r.group === sector).length === COMPANIES_PER_SECTOR),
-          `${label} has ${COMPANIES_PER_SECTOR} companies in every sector`);
+        check(groups.join(',') === ['index', ...SECTORS].join(','), `${label} shows the market index above the ${SECTORS.length} sectors`);
+        check(board[0]?.symbol === indexSymbol, `${label} shows ${indexSymbol} as its first row`);
+        for (const sector of SECTORS) {
+          const fund = universe.find((s) => s.kind === 'sector' && s.sector === sector);
+          const expected = [fund?.symbol, ...stocks.filter((s) => s.sector === sector).map((s) => s.symbol)];
+          check(board.filter((r) => r.group === sector).map((r) => r.symbol).join(',') === expected.join(','),
+            `${label} lists the ${sector} fund above its companies`);
+        }
+        const indexBox = await page.locator(rowOf(indexSymbol)).boundingBox();
+        const listBox = await page.locator(tid('symbol-list')).boundingBox();
+        const stockBox = await page.locator(rowOf(stockA)).boundingBox();
+        check(indexBox && listBox && stockBox && Math.abs(indexBox.width - listBox.width) < 1 &&
+          Math.abs(indexBox.x - listBox.x) < 1 && indexBox.height > stockBox.height,
+          `${label} shows the index in a taller, full-width row`);
         check(board.every((r) => /^[\d,]+\.\d\d$/.test(r.price) && shownPrice(r.price) > 0), `${label} shows a price with 2 decimals on every row`);
         check(board.every((r) => /^[+-]?\d+\.\d+%$/.test(r.change)), `${label} shows a change % on every row`);
         check((await page.locator(tid('symbol-list')).isVisible()) && (await page.locator(rowOf(universe.at(-1)!.symbol)).isVisible()),
@@ -1137,12 +1144,7 @@ async function main(): Promise<void> {
       check(gaps.length > 0 && gaps.every((g) => g >= minGap - 1 && g <= maxGap + 2 * minGap),
         `headlines come ${minGap / 1000}-${maxGap / 1000} s apart (gaps ${gaps.map((g) => (g / 1000).toFixed(1)).join(', ')} s)`);
 
-      // The funds group stays; a quick bet is a plain position (checked again at RESULTS).
-      const funds = a.locator(`${tid('symbol-group')}[data-group=funds]`);
-      check(await funds.isVisible(), 'the list shows the funds group');
-      check((await funds.locator(`${tid('symbol-row')}[data-kind=index]`).count()) === 1 &&
-        (await funds.locator(`${tid('symbol-row')}[data-kind=sector]`).count()) === SECTORS.length,
-        'the list includes the total market and every sector fund');
+      // A quick bet is a plain position (checked again at RESULTS).
       await selectSymbol(a, stockA); // later steps expect A's own pick
       const fillsBefore = framesOf('A').filter((m) => m.t === 'fill').length;
       await a.click(tid('bet-up-0'));

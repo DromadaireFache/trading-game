@@ -36,7 +36,13 @@ export function SymbolList() {
   return (
     <div className="sym-list" data-testid="symbol-list">
       {groups.map((group) => (
-        <section className="sym-group" key={group.key} data-testid="symbol-group" data-group={group.key}>
+        <section
+          className={`sym-group${group.key === 'index' ? ' sym-group--index' : ''}`}
+          key={group.key}
+          data-testid="symbol-group"
+          data-group={group.key}
+          aria-label={group.label}
+        >
           <h3 className="sym-group__title">{group.label}</h3>
           {group.symbols.map((info) => (
             <SymbolRow

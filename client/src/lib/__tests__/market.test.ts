@@ -75,12 +75,17 @@ describe('symbol groups', () => {
     ),
   ];
 
-  it('puts the funds first, then the sectors in server order', () => {
-    const groups = groupSymbols(universe);
-    expect(groups.map((g) => g.key)).toEqual(['funds', ...SECTORS]);
-    expect(groups[0]!.symbols).toHaveLength(SECTORS.length + 1);
-    expect(groups[0]!.symbols[0]!.symbol).toBe('TG30');
-    expect(groups.slice(1).every((g) => g.symbols.length === 5)).toBe(true);
+  it('puts the market index first and leads each sector with its fund', () => {
+    const stocksFirst = [...universe.filter((s) => s.kind === 'stock'), ...universe.filter((s) => s.kind !== 'stock')];
+    const groups = groupSymbols(stocksFirst);
+    expect(groups.map((g) => g.key)).toEqual(['index', ...SECTORS]);
+    expect(groups[0]!.symbols.map((s) => s.symbol)).toEqual(['TG30']);
+    for (const group of groups.slice(1)) {
+      expect(group.symbols.map((s) => s.symbol)).toEqual([
+        `X${group.key}`,
+        ...universe.filter((s) => s.kind === 'stock' && s.sector === group.key).map((s) => s.symbol),
+      ]);
+    }
     expect(groups[1]!.label).toBe('Technology');
   });
 
