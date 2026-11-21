@@ -7,7 +7,7 @@
  */
 import { defaultConfig, mergeConfig } from '@tg/shared';
 import type { DeepPartial, GameConfig } from '@tg/shared';
-import { DEFAULT_BOTS, botByName } from './bots.ts';
+import { ALL_BOTS, DEFAULT_BOTS, botByName } from './bots.ts';
 import { playGame, summarize } from './harness.ts';
 import type { BotFactory } from './harness.ts';
 
@@ -30,7 +30,7 @@ let bots: readonly BotFactory[] = DEFAULT_BOTS;
 if (arg('bots')) {
   bots = arg('bots')!.split(',').map((name) => {
     const bot = botByName(name.trim());
-    if (!bot) throw new Error(`unknown bot "${name}"; known: ${DEFAULT_BOTS.map((b) => b(undefined as never).name).join(', ')}`);
+    if (!bot) throw new Error(`unknown bot "${name}"; known: ${ALL_BOTS.map((b) => b(undefined as never).name).join(', ')}`);
     return bot;
   });
 }
@@ -50,11 +50,14 @@ if (process.argv.includes('--json')) {
   };
   const pad = (s: string, n: number) => s.padEnd(n);
   console.log(`${games} games, ${config.time.quarters} quarters, start ${money(config.economy.startingCash)}, ${bots.length} bots per game (${seconds.toFixed(1)} s)`);
-  console.log('Headlines and earnings are in (M4); cards, regimes and SEC are not wired yet (M5).\n');
-  console.log(`${pad('bot', 16)}${pad('p10', 11)}${pad('median', 11)}${pad('p90', 11)}${pad('elim', 7)}${pad('margin', 8)}wins`);
+  console.log('Headlines, earnings, cards, regimes and the SEC all run in the sim. Card columns are per game.\n');
+  console.log(
+    `${pad('bot', 16)}${pad('p10', 11)}${pad('median', 11)}${pad('p90', 11)}${pad('elim', 6)}${pad('margin', 7)}${pad('wins', 6)}${pad('bought', 7)}${pad('played', 7)}${pad('spend', 10)}${pad('fines', 10)}${pad('arrests', 8)}jail d`,
+  );
   for (const [name, b] of Object.entries(summary.bots)) {
     console.log(
-      `${pad(name, 16)}${pad(money(b.p10), 11)}${pad(money(b.median), 11)}${pad(money(b.p90), 11)}${pad(`${Math.round(b.eliminated * 100)}%`, 7)}${pad(b.marginCalls.toFixed(1), 8)}${summary.winner.byBot[name] ?? 0}`,
+      `${pad(name, 16)}${pad(money(b.p10), 11)}${pad(money(b.median), 11)}${pad(money(b.p90), 11)}${pad(`${Math.round(b.eliminated * 100)}%`, 6)}${pad(b.marginCalls.toFixed(1), 7)}${pad(String(summary.winner.byBot[name] ?? 0), 6)}` +
+        `${pad(b.cardsBought.toFixed(1), 7)}${pad(b.cardsPlayed.toFixed(1), 7)}${pad(money(b.cardSpend), 10)}${pad(money(b.fines), 10)}${pad(b.arrests.toFixed(1), 8)}${b.jailDays.toFixed(0)}`,
     );
   }
   const w = summary.winner;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultConfig, mergeConfig } from '@tg/shared';
-import { DEFAULT_BOTS, holdIndex, lastTickPump, leveredIndex } from '../bots.ts';
+import { DEFAULT_BOTS, holdIndex, lastTickPump, leveredIndex, newsTrader } from '../bots.ts';
+import { eventPlayer, insiderTrader, manipulator } from '../cardBots.ts';
 import { playGame, quantile, summarize } from '../harness.ts';
 
 const short = mergeConfig(defaultConfig, { time: { quarters: 2, daysPerQuarter: 10 } });
@@ -38,5 +39,31 @@ describe('balance harness', () => {
     expect(s.games).toBe(3);
     expect(Object.values(s.winner.byBot).reduce((x, y) => x + y, 0)).toBe(3);
     expect(Object.keys(s.bots)).toEqual(['hold-index', 'levered-index']);
+  });
+});
+
+describe('card bots', () => {
+  const cardGame = mergeConfig(defaultConfig, { time: { quarters: 3, daysPerQuarter: 20 } });
+
+  it('buy cards in SHOP, play them in TRADING, and the harness counts spend, fines and jail', () => {
+    const games = [11, 12, 13].map((seed) => playGame(seed, cardGame, [newsTrader(), insiderTrader(), manipulator(), eventPlayer()]));
+    const rows = games.flatMap((g) => g.bots);
+    const of = (name: string) => rows.filter((r) => r.name === name);
+    for (const name of ['insider-trader', 'manipulator', 'event-player']) {
+      const r = of(name);
+      expect(r.reduce((s, x) => s + x.cardsBought, 0)).toBeGreaterThan(0);
+      expect(r.reduce((s, x) => s + x.cardsPlayed, 0)).toBeGreaterThan(0);
+      expect(r.reduce((s, x) => s + x.cardSpend, 0)).toBeGreaterThan(0);
+    }
+    for (const r of of('news-trader')) expect(r).toMatchObject({ cardsBought: 0, cardSpend: 0, arrests: 0 });
+    for (const r of rows) {
+      expect(r.cardsPlayed).toBeLessThanOrEqual(r.cardsBought);
+      expect(r.fines).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('is still deterministic with cards and the shuffled submission order', () => {
+    const run = () => playGame(21, cardGame, [newsTrader(), manipulator(), eventPlayer()]);
+    expect(run()).toEqual(run());
   });
 });

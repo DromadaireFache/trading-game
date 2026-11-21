@@ -6,6 +6,7 @@
 import type { SymbolId } from '@tg/shared';
 import type { Bot, BotFactory, BotView, OrderIntent } from './harness.ts';
 import { closeOthers, sharesToTarget } from './harness.ts';
+import { eventPlayer, insiderTrader, manipulator } from './cardBots.ts';
 
 const indexFund = (view: BotView): SymbolId => view.universe.funds.find((f) => f.kind === 'index')!.symbol;
 const firstTickOfDay = (view: BotView): boolean => view.tickOfDay === 1;
@@ -148,8 +149,11 @@ export function newsTrader(reactionMs = 1_000, name = 'news-trader'): BotFactory
 
 export const DEFAULT_BOTS: readonly BotFactory[] = [holdIndex, leveredIndex, momentum, yolo, shortIndex, lastTickPump, newsTrader()];
 
+/** Every bot, the card users included (run.ts --bots picks from these). */
+export const ALL_BOTS: readonly BotFactory[] = [...DEFAULT_BOTS, insiderTrader(), manipulator(), eventPlayer()];
+
 export function botByName(name: string): BotFactory | undefined {
-  return DEFAULT_BOTS.find((f) => f(undefined as never).name === name);
+  return ALL_BOTS.find((f) => f(undefined as never).name === name);
 }
 
 export type { Bot };

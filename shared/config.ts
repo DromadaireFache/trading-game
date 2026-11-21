@@ -304,10 +304,11 @@ export const defaultConfig: GameConfig = {
     companiesPerSector: 5,
     marketCapMin: 5e9,
     marketCapMax: 500e9,
-    // M7 tuning: 8x the first guess (0.005..0.02), so a winner's orders don't drown in slippage as
-    // net worth grows, while a $500M order still visibly moves a mid-cap (x of about 0.06-0.25).
-    advFractionOfCapMin: 0.04,
-    advFractionOfCapMax: 0.16,
+    // M7 tuning: 12x the first guess (0.005..0.02), so a winner's orders don't drown in slippage as
+    // net worth grows, while a $500M order still visibly moves a mid-cap (about 0.2-0.8% slippage).
+    // Second pass (with cards): 0.04..0.16 gave a winner median of $0.87B at a 4-skilled-player table.
+    advFractionOfCapMin: 0.06,
+    advFractionOfCapMax: 0.24,
     fundAdvShareOfMembers: 0.25,
     betaMarketMin: 0.5,
     betaMarketMax: 1.6,
