@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { Panel } from '../../components/Panel.tsx';
 import { Roster } from '../../components/Roster.tsx';
-import { ModeToggle } from '../../components/ModeToggle.tsx';
 import { formatMoney } from '../../lib/format.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 
@@ -50,10 +49,6 @@ export function LobbyView() {
         </div>
 
         <ErrorBanner />
-      </Panel>
-
-      <Panel title="How much detail?" aside="change it any time, top right" className="lobby__panel lobby__mode">
-        <ModeToggle big />
       </Panel>
 
       <Panel title="How to play" className="lobby__panel">

@@ -16,63 +16,51 @@
 .order__on strong {
   color: var(--tg-color-text-bright);
 }
-.order__sides {
+/* Six bet buttons: top row green ▲ (it goes up), bottom row red ▼ (it goes down), one amount each. */
+.bet-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.order__side {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
-  padding: 4px 4px;
-  font: inherit;
-  color: var(--tg-color-text-dim);
-  background: var(--tg-color-bg-inset);
-  border: 2px solid var(--tg-color-border);
-  border-radius: 10px;
-  box-shadow: 0 3px 0 var(--tg-color-shadow);
-  cursor: pointer;
 }
-.order__side-main {
-  font-family: var(--tg-font-display);
-  font-size: 15px;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-.order__side-sub {
-  /* The plain-words meaning is in the tooltip, the header hint and the lobby rules: the button stays one line. */
-  display: none;
-}
-.order__side--buy.order__side--on {
-  color: var(--tg-color-on-up);
-  background: var(--tg-color-up);
-  border-color: color-mix(in srgb, var(--tg-color-up) 70%, var(--tg-color-shadow));
-}
-.order__side--sell.order__side--on {
-  color: var(--tg-color-on-down);
-  background: var(--tg-color-down);
-  border-color: color-mix(in srgb, var(--tg-color-down) 70%, var(--tg-color-shadow));
-}
-.order__side:active {
-  transform: translateY(2px);
-  box-shadow: 0 1px 0 var(--tg-color-shadow);
-}
-.order__row {
-  display: grid;
-  grid-template-columns: 9ch repeat(4, minmax(0, 1fr));
-  gap: 5px;
+.bet-btn {
+  display: flex;
   align-items: center;
-}
-.order__label,
-.order__fact-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--tg-color-text-dim);
+  justify-content: center;
+  gap: 5px;
+  min-height: 40px;
+  padding: 4px 2px;
+  font: inherit;
+  font-family: var(--tg-font-display);
+  font-size: 16px;
+  font-weight: 900;
+  border: 2px solid var(--tg-color-shadow);
+  border-radius: 10px;
+  box-shadow: 0 4px 0 var(--tg-color-shadow);
+  cursor: pointer;
   white-space: nowrap;
 }
-.order__size,
+.bet-btn__arrow {
+  font-size: 13px;
+}
+.bet-btn--up {
+  color: var(--tg-color-on-up);
+  background: var(--tg-color-up);
+}
+.bet-btn--down {
+  color: var(--tg-color-on-down);
+  background: var(--tg-color-down);
+}
+.bet-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.bet-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--tg-color-shadow);
+}
+.bet-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 .order__cash,
 .positions__close {
   font: inherit;
@@ -88,24 +76,14 @@
   cursor: pointer;
   white-space: nowrap;
 }
-.order__size--buy:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--tg-color-up) 35%, var(--tg-color-panel-raised));
-  border-color: var(--tg-color-up);
-}
-.order__size--sell:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--tg-color-down) 35%, var(--tg-color-panel-raised));
-  border-color: var(--tg-color-down);
-}
 .order__cash:hover:not(:disabled) {
   border-color: var(--tg-color-accent);
 }
-.order__size:active:not(:disabled),
 .order__cash:active:not(:disabled),
 .positions__close:active:not(:disabled) {
   transform: translateY(2px);
   box-shadow: 0 1px 0 var(--tg-color-shadow);
 }
-.order__size:disabled,
 .order__cash:disabled,
 .positions__close:disabled {
   opacity: 0.35;
@@ -150,52 +128,12 @@
 .order__held--down {
   color: var(--tg-color-down);
 }
-.order__facts {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-}
-.order__can {
-  white-space: nowrap;
-}
-.order__fact-value {
-  font-family: var(--tg-font-display);
-  font-size: 15px;
-  font-weight: 900;
-  color: var(--tg-color-text-bright);
-}
-.order__risk {
-  --risk-color: var(--tg-color-up);
+.order__note {
+  min-height: 34px;
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-.order__risk--mid {
-  --risk-color: var(--tg-color-warn);
-}
-.order__risk--high {
-  --risk-color: var(--tg-color-down);
-}
-.order__risk-bar {
-  flex: 1;
-  display: block;
-  height: 10px;
-  background: var(--tg-color-bg-inset);
-  border: 1px solid var(--tg-color-border);
-  border-radius: 4px;
-  overflow: hidden;
-}
-.order__risk-fill {
-  display: block;
-  height: 100%;
-  background: var(--risk-color);
-  transform-origin: left center;
-}
-.order__status {
   font-size: 12px;
-  font-weight: 700;
-  color: var(--tg-color-warn);
+  color: var(--tg-color-text-dim);
 }
 .order__fill {
   font-size: 12px;
@@ -337,93 +275,6 @@
 .positions__close {
   line-height: 1.1;
   vertical-align: middle;
-}
-
-/* ---------------------------------------------------------------- detail modes */
-
-.order__row--3 {
-  grid-template-columns: 9ch repeat(3, minmax(0, 1fr));
-}
-.order__risk-word {
-  font-size: 12px;
-  font-weight: 900;
-  color: var(--risk-color);
-  white-space: nowrap;
-}
-
-/* ---------------------------------------------------------------- quick bets (Simple mode) */
-
-.quick__stakes {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-.quick__stake {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 3px 2px;
-  font: inherit;
-  color: var(--tg-color-text);
-  background: var(--tg-color-bg-inset);
-  border: 2px solid var(--tg-color-border);
-  border-radius: 10px;
-  box-shadow: 0 3px 0 var(--tg-color-shadow);
-  cursor: pointer;
-}
-.quick__stake--on {
-  color: var(--tg-color-on-accent);
-  background: var(--tg-color-accent);
-  border-color: var(--tg-color-accent);
-}
-.quick__stake-label {
-  font-family: var(--tg-font-display);
-  font-size: 14px;
-  font-weight: 900;
-}
-.quick__stake-usd {
-  font-size: 11px;
-  font-weight: 700;
-}
-.quick__dirs {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.quick__dir {
-  padding: 8px 4px;
-  font: inherit;
-  font-family: var(--tg-font-display);
-  font-size: 15px;
-  font-weight: 900;
-  text-transform: uppercase;
-  border: 2px solid var(--tg-color-shadow);
-  border-radius: 12px;
-  box-shadow: 0 4px 0 var(--tg-color-shadow);
-  cursor: pointer;
-}
-.quick__dir--up {
-  color: var(--tg-color-on-up);
-  background: var(--tg-color-up);
-}
-.quick__dir--down {
-  color: var(--tg-color-on-down);
-  background: var(--tg-color-down);
-}
-.quick__dir:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-.quick__dir:active:not(:disabled) {
-  transform: translateY(3px);
-  box-shadow: 0 1px 0 var(--tg-color-shadow);
-}
-.quick__dir:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-.quick__note {
-  font-size: 12px;
-  color: var(--tg-color-text-dim);
 }
 
 .order__jail {

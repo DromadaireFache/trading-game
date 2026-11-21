@@ -12,7 +12,7 @@ import { ResultsPanel } from '../features/results/ResultsPanel.tsx';
 import { ShopPanel } from '../features/shop/ShopPanel.tsx';
 import { OrderPanel } from '../features/trading/OrderPanel.tsx';
 import { MoneyPanel, PositionsPanel } from '../features/trading/PositionsPanel.tsx';
-import { NewsPopups } from '../features/news/NewsPopups.tsx';
+import { HeadlineBanner } from '../features/news/HeadlineBanner.tsx';
 import { RivalsPanel } from '../features/rivals/RivalsPanel.tsx';
 import { FxRoot } from '../features/fx/FxLayer.tsx';
 import { GameFx } from '../features/fx/GameFx.tsx';
@@ -52,10 +52,10 @@ function PlayScreen() {
 const STAGE_PHASES: readonly Phase[] = ['RESULTS', 'SHOP', 'FINAL'];
 
 /**
- * The trading desk grid. Top half: the stock list, the chart (where headlines pop up as newspapers)
- * and on the right your order entry, your money and your cards. Bottom half: the other players'
- * positions, then yours. Between and after quarters one "stage" panel (results / shop / final)
- * takes the place of everything but the right column.
+ * The trading desk grid. On top, the headline slot (the latest headline; click it to open its stock).
+ * Under it the stock list and the chart, and on the right your bet buttons, your money and your cards.
+ * At the bottom: the other players' positions, then yours. Between and after quarters one "stage"
+ * panel (results / shop / final) takes the place of everything but the right column.
  */
 function Desk({ phase }: { phase: Phase }) {
   const stage = STAGE_PHASES.includes(phase);
@@ -65,7 +65,7 @@ function Desk({ phase }: { phase: Phase }) {
         <ErrorBanner />
       </div>
       <Stage phase={phase} />
-      {phase === 'TRADING' && <NewsPopups className="desk__pops" />}
+      {!stage && <HeadlineBanner className="desk__news" />}
       <div className="desk__earnings">
         <EarningsPanel />
       </div>

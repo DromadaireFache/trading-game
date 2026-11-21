@@ -5,8 +5,6 @@ import { changeDirection, formatMoney, formatMoneyShort, formatPercent, formatPr
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
-import { useUiMode } from '../../lib/uiMode.ts';
-import type { UiMode } from '../../lib/uiMode.ts';
 import { sendOrder } from '../fx/buttonFx.ts';
 import './trading.css';
 
@@ -14,7 +12,6 @@ import './trading.css';
 export function MoneyPanel({ className }: { className?: string }) {
   const live = useLivePortfolio();
   const { config } = useGame();
-  const mode = useUiMode();
 
   if (live === null) {
     return (
@@ -40,16 +37,6 @@ export function MoneyPanel({ className }: { className?: string }) {
           {formatMoney(live.totalPnl, true)} ({formatPercent(pnlFraction)})
         </span>
       </div>
-      {mode !== 'simple' && (
-        <div className="positions__sub">
-          <span title="Money not in a bet (negative = borrowed)">
-            Cash <strong data-testid="cash">{formatMoney(live.portfolio.cash)}</strong>
-          </span>
-          <span title="Total size of all your bets">
-            In bets <strong>{formatMoneyShort(live.gross)}</strong>
-          </span>
-        </div>
-      )}
     </Panel>
   );
 }
@@ -61,7 +48,6 @@ export function MoneyPanel({ className }: { className?: string }) {
 export function PositionsPanel({ className }: { className?: string }) {
   const live = useLivePortfolio();
   const { config } = useGame();
-  const mode = useUiMode();
 
   if (live === null) {
     return (
@@ -75,7 +61,7 @@ export function PositionsPanel({ className }: { className?: string }) {
   return (
     <Panel
       title="Your positions"
-      aside={<span className="positions__legend"><span className="change--up">▲ long</span> <span className="change--down">▼ short</span></span>}
+      aside={<span className="positions__legend"><span className="change--up">▲ up</span> <span className="change--down">▼ down</span></span>}
       className={`positions${className ? ` ${className}` : ''}`}
     >
       {positions.length === 0 ? (
@@ -87,7 +73,6 @@ export function PositionsPanel({ className }: { className?: string }) {
               <tr>
                 <th>Stock</th>
                 <th>Bet</th>
-                {mode === 'pro' && <th>Avg</th>}
                 <th>Worth</th>
                 <th>Profit</th>
                 <th aria-label="Cash out" />
@@ -95,7 +80,7 @@ export function PositionsPanel({ className }: { className?: string }) {
             </thead>
             <tbody>
               {positions.map((p) => (
-                <PositionRow key={p.symbol} position={p} decimals={config.market.priceDecimals} canTrade={!live.portfolio.eliminated} mode={mode} />
+                <PositionRow key={p.symbol} position={p} decimals={config.market.priceDecimals} canTrade={!live.portfolio.eliminated} />
               ))}
             </tbody>
           </table>
@@ -105,7 +90,7 @@ export function PositionsPanel({ className }: { className?: string }) {
   );
 }
 
-function PositionRow({ position, decimals, canTrade, mode }: { position: Position; decimals: number; canTrade: boolean; mode: UiMode }) {
+function PositionRow({ position, decimals, canTrade }: { position: Position; decimals: number; canTrade: boolean }) {
   const client = useGameClient();
   const market = useMarketStore();
   const { phase, pendingOrder } = useGame();
@@ -129,10 +114,9 @@ function PositionRow({ position, decimals, canTrade, mode }: { position: Positio
       <td className="positions__sym">{position.symbol}</td>
       <td>
         <span className={`positions__dir positions__dir--${up ? 'up' : 'down'}`} data-testid="position-qty" data-qty={position.qty}>
-          {up ? '▲' : '▼'} {mode === 'pro' ? formatShares(position.qty) : up ? 'LONG' : 'SHORT'}
+          {up ? '▲ UP' : '▼ DOWN'}
         </span>
       </td>
-      {mode === 'pro' && <td>{formatPrice(position.avgPrice, decimals)}</td>}
       <td>{formatMoneyShort(Math.abs(position.qty) * last)}</td>
       <td className={`positions__profit change--${changeDirection(pnlFraction)}`} title={formatPercent(pnlFraction)}>
         {pnl >= 0 ? '+' : ''}

@@ -31,7 +31,7 @@ const PHASE_SOUND: Partial<Record<Phase, SoundName>> = {
  *  - own fill: chip click and a popup at the order panel; a forced sale (margin call) shakes and buzzes
  *  - a fill that closes or cuts a position: realized P&L from the server, with a stronger button
  *    pop and screen shake for larger profits, or a red popup with a thud for a loss.
- *  - a public headline: blip (the headline itself pops up as a newspaper, see NewsPopups)
+ *  - a public headline: blip (the headline itself shows in the headline slot, see HeadlineBanner)
  *  - the index moving BIG_MOVE within ~2 s: shake and whoosh
  *  - phase changes and quick-bet outcomes: distinct cues
  *  - a BREAKING moment: big shake and sting

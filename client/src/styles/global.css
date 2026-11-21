@@ -399,17 +399,20 @@ ol {
   flex-direction: column;
 }
 
+/* One slim line: phase and what to do, quarter, countdown, you. */
 .phase-header {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 6px 14px 8px;
+  gap: 16px;
+  min-height: 40px;
+  padding: 3px 12px 4px;
   background: var(--tg-color-panel);
   border-bottom: 3px solid var(--tg-color-shadow);
 }
 .phase-header__brand {
   font-family: var(--tg-font-display);
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.06em;
   color: var(--tg-color-accent);
@@ -417,13 +420,15 @@ ol {
 }
 .phase-header__phase {
   display: flex;
-  flex-direction: column;
+  align-items: baseline;
+  gap: 12px;
   min-width: 0;
   flex: 1;
 }
 .phase-header__name {
+  flex: none;
   font-family: var(--tg-font-display);
-  font-size: 24px;
+  font-size: 19px;
   font-weight: 900;
   line-height: 1.1;
   text-transform: uppercase;
@@ -447,32 +452,11 @@ ol {
   font-size: 13px;
 }
 .phase-header .phase-ready {
-  margin-top: 4px;
-}
-.phase-strip {
-  display: flex;
-  gap: 4px;
-}
-.phase-strip__step {
-  padding: 3px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--tg-color-text-dim);
-  background: var(--tg-color-bg-inset);
-  border: 2px solid var(--tg-color-border);
-  border-radius: 6px;
-}
-.phase-strip__step--current {
-  color: var(--tg-color-on-accent);
-  background: var(--phase-color);
-  border-color: var(--phase-color);
-  font-weight: 700;
+  flex: none;
 }
 .phase-header__quarter {
   font-family: var(--tg-font-display);
-  font-size: 22px;
+  font-size: 17px;
   font-weight: 900;
   color: var(--tg-color-text-bright);
   white-space: nowrap;
@@ -480,7 +464,7 @@ ol {
 .phase-header__countdown {
   min-width: 4.5ch;
   font-family: var(--tg-font-display);
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 900;
   line-height: 1;
   text-align: right;
@@ -491,9 +475,8 @@ ol {
 }
 .phase-header__me {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
+  align-items: center;
+  gap: 10px;
 }
 .phase-header__player {
   font-weight: 700;
@@ -517,12 +500,6 @@ ol {
   transform-origin: left center;
   transition: transform 0.2s linear;
   will-change: transform;
-}
-
-@media (max-width: 1100px) {
-  .phase-strip {
-    display: none;
-  }
 }
 
 /* ---------------------------------------------------------------- lobby */
@@ -601,11 +578,15 @@ ol {
   flex: 1;
   min-height: 0;
   display: grid;
-  /* Top: list | chart | side. Bottom: the others' positions (left to middle) | yours (middle to right). */
+  /*
+   * Top: the headline slot over list | chart; side on the right. Bottom: the others' positions (left to
+   * middle) | yours (middle to right).
+   */
   grid-template-columns: 480px minmax(0, 1fr) minmax(0, 1fr) 380px;
-  /* The bottom half only needs a handful of rows; the top keeps room for three full-size cards. */
-  grid-template-rows: minmax(0, 1fr) minmax(180px, 30vh);
+  /* The bottom only needs a handful of rows; the middle keeps the whole stock list in view. */
+  grid-template-rows: 84px minmax(0, 1fr) minmax(150px, 22vh);
   grid-template-areas:
+    'news   news   news      side'
     'list   chart  chart     side'
     'rivals rivals positions positions';
   gap: 8px;
@@ -615,6 +596,7 @@ ol {
 @media (max-height: 860px) {
   .desk {
     grid-template-areas:
+      'news   news      news      side'
       'list   chart     chart     side'
       'rivals positions positions side';
   }
@@ -622,6 +604,7 @@ ol {
 /* RESULTS / SHOP / FINAL: one stage panel takes the place of everything but the side column. */
 .desk--stage {
   grid-template-areas:
+    'stage stage stage side'
     'stage stage stage side'
     'stage stage stage side';
 }
@@ -660,9 +643,9 @@ ol {
 .desk__chart {
   grid-area: chart;
 }
-/* Headline papers land on top of the side column's cards (bottom right), not over the chart. */
-.desk__pops {
-  grid-area: side;
+/* The headline slot: the latest headline, over the list and the chart. */
+.desk__news {
+  grid-area: news;
 }
 /* The earnings report (BRIEFING, EARNINGS, FINAL): over the chart, or under the final standings. */
 .desk__earnings {
@@ -677,6 +660,7 @@ ol {
 }
 .desk--final:has(.desk__earnings > .earnings) {
   grid-template-areas:
+    'stage    stage    stage    side'
     'stage    stage    stage    side'
     'earnings earnings earnings side';
 }
@@ -851,77 +835,13 @@ ol {
   padding: 1.2vh 1vw;
 }
 
-/* ---------------------------------------------------------------- detail modes (lib/uiMode.ts) */
-
-.mode-toggle {
-  display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  background: var(--tg-color-bg-inset);
-  border: 2px solid var(--tg-color-border);
-  border-radius: 8px;
-}
-.mode-toggle__btn {
-  font: inherit;
-  font-size: 11px;
-  font-weight: 800;
-  padding: 1px 7px;
-  color: var(--tg-color-text-dim);
-  background: transparent;
-  border: 0;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.mode-toggle__btn--on {
-  color: var(--tg-color-on-accent);
-  background: var(--tg-color-accent);
-}
-.mode-toggle--big {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  padding: 0;
-  background: transparent;
-  border: 0;
-}
-.mode-toggle--big .mode-toggle__btn {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
-  text-align: left;
-  color: var(--tg-color-text);
-  background: var(--tg-color-bg-inset);
-  border: 2px solid var(--tg-color-border);
-  border-radius: 10px;
-  box-shadow: 0 3px 0 var(--tg-color-shadow);
-}
-.mode-toggle--big .mode-toggle__btn--on {
-  color: var(--tg-color-on-accent);
-  background: var(--tg-color-accent);
-  border-color: var(--tg-color-accent);
-}
-.mode-toggle--big .mode-toggle__label {
-  font-family: var(--tg-font-display);
-  font-size: 18px;
-  font-weight: 900;
-}
-.mode-toggle__blurb {
-  font-size: 12px;
-  font-weight: 600;
-}
-.lobby__mode {
-  grid-column: 1 / -1;
-  order: -1;
-}
 .phase-header__status {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* Simple mode (on /play only; the projector keeps its own look). */
-[data-mode='simple'] .play .phase-strip,
-[data-mode='simple'] .play .sym-head__facts {
+/* /play keeps the chart header to the name and price; the projector keeps its own look. */
+.play .sym-head__facts {
   display: none;
 }

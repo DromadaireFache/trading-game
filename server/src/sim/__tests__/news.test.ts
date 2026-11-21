@@ -208,7 +208,7 @@ describe('news through the sim', () => {
   });
 
   it('does not publish a leak too late to settle before earnings', () => {
-    const config = mergeConfig(CONFIG, { news: { randomHeadlinesPerQuarter: 0, scheduledBeatsPerQuarter: 0 }, earnings: { leaksPerQuarter: 0 } });
+    const config = mergeConfig(CONFIG, { news: { randomHeadlinesPerQuarter: 0, scheduledBeatsPerQuarter: 0, maxGapMs: 0 }, earnings: { leaksPerQuarter: 0 } });
     const { news, universe } = testNews(config, 99, 100);
     news.startQuarter(1, 0, config.market.startRate);
     const symbol = universe.companies[0]!.symbol;
@@ -239,6 +239,24 @@ describe('news through the sim', () => {
       expect(e.text).not.toMatch(/\{[A-Z_]+\}/);
       if (lastTs !== null) expect(e.ts - lastTs).toBeGreaterThanOrEqual(gapDays - 1e-9);
       lastTs = e.ts;
+    }
+  });
+
+  it('with the default pace, headlines come 2 to 10 s apart from the open to the close', () => {
+    const config = mergeConfig(defaultConfig, { phaseMs: { BRIEFING: 200, EARNINGS: 200, RESULTS: 200, SHOP: 200 } });
+    const msPerDay = config.time.tickMs * config.time.ticksPerCandle;
+    for (const seed of [1, 2, 3]) {
+      const { sim } = playGame(seed, config);
+      for (let q = 1; q <= config.time.quarters; q++) {
+        const open = (q - 1) * config.time.daysPerQuarter;
+        const close = q * config.time.daysPerQuarter;
+        const times = [open, ...sim.news.log().filter((p) => p.quarter === q).map((p) => p.ts), close];
+        const gaps = times.slice(1).map((t, i) => (t - times[i]!) * msPerDay);
+        // The edges (open to first, last to close) only have the upper bound.
+        expect(Math.max(...gaps)).toBeLessThanOrEqual(config.news.maxGapMs + 2 * config.news.minGapMs);
+        for (const gap of gaps.slice(1, -1)) expect(gap).toBeGreaterThanOrEqual(config.news.minGapMs - 1e-6);
+        expect(times.length - 2).toBeGreaterThanOrEqual(Math.floor((config.time.daysPerQuarter * msPerDay) / config.news.maxGapMs));
+      }
     }
   });
 

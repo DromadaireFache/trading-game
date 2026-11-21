@@ -558,8 +558,6 @@ async function main(): Promise<void> {
     const newPage = async (label: string, width: number, height: number): Promise<Page> => {
       const context = await browser!.newContext({ viewport: { width, height } });
       await context.addInitScript(PERF_MONITOR);
-      // The checks below are written for the Normal detail mode; new players start in Simple.
-      await context.addInitScript(`try { if (!localStorage.getItem('tg.uiMode')) localStorage.setItem('tg.uiMode', 'normal'); } catch {}`);
       const page = await context.newPage();
       const frames: ServerMsg[] = [];
       wire.set(label, frames);
@@ -900,73 +898,71 @@ async function main(): Promise<void> {
       }
     });
 
-    await step('trading: orders fill, positions and P&L show, the leverage cap clips, close works', async () => {
+    await step('trading: six bet buttons, fills, positions and P&L show, cash out works', async () => {
       const money = (text: string) => Number(text.replace(/[^0-9.-]/g, ''));
       const startCash = defaultConfig.economy.startingCash;
       const cap = defaultConfig.trading.leverageCap;
+      const stakes = defaultConfig.trading.quickBetStakes;
       const fillsOf = (label: string) => framesOf(label).filter((m) => m.t === 'fill') as Array<{ symbol: string; qty: number; price: number }>;
       const positionRow = (symbol: string) => `${tid('position-row')}[data-symbol="${symbol}"]`;
       check((await phaseOf(a)) === 'TRADING', 'still in TRADING for the trading checks');
       check(money(await textOf(a, 'equity')) === startCash, `A starts with ${startCash} equity`);
-      check(money(await textOf(a, 'buying-power')) === cap * startCash, `A starts with ${cap}x buying power`);
 
-      // A buys $1M of stockA (Buy is the default side).
-      await a.click(tid('size-usd-1000000'));
+      // Six buttons: a green ▲ row and a red ▼ row, one amount each (a share of the money A can bet).
+      const ups = a.locator('[data-testid^=bet-up-]');
+      const downs = a.locator('[data-testid^=bet-down-]');
+      check((await ups.count()) === stakes.length && (await downs.count()) === stakes.length, `the bet panel has ${2 * stakes.length} buttons`);
+      const upText = (await ups.first().textContent())?.trim() ?? '';
+      const downText = (await downs.first().textContent())?.trim() ?? '';
+      check(upText.startsWith('▲') && downText.startsWith('▼') && /\$[\d.]+[KMB]?/.test(upText), `buttons show an arrow and an amount ("${upText}", "${downText}")`);
+      const colors = (await a.evaluate(`[...document.querySelectorAll('[data-testid^=bet-]')].map((el) => el.dataset.testid + '=' + getComputedStyle(el).backgroundColor)`)) as string[];
+      const upColor = colors.find((c) => c.startsWith('bet-up-0='))!.split('=')[1];
+      const downColor = colors.find((c) => c.startsWith('bet-down-0='))!.split('=')[1];
+      check(upColor !== downColor && colors.filter((c) => c.startsWith('bet-up-')).every((c) => c.endsWith(upColor!)), `up buttons share one color (${upColor}), down another (${downColor})`);
+      check((await a.locator('[data-testid^=stake-], [data-testid^=side-], [data-testid^=size-], [data-testid^=mode-]').count()) === 0,
+        'no stake picker, no up/down switch, no size rows and no mode switch');
+
+      // A bets the first amount UP on stockA.
+      await a.click(tid('bet-up-0'));
       await a.waitForSelector(positionRow(stockA));
       const qtyA = Number(await a.locator(`${positionRow(stockA)} ${tid('position-qty')}`).getAttribute('data-qty'));
       const fillA = fillsOf('A').at(-1)!;
       check(fillA?.symbol === stockA && fillA.qty === qtyA && qtyA > 0, `A bought ${qtyA} ${stockA} @ ${fillA?.price}`);
-      check(Math.abs(qtyA * fillA.price - 1e6) < 0.02 * 1e6, `about $1M worth (${Math.round(qtyA * fillA.price)})`);
+      const wantA = stakes[0]! * cap * startCash;
+      check(Math.abs(qtyA * fillA.price - wantA) < 0.03 * wantA, `about ${Math.round(wantA)} worth (${Math.round(qtyA * fillA.price)})`);
       check((await textOf(a, 'last-fill')).startsWith('Bought'), `A sees the fill: "${await textOf(a, 'last-fill')}"`);
       check(!framesOf('B').some((m) => m.t === 'fill') && !framesOf('floor').some((m) => m.t === 'fill' || m.t === 'portfolio'),
         "B and the floor do not see A's fill or portfolio");
 
-      // B shorts 25% of its buying power in stockB.
-      await b.click(tid('side-sell'));
-      await b.click(tid('size-pct-25'));
+      // B bets the second amount DOWN on stockB: a short.
+      await b.click(tid('bet-down-1'));
       await b.waitForSelector(positionRow(stockB));
       const qtyB = Number(await b.locator(`${positionRow(stockB)} ${tid('position-qty')}`).getAttribute('data-qty'));
       check(qtyB < 0, `B is short ${qtyB} ${stockB}`);
-      // From the server portfolio sent with the fill: the live value moves with every tick (and with the
-      // short's own impact, which pushes the price down and B's equity up).
+      // From the server portfolio sent with the fill: the live value moves with every tick.
       const portfolioAfterFill = (label: string) => {
         const frames = framesOf(label);
         const at = frames.lastIndexOf(frames.filter((m) => m.t === 'fill').at(-1)!);
-        return frames.slice(at).find((m) => m.t === 'portfolio') as { buyingPower?: number } | undefined;
+        return frames.slice(at).find((m) => m.t === 'portfolio') as { buyingPower?: number; cash: number; equity: number; positions: unknown[] } | undefined;
       };
       await waitFor('B portfolio after its fill', async () => portfolioAfterFill('B') !== undefined);
       const bpB = portfolioAfterFill('B')!.buyingPower ?? NaN;
-      check(bpB > 0.7 * cap * startCash && bpB < 0.8 * cap * startCash, `B has about 75% of its buying power left at the fill (${Math.round(bpB)})`);
+      const leftB = 1 - stakes[1]!;
+      check(bpB > (leftB - 0.05) * cap * startCash && bpB < (leftB + 0.05) * cap * startCash, `B has about ${Math.round(leftB * 100)}% of its buying power left at the fill (${Math.round(bpB)})`);
       await shot(b, '19-play-trading-B');
-
-      // A tries to buy far more than allowed: the order is clipped to the cap, not rejected.
-      await a.click(tid('size-usd-500000000'));
-      await waitFor('A second fill', async () => fillsOf('A').length >= 2);
-      // Read the server's portfolio sent in the same tick as the fill: the screen keeps revaluing at 10 Hz,
-      // and at 4x leverage a 1% move changes buying power by about 3% of equity.
-      const afterFill = () => {
-        const frames = framesOf('A');
-        const at = frames.lastIndexOf(frames.filter((m) => m.t === 'fill').at(-1)!);
-        return frames.slice(at).find((m) => m.t === 'portfolio') as { buyingPower?: number; equity: number } | undefined;
-      };
-      await waitFor('A portfolio after the second fill', async () => afterFill() !== undefined);
-      const bpA = afterFill()!.buyingPower ?? NaN;
-      // The clip pays for the order's own slippage, and the order's impact then marks the position up a
-      // little, so a few percent of buying power can be left over.
-      check(bpA < 0.05 * cap * afterFill()!.equity, `the $500M order was clipped to the leverage cap: ${Math.round(bpA)} buying power left at the fill`);
-      check(!(await a.locator(tid('error')).isVisible().catch(() => false)), 'the clipped order showed no error');
       await shot(a, '19-play-trading-A');
       await checkNoOverflow(a, 'desk with positions at 1366x768');
 
-      // Close the whole position from the positions table.
+      // Cash out the whole position from the positions table.
       await a.click(`${positionRow(stockA)} ${tid('position-close')}`);
       await a.waitForSelector(positionRow(stockA), { state: 'detached' });
-      check(fillsOf('A').at(-1)!.qty < 0, 'closing sold the position');
+      check(fillsOf('A').at(-1)!.qty < 0, 'cashing out sold the position');
       const pnl = await textOf(a, 'total-pnl');
-      check(/^[+-]?\$[\d,]+ \([+-]?\d+\.\d+%\)$/.test(pnl), `A shows total P&L after closing: ${pnl}`);
+      check(/^[+-]?\$[\d,]+ \([+-]?\d+\.\d+%\)$/.test(pnl), `A shows total P&L after cashing out: ${pnl}`);
       // Flat again: equity is exactly the cash (a 4x round trip can move it by any amount, so no range check).
-      const [eqA, cashA] = [money(await textOf(a, 'equity')), money(await textOf(a, 'cash'))];
-      check(eqA === cashA && eqA > 0, `A is flat: equity ${eqA} = cash ${cashA}`);
+      await waitFor('A portfolio after cashing out', async () => portfolioAfterFill('A')?.positions.length === 0);
+      const flat = portfolioAfterFill('A')!;
+      check(flat.equity === flat.cash && flat.equity > 0, `A is flat: equity ${flat.equity} = cash ${flat.cash}`);
     });
 
     await step('reload mid-game resumes the same player; a late joiner is refused', async () => {
@@ -1007,8 +1003,8 @@ async function main(): Promise<void> {
       await late.context().close();
     });
 
-    await step('headlines: both players get the same news, slots filled, it pops up as a newspaper', async () => {
-      const headlineFrames = (label: string) => framesOf(label).filter((m) => m.t === 'headline') as Array<{ id: string; text: string; symbol?: string; early?: boolean }>;
+    await step('headlines: both players get the same news, 2-10 s apart, in one fixed slot that opens the stock', async () => {
+      const headlineFrames = (label: string) => framesOf(label).filter((m) => m.t === 'headline') as Array<{ id: string; text: string; ts: number; symbol?: string; early?: boolean }>;
       await waitFor('a first headline', async () => headlineFrames('A').length >= 1);
       const onA = headlineFrames('A');
       check(onA.every((h) => !/\{[A-Z_]+\}/.test(h.text)), `every headline has its slots filled (${onA.length} so far)`);
@@ -1016,76 +1012,78 @@ async function main(): Promise<void> {
       const idsB = new Set(headlineFrames('B').map((h) => h.id));
       check(onA.filter((h) => !h.early).slice(-3).every((h) => idsB.has(h.id)), 'B received the same latest headlines as A');
       check(!headlineFrames('floor').some((h) => h.early), 'no early (insider) headline reached the floor');
-      const stockHeadline = onA.find((h) => h.symbol !== undefined);
-      if (stockHeadline) {
-        const name = stocks.find((s) => s.symbol === stockHeadline.symbol)?.name ?? '';
-        log(`  stock headline on ${stockHeadline.symbol} (${name}): "${stockHeadline.text}"`);
-      }
-      // A new headline pops up as a newspaper with its ticker, and the paper cannot be clicked.
+
+      // The slot sits above the list and the chart, and shows the latest headline.
       const seenBefore = headlineFrames('A').length;
       await waitFor('a new headline', async () => headlineFrames('A').length > seenBefore);
-      await a.waitForSelector(tid('news-pop'));
       const latest = headlineFrames('A').at(-1)!;
-      const ticker = (await a.locator(tid('news-pop-ticker')).last().textContent())?.trim() ?? '';
-      check(ticker.length > 0 && (latest.symbol === undefined || ticker === latest.symbol), `the headline pops up as a paper with its ticker (${ticker}): "${latest.text}"`);
-      // The paper lands on top of the cards in the side column (bottom right), not over the chart.
-      await sleep(600); // after its 380 ms drop-in animation
-      const [paperBox, sideBox] = [await a.locator(tid('news-pop')).last().boundingBox(), await a.locator('.desk__side').boundingBox()];
-      check(paperBox !== null && sideBox !== null && paperBox.x >= sideBox.x - 12 && paperBox.y + paperBox.height > sideBox.y + sideBox.height / 2,
-        `the paper lands over the cards in the side column (paper ${JSON.stringify(paperBox)}, side ${JSON.stringify(sideBox)})`);
-      const sectorLabel = (await a.locator(tid('news-pop-sector')).last().textContent())?.trim() ?? '';
-      check(sectorLabel.length > 0, `the paper names its sector: ${sectorLabel}`);
-      await shot(a, '20-play-news-paper');
-      // Go to: closes that paper and opens its stock (or sector fund, or index).
-      const papersBefore = await a.locator(tid('news-pop')).count();
-      const goTicker = (await a.locator(tid('news-pop-ticker')).last().textContent())?.trim() ?? '';
-      await a.locator(tid('news-pop-goto')).last().click();
-      await waitFor('the Go to paper to close', async () => (await a.locator(tid('news-pop')).count()) === papersBefore - 1);
-      await a.waitForSelector(`${tid('selected-symbol')}[data-symbol="${goTicker}"]`);
-      check(true, `Go to ${goTicker} closed the paper and opened ${goTicker}`);
-      await selectSymbol(a, stockA); // later steps expect A's own pick
-      check((await a.evaluate(`getComputedStyle(document.querySelector('[data-testid=news-pops]')).pointerEvents`)) === 'none', 'the pile around the papers lets clicks through');
-      const selectedBefore = await a.getAttribute(tid('selected-symbol'), 'data-symbol');
-      await a.locator(tid('news-pop')).last().click({ position: { x: 60, y: 70 } });
-      check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === selectedBefore, 'clicking a paper does not select its stock');
-      const papers = await a.locator(tid('news-pop')).count();
-      await a.locator(tid('news-pop-close')).last().click();
-      await waitFor('the x dismisses a paper', async () => (await a.locator(tid('news-pop')).count()) < papers);
-      check(true, 'the x dismisses a paper');
+      await waitFor('the slot to show the latest headline', async () => (await a.getAttribute(tid('headline'), 'data-id')) === latest.id);
+      check((await textOf(a, 'headline-text')) === latest.text, `the slot shows the latest headline: "${latest.text}"`);
+      const ticker = (await textOf(a, 'headline-ticker')).trim();
+      check(ticker.length > 0 && (latest.symbol === undefined || ticker === latest.symbol), `the slot names its stock (${ticker})`);
+      check((await textOf(a, 'headline-sector')).trim().length > 0, `the slot names its sector: ${await textOf(a, 'headline-sector')}`);
+      const [slotBox, chartBox, listBox] = [await a.locator(tid('headline-slot')).boundingBox(), await a.locator('.desk__chart').boundingBox(), await a.locator('.desk__list').boundingBox()];
+      check(slotBox !== null && chartBox !== null && listBox !== null && slotBox.y + slotBox.height <= Math.min(chartBox.y, listBox.y) + 1 && slotBox.x <= listBox.x + 1,
+        `the headline slot sits above the list and the chart (slot ${JSON.stringify(slotBox)})`);
+      // Nothing on it to press, and it does not move when dragged.
+      check((await a.locator(`${tid('headline')} button, ${tid('headline')} [role=button]`).count()) === 0, 'the headline has no buttons of its own');
+      // A headline arriving mid-check slides in for a moment: read the box once it holds still.
+      const stillBox = async () => {
+        let box = await a.locator(tid('headline')).boundingBox();
+        for (let i = 0; i < 20; i++) {
+          await sleep(120);
+          const again = await a.locator(tid('headline')).boundingBox();
+          if (box !== null && again !== null && again.x === box.x && again.y === box.y) return again;
+          box = again;
+        }
+        return box;
+      };
+      const before = await stillBox();
+      await a.mouse.move(before!.x + 40, before!.y + 20);
+      await a.mouse.down();
+      await a.mouse.move(before!.x + 140, before!.y + 120, { steps: 5 });
+      await a.mouse.up();
+      const after = await stillBox();
+      check(after !== null && Math.abs(after.x - before!.x) < 1 && Math.abs(after.y - before!.y) < 1, `the headline cannot be dragged (${JSON.stringify(before)} -> ${JSON.stringify(after)})`);
+      await shot(a, '20-play-headline');
+      // Clicking it opens its stock.
+      const openTicker = (await a.getAttribute(tid('headline'), 'data-ticker'))!;
+      await a.click(tid('headline'));
+      await a.waitForSelector(`${tid('selected-symbol')}[data-symbol="${openTicker}"]`);
+      check(true, `clicking the headline opened ${openTicker}`);
+      check((await a.locator(tid('headline')).count()) === 1, 'the headline stays after the click');
+      // It stays until the next headline replaces it: always exactly one strip.
+      const shownId = await a.getAttribute(tid('headline'), 'data-id');
       const seenNow = headlineFrames('A').length;
-      await waitFor('another headline', async () => headlineFrames('A').length > seenNow);
-      await a.waitForSelector(tid('news-pop'));
-      const left = await a.locator(tid('news-pop')).count();
-      await a.keyboard.press('Escape');
-      await waitFor('Escape dismisses a paper', async () => (await a.locator(tid('news-pop')).count()) < left);
-      check(true, 'Escape dismisses the front paper');
-      await shot(a, '20-play-headlines');
+      let gone = false;
+      await waitFor('the next headline', async () => {
+        if ((await a.locator(tid('headline')).count()) !== 1) gone = true;
+        return headlineFrames('A').length > seenNow;
+      });
+      const next = headlineFrames('A').at(-1)!;
+      await waitFor('the slot to show the next headline', async () => (await a.getAttribute(tid('headline'), 'data-id')) === next.id);
+      check(!gone && next.id !== shownId, `the headline stayed until the next one replaced it (${shownId} -> ${next.id})`);
+      // Pace: 2 to 10 s of game time between two public headlines.
+      const pub = headlineFrames('A').filter((h) => !h.early);
+      const gaps = pub.slice(1).map((h, i) => (h.ts - pub[i]!.ts) * DAY_MS);
+      const minGap = 2_000;
+      const maxGap = defaultConfig.news.maxGapMs;
+      check(gaps.length > 0 && gaps.every((g) => g >= minGap - 1 && g <= maxGap + 2 * minGap),
+        `headlines come ${minGap / 1000}-${maxGap / 1000} s apart (gaps ${gaps.map((g) => (g / 1000).toFixed(1)).join(', ')} s)`);
 
-      // Funds remain available in every mode; Simple uses quick bets and Pro shows raw numbers.
-      await a.click(tid('mode-simple'));
+      // The funds group stays; a quick bet is a plain position (checked again at RESULTS).
       const funds = a.locator(`${tid('symbol-group')}[data-group=funds]`);
-      check(await funds.isVisible(), 'Simple mode shows the funds group');
+      check(await funds.isVisible(), 'the list shows the funds group');
       check((await funds.locator(`${tid('symbol-row')}[data-kind=index]`).count()) === 1 &&
         (await funds.locator(`${tid('symbol-row')}[data-kind=sector]`).count()) === SECTORS.length,
-        'Simple mode includes the total market and every sector fund');
-      await checkChartDrawn(a, 'Simple mode', (await a.getAttribute(tid('selected-symbol'), 'data-symbol'))!, 2);
-      check((await a.locator('[data-testid^=size-]').count()) === 0, 'Simple mode replaces the order buttons with quick bets');
-      check((await a.locator('[data-testid^=stake-]').count()) === 3, 'Simple mode offers three stakes');
-      // A quick bet is a plain position: it stays open until it is sold (checked again at RESULTS).
+        'the list includes the total market and every sector fund');
+      await selectSymbol(a, stockA); // later steps expect A's own pick
       const fillsBefore = framesOf('A').filter((m) => m.t === 'fill').length;
-      await a.click(tid('quick-up'));
-      await waitFor('a quick bet fill', async () => framesOf('A').filter((m) => m.t === 'fill').length > fillsBefore);
+      await a.click(tid('bet-up-0'));
+      await waitFor('a bet fill', async () => framesOf('A').filter((m) => m.t === 'fill').length > fillsBefore);
       quickBetSymbol = (framesOf('A').filter((m) => m.t === 'fill').at(-1) as { symbol: string }).symbol;
-      await shot(a, '20-play-simple');
-      await checkNoOverflow(a, 'desk in Simple mode');
-      await a.click(tid('mode-pro'));
-      check(await funds.isVisible(), 'Pro mode shows the funds group');
-      await waitFor('Pro risk numbers', async () => (await textOf(a, 'risk-word')).includes('×'));
-      check(true, `Pro mode shows leverage as a number: "${await textOf(a, 'risk-word')}"`);
-      await shot(a, '20-play-pro');
-      await a.click(tid('mode-normal'));
-      await a.waitForSelector(`${tid('symbol-group')}[data-group=funds]`);
-      check((await a.evaluate(`localStorage.getItem('tg.uiMode')`)) === 'normal', 'the chosen mode is remembered');
+      await shot(a, '20-play-desk');
+      await checkNoOverflow(a, 'desk with the headline slot');
     });
 
     await step('every phase of every quarter, then FINAL', async () => {
@@ -1117,7 +1115,7 @@ async function main(): Promise<void> {
         }
         await shot(a, `14-play-${phase}`);
         await checkNoOverflow(a, `desk in ${phase} at 1366x768`);
-        check(await a.locator(tid('size-usd-1000000')).isDisabled(), `order buttons are disabled in ${phase}`);
+        check(await a.locator(tid('bet-up-0')).isDisabled(), `bet buttons are disabled in ${phase}`);
         if (phase === 'EARNINGS') {
           await a.waitForSelector(tid('earnings'));
         } else {
@@ -1156,7 +1154,6 @@ async function main(): Promise<void> {
       check(await a.locator(tid('ready-up')).isDisabled(), 'A is marked ready while B is still in the shop');
       await b.locator(tid('ready-up')).click();
       await waitForPhase(a, 'BRIEFING');
-      check((await a.locator('.phase-strip').getByText('Shop', { exact: true }).count()) === 0, 'the final quarter phase list skips Shop');
       const q1Report = await checkEarningsReport(a);
       await a.waitForSelector(rowOf(stockA));
       const frozen1 = await boardOf(a);
@@ -1191,8 +1188,6 @@ async function main(): Promise<void> {
       const handBefore = await a.locator(tid('hand-card')).count();
       check(handBefore > 0, `A still holds ${handBefore} cards in Q2`);
       for (let i = 0; i < handBefore; i++) {
-        // Headline papers land on top of the cards: put them away first, as a player would.
-        while ((await a.locator(tid('news-pop')).count()) > 0) await a.locator(tid('news-pop-close')).last().click();
         const cardEl = a.locator(tid('hand-card')).first();
         const button = cardEl.locator(`${tid('play')}, ${tid('play-up')}`).first();
         if (await button.isDisabled()) break; // e.g. a sector card with the index fund selected
@@ -1334,7 +1329,7 @@ async function main(): Promise<void> {
       await a.waitForSelector(rowOf((await boardOf(a))[0]?.symbol ?? ''));
       const newSymbols = (await boardOf(a)).map((r) => r.symbol).join();
       check(newSymbols !== oldSymbols && (await boardOf(a)).length === SYMBOL_COUNT, 'a new universe (next seed) is on screen');
-      check((await a.locator(tid('news-pop')).count()) === 0, 'no headline of the old game is on A\'s desk');
+      check((await a.locator(tid('headline')).count()) === 0, 'no headline of the old game is on A\'s desk');
       check((await a.locator(tid('positions')).count()) === 0, 'A starts the new game with no positions');
       const health = (await (await fetch(`http://127.0.0.1:${serverPort}/health`)).json()) as { game: number; phase: string };
       check(health.game === 2 && health.phase === 'BRIEFING', `the server runs game ${health.game}`);
