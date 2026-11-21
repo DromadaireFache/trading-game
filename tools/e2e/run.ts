@@ -114,7 +114,9 @@ const children: ChildProcess[] = [];
 const childOutput: string[] = [];
 
 function spawnNode(tag: string, args: string[], cwd: string, env: NodeJS.ProcessEnv): ChildProcess {
-  const child = spawn(process.execPath, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+  // POSIX: own process group, so killTree can take down the grandchildren too (tsx runs the real
+  // server in a child of its own; killing only tsx orphaned it with the port still open).
+  const child = spawn(process.execPath, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: process.platform !== 'win32' });
   const keep = (chunk: Buffer) => {
     for (const line of chunk.toString().split(/\r?\n/)) if (line.trim() !== '') childOutput.push(`[${tag}] ${line}`);
   };
@@ -125,10 +127,12 @@ function spawnNode(tag: string, args: string[], cwd: string, env: NodeJS.Process
 }
 
 function killTree(child: ChildProcess): void {
-  if (child.pid === undefined || child.exitCode !== null) return;
+  if (child.pid === undefined) return;
+  // On POSIX the group can outlive its leader, so only Windows may skip an exited child.
+  if (process.platform === 'win32' && child.exitCode !== null) return;
   try {
     if (process.platform === 'win32') execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
-    else child.kill('SIGKILL');
+    else process.kill(-child.pid, 'SIGKILL'); // the whole process group (see spawnNode)
   } catch {
     // already gone
   }
@@ -887,7 +891,9 @@ async function main(): Promise<void> {
 
     await step('every phase of every quarter, then FINAL', async () => {
       for (const phase of ['EARNINGS', 'RESULTS', 'SHOP'] as const) {
-        await waitForPhase(a, phase);
+        // The earlier steps can finish with most of Q1's trading still to go, so EARNINGS may be up to a
+        // whole TRADING phase away. A plain WAIT_MS made this step pass or fail with the speed of the run.
+        await waitForPhase(a, phase, phase === 'EARNINGS' ? TRADING_MS + WAIT_MS : WAIT_MS);
         await shot(a, `14-play-${phase}`);
         await checkNoOverflow(a, `desk in ${phase} at 1366x768`);
         check(await a.locator(tid('size-usd-1000000')).isDisabled(), `order buttons are disabled in ${phase}`);

@@ -353,7 +353,9 @@ export const defaultConfig: GameConfig = {
     kTemporary: 0.05,
     temporaryHalfLifeMs: 5_000,
     maxSlippage: 0.15,
-    maxPermanent: 0.15,
+    // kPermanent / lambda (0.4) times maxSlippage: at the cap, permanent impact stays well below what the
+    // order paid in slippage, so a whale cannot buy a mark-up worth more than it cost.
+    maxPermanent: 0.06,
     maxTemporary: 0.25,
   },
   news: {

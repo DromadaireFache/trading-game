@@ -50,7 +50,7 @@ if (process.argv.includes('--json')) {
   };
   const pad = (s: string, n: number) => s.padEnd(n);
   console.log(`${games} games, ${config.time.quarters} quarters, start ${money(config.economy.startingCash)}, ${bots.length} bots per game (${seconds.toFixed(1)} s)`);
-  console.log('Quiet market only: no headlines, cards, regimes or earnings yet.\n');
+  console.log('Headlines and earnings are in (M4); cards, regimes and SEC are not wired yet (M5).\n');
   console.log(`${pad('bot', 16)}${pad('p10', 11)}${pad('median', 11)}${pad('p90', 11)}${pad('elim', 7)}${pad('margin', 8)}wins`);
   for (const [name, b] of Object.entries(summary.bots)) {
     console.log(

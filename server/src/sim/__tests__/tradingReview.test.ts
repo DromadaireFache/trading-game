@@ -17,7 +17,7 @@ function setup(startingCash: number) {
     const positions = [...a.holdings].filter(([, h]) => h.qty !== 0).map(([symbol, h]) => ({ symbol, qty: h.qty, avgPrice: h.avgPrice }));
     return valuePortfolio(config, a.cash, positions, (s) => market.getPrice(s)).leverage;
   };
-  return { config, trading, smallCap: byAdv[0]!.symbol, bigCap: byAdv[byAdv.length - 1]!.symbol, leverageAtMid };
+  return { config, trading, market, smallCap: byAdv[0]!.symbol, bigCap: byAdv[byAdv.length - 1]!.symbol, leverageAtMid };
 }
 
 describe('leverage clip with slippage', () => {
@@ -33,6 +33,18 @@ describe('leverage clip with slippage', () => {
       }
     });
   }
+
+  it('a max-size order cannot raise its own net worth through its price impact', () => {
+    for (const cash of [10e6, 100e6, 1e9]) {
+      const s = setup(cash);
+      s.trading.order('p', s.smallCap, 1e15);
+      // Value right at the fill and again after the impact went into the price (the game could end here).
+      expect(s.trading.portfolio('p')!.equity).toBeLessThan(cash);
+      const input = s.trading.stepInput();
+      s.market.step(input === undefined ? undefined : { symbolReturn: input });
+      expect(s.trading.portfolio('p')!.equity).toBeLessThan(cash);
+    }
+  });
 
   it('flipping a position at the cap is still clipped, and at worst closes it', () => {
     const s = setup(100e6);
