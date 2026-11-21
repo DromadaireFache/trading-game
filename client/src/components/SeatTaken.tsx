@@ -1,4 +1,5 @@
 import { ConnectionBadge } from './ConnectionBadge.tsx';
+import { GameLogo } from './GameLogo.tsx';
 
 /**
  * Shown instead of the game when another tab took over this session (same token). This tab is
@@ -8,7 +9,7 @@ export function SeatTaken() {
   return (
     <main className="center-screen" data-testid="seat-taken">
       <div className="join-card" role="alert">
-        <div className="join-card__brand">TRADING GAME</div>
+        <div className="join-card__brand"><GameLogo /></div>
         <p className="seat-taken__text">
           This seat was opened in another tab or window, so this one is disconnected. Reload to take the seat back here.
         </p>

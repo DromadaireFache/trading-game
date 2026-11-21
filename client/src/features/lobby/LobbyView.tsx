@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
+import { GameLogo } from '../../components/GameLogo.tsx';
 import { Panel } from '../../components/Panel.tsx';
 import { Roster } from '../../components/Roster.tsx';
 import { formatMoney } from '../../lib/format.ts';
@@ -21,6 +22,7 @@ export function LobbyView() {
 
   return (
     <div className="lobby">
+      <h1 className="lobby__hero"><GameLogo /></h1>
       <Panel title="Lobby" aside={`${count}/${maxPlayers} players`} className="lobby__panel">
         <Roster lobby={lobby} meId={me?.playerId} showEmptySeats />
 
