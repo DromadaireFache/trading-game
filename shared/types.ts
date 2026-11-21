@@ -217,6 +217,8 @@ export interface HeadlineTemplate {
   id: string;
   text: string;
   scope: HeadlineScope;
+  /** Required for generated stock and sector headlines. Omitted by generic seed templates. */
+  sector?: Sector;
   direction: HeadlineDirection;
   magnitude: HeadlineMagnitude;
   category: HeadlineCategory;

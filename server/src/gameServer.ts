@@ -21,6 +21,7 @@ import type { RawData } from 'ws';
 import { WS_CLOSE_REPLACED, roundOhlc, roundPrices, roundSnapshot } from '@tg/shared';
 import type { ClientMsg, ErrorCode, JoinMsg, LobbyState, MarketMsg, PhaseInfo, PlayerId, Role, ServerMsg } from '@tg/shared';
 import type { ServerEnv } from './env.ts';
+import { createHeadlineCatalog, loadHeadlineTemplates } from './headlineCatalog.ts';
 import { lanUrls } from './lan.ts';
 import { runTickClock } from './loop.ts';
 import { cleanName, nameKey, parseClientMsg } from './protocol.ts';
@@ -66,6 +67,7 @@ export interface GameServer {
   /** The port actually bound (differs from env.port when that was 0). */
   port: number;
   sim: Sim;
+  headlines: ReturnType<typeof createHeadlineCatalog>;
   close(): Promise<void>;
 }
 
@@ -77,6 +79,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
   const log = options.log ?? ((line: string) => console.log(line));
 
   const sim = createSim(env.seed, config);
+  const headlines = createHeadlineCatalog(loadHeadlineTemplates(env.headlinesPath), sim.getUniverse(), env.seed, config.news.shock);
 
   /** token -> session. */
   const sessions = new Map<string, Session>();
@@ -470,7 +473,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       reject(error);
     });
     http.listen(env.port, options.host, () => {
-      resolve({ port: (http.address() as AddressInfo).port, sim, close });
+      resolve({ port: (http.address() as AddressInfo).port, sim, headlines, close });
     });
   });
 }

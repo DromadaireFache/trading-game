@@ -1261,7 +1261,7 @@
   },
   {
     "id": "h_seed_0141",
-    "text": "{CEO} challenges {RIVAL} boss to televised arm-wrestling match",
+    "text": "{COMPANY} CEO {CEO} challenges {RIVAL} boss to televised arm-wrestling match",
     "scope": "stock",
     "direction": "neutral",
     "magnitude": "medium",

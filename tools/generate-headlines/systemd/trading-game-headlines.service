@@ -1,0 +1,11 @@
+[Unit]
+Description=Top up the Trading Game headline catalog
+After=llmserver.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/.local/share/trading-game-headlines/app
+Environment=HEADLINES_API_URL=http://127.0.0.1:8080/v1/chat/completions
+Environment=HEADLINES_MODEL=lfm3-1.7b
+ExecStart=%h/.local/share/trading-game-headlines/runtime/bin/node tools/generate-headlines/index.ts --per-bucket 3
+TimeoutStartSec=20min

@@ -50,6 +50,10 @@ where to connect:
 `npm run e2e` uses the installed Microsoft Edge (or Chrome) through `playwright-core`; nothing is downloaded.
 `TG_E2E_HEADED=1` shows the browser windows.
 
+## Headline catalog
+
+The home server generates fictional news templates ahead of play. Run `npm run pull-headlines` to refresh the local catalog from `sbb-server-01`, or see the [generator guide](tools/generate-headlines/README.md) for generation and lookup details. The live feed is still pending.
+
 ## Settings
 
 Every tunable number is in [shared/config.ts](shared/config.ts). For a quick run without editing it,

@@ -155,12 +155,13 @@ Fact-check (instantly debunks a fake headline), trading halt (freezes a ticker f
 
 ## 7. Headline database (offline)
 
-Generated ahead of time with a local model and shipped as `headlines.json`.
+Generated ahead of time with a local model and loaded from the generated catalog plus the bundled seed.
 ```jsonc
 {
   "id": "h_01234",
   "text": "{COMPANY} wins surprise contract with {GOV_AGENCY}",
   "scope": "stock",               // market | sector | stock
+  "sector": "industrials",        // required on generated stock/sector entries; omitted for market
   "direction": "up",              // up | down | neutral
   "magnitude": "medium",          // small | medium | large | huge
   "category": "contract",         // earnings_leak | contract | legal | exec | macro | product | absurd | regime_followup
