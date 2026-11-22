@@ -1057,6 +1057,9 @@ async function main(): Promise<void> {
       const listBox = (await a.locator('.desk__list').boundingBox())!;
       check(rivalsBox!.y < positionsBox!.y - 50 && Math.abs(listBox.y + listBox.height + 8 - rivalsBox!.y) < 1.5,
         `the other players' box is taller than the positions box (${Math.round(rivalsBox!.height)} vs ${Math.round(positionsBox!.height)}) and sits right under the stock list`);
+      // The stock list fits its panel exactly: nothing to scroll.
+      const listScroll = (await a.evaluate(`(() => { const b = document.querySelector('.desk__list .panel__body'); return [b.scrollHeight, b.clientHeight]; })()`)) as [number, number];
+      check(listScroll[0] <= listScroll[1] + 1, `the stock list does not scroll (content ${listScroll[0]} px, room ${listScroll[1]} px)`);
       check((await style(top, 'transform')) !== 'none', 'the paper is angled');
       // Inside its column: never over the positions or the chart.
       const sideBox = trayBox!;
@@ -1227,7 +1230,9 @@ async function main(): Promise<void> {
       await shot(floor, '14-floor-SHOP');
       await a.locator(tid('ready-up')).click();
       await waitFor('the shop shows one player ready', async () => (await textOf(b, 'ready-count')).trim() === '1/2');
-      check(await a.locator(tid('ready-up')).isDisabled(), 'A is marked ready while B is still in the shop');
+      // A's own screen shows it from the same broadcast, a moment later or sooner than B's.
+      await waitFor('A to show itself ready', async () => a.locator(tid('ready-up')).isDisabled());
+      check(true, 'A is marked ready while B is still in the shop');
       await b.locator(tid('ready-up')).click();
       await waitForPhase(a, 'BRIEFING');
       const q1Report = await checkEarningsReport(a);
@@ -1291,8 +1296,10 @@ async function main(): Promise<void> {
       check(/^heat \d+$/.test(heatText), `A sees its heat: "${heatText}"`);
       await shot(a, '19-play-cards-q2');
       const floorChart = floor.locator(tid('net-worth-chart'));
-      await waitFor('the projector chart advances into Q2', async () => Number(await floorChart.getAttribute('data-day')) >= DAYS + 4);
-      check(await floorChart.locator('canvas').count() > 0, 'the projector draws the Q2 net-worth lines');
+      // (Playing the cards can take long enough for Q2's trading to end: then the chart has made way for the standings.)
+      await waitFor('the projector chart advances into Q2', async () =>
+        (await phaseOf(floor)) !== 'TRADING' || Number(await floorChart.getAttribute('data-day')) >= DAYS + 4);
+      if ((await phaseOf(floor)) === 'TRADING') check(await floorChart.locator('canvas').count() > 0, 'the projector draws the Q2 net-worth lines');
       await shot(floor, '19-floor-TRADING-q2');
 
       // Refresh mid-quarter in Q2: the list and the chart history of BOTH quarters come back.

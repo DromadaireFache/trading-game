@@ -688,10 +688,11 @@ ol {
   grid-template-columns: 480px minmax(0, 1fr) minmax(0, 1fr) 380px;
   /* The bottom row is tall enough for several positions without scrolling. */
   /*
-   * The middle row only lengthens the other players' box: it reaches up into the left column (the
-   * stock list above it is that much shorter); the chart and the side column are not affected.
+   * The first row is exactly as tall as the stock list needs (it never scrolls). The middle row, the
+   * rest of the height, only lengthens the other players' box up into the left column; the chart and
+   * the side column span both rows and do not affect their sizes.
    */
-  grid-template-rows: minmax(0, 1fr) 96px minmax(190px, 26vh);
+  grid-template-rows: auto minmax(0, 1fr) minmax(190px, 26vh);
   grid-template-areas:
     'list   chart     chart     side'
     'rivals chart     chart     side'
