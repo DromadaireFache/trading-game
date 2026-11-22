@@ -460,6 +460,10 @@ export interface ErrorMsg {
  */
 export interface CardHitMsg {
   t: 'card_hit';
+  /** The player who played the card. */
+  by: PlayerId;
+  /** The name of the card they played (Pickpocket for `stolen`, whatever was taken is in cardName). */
+  played: string;
   kind: 'frozen' | 'hodl' | 'flashbang' | 'stolen' | 'reversed' | 'freak_out' | 'challenge' | 'forced' | 'bill';
   /** The card that did it (for `stolen`: the card that was taken). */
   cardName: string;

@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { ConnectionBadge } from '../../components/ConnectionBadge.tsx';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { GameLogo } from '../../components/GameLogo.tsx';
+import { ViewLink } from '../../components/ViewLink.tsx';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useNetTarget } from '../../net/NetTarget.tsx';
 import { CreditButton } from './CreditButton.tsx';
@@ -56,14 +57,9 @@ export function JoinForm() {
             <button type="button" className="btn btn--ghost" data-testid="room-leave" onClick={target.leaveRoom}>Change room</button>
           </div>
         )}
-        {target.mode === 'lan' && target.canSwitch && (
-          <button type="button" className="btn btn--ghost mode-switch" data-testid="mode-online" onClick={() => target.setMode('online')}>
-            Playing over the internet? Play online
-          </button>
-        )}
-
         <div className="join-card__foot">
           <CreditButton />
+          <ViewLink to="floor" />
           <ConnectionBadge />
         </div>
       </form>

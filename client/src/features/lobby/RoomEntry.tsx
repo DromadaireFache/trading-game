@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { ROOM_CODE_ALPHABET, ROOM_CODE_LENGTH, normalizeRoomCode } from '@tg/shared';
 import type { Role } from '@tg/shared';
 import { GameLogo } from '../../components/GameLogo.tsx';
+import { ViewLink } from '../../components/ViewLink.tsx';
 import { useNetTarget } from '../../net/NetTarget.tsx';
 import { CreditButton } from './CreditButton.tsx';
 import './room.css';
@@ -60,6 +61,7 @@ export function RoomEntry({ role, notice, onJoin, onHost }: {
 
         <div className="join-card__foot">
           <CreditButton />
+          <ViewLink to={role === 'spectator' ? 'play' : 'floor'} />
           {target.canSwitch && (
             <button type="button" className="btn btn--ghost" data-testid="mode-lan" onClick={() => target.setMode('lan')}>
               Use the LAN instead

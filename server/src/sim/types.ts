@@ -140,7 +140,7 @@ export type SimEvent =
   | { e: 'bet_result'; playerId: PlayerId; symbol: SymbolId; qty: number; entryPrice: number; exitPrice: number; pnl: number; streak: number }
   | { e: 'shop'; playerId: PlayerId; offers: CardOffer[] }
   /** A Mayhem card hit player `to` (sent to them alone). Mirrors CardHitMsg in @tg/shared. */
-  | { e: 'card_hit'; to: PlayerId; kind: 'frozen' | 'hodl' | 'flashbang' | 'stolen' | 'reversed' | 'freak_out' | 'challenge' | 'forced' | 'bill'; cardName: string; untilDay?: number; ms?: number; symbol?: SymbolId }
+  | { e: 'card_hit'; to: PlayerId; by: PlayerId; played: string; kind: 'frozen' | 'hodl' | 'flashbang' | 'stolen' | 'reversed' | 'freak_out' | 'challenge' | 'forced' | 'bill'; cardName: string; untilDay?: number; ms?: number; symbol?: SymbolId }
   | { e: 'phase_ready'; readyPlayerIds: PlayerId[] }
   | {
       e: 'results';
