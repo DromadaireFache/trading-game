@@ -4,6 +4,7 @@ import { ConnectionBadge } from '../../components/ConnectionBadge.tsx';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { GameLogo } from '../../components/GameLogo.tsx';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
+import { CreditButton } from './CreditButton.tsx';
 
 /** Name entry: the first screen of /play. */
 export function JoinForm() {
@@ -49,6 +50,7 @@ export function JoinForm() {
         <ErrorBanner />
 
         <div className="join-card__foot">
+          <CreditButton />
           <ConnectionBadge />
         </div>
       </form>
