@@ -3,7 +3,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
-import { QUARTER_PHASES, SECTORS, defaultConfig, finaleTimeline, mergeConfig, packCandle, phaseTicks, quarterTicks, roundPrice, totalTradingDays } from '@tg/shared';
+import { QUARTER_PHASES, SECTORS, WS_CLOSE_KICKED, defaultConfig, finaleTimeline, mergeConfig, packCandle, phaseTicks, quarterTicks, roundPrice, totalTradingDays } from '@tg/shared';
 import type { DeepPartial, GameConfig, MsgOf, OHLC, Phase, ServerMsg, ServerMsgType, SymbolId } from '@tg/shared';
 import { CLOSE_REPLACED, HEALTH_PATH, startGameServer } from '../gameServer.ts';
 import type { GameServer } from '../gameServer.ts';
@@ -102,9 +102,9 @@ class Client {
 let server: GameServer | null = null;
 const clients: Client[] = [];
 
-async function start(overrides: DeepPartial<GameConfig> = {}): Promise<GameServer> {
+async function start(overrides: DeepPartial<GameConfig> = {}, now = Date.now): Promise<GameServer> {
   const config = mergeConfig(fastConfig, overrides);
-  server = await startGameServer({ port: 0, clientPort: 5173, seed: 1, config }, { host: '127.0.0.1', log: () => {} });
+  server = await startGameServer({ port: 0, clientPort: 5173, seed: 1, config }, { host: '127.0.0.1', log: () => {}, now });
   return server;
 }
 
@@ -203,6 +203,65 @@ describe('join and lobby', () => {
     const late = await open(s);
     late.send({ t: 'join', role: 'player', name: 'Bob', token: bobWelcome.token });
     expect((await late.next('error')).code).toBe('bad_token');
+  });
+
+  it('reclaims the longest-offline seat in a full lobby and blocks its old token', async () => {
+    let offset = 0;
+    const s = await start({ lobby: { maxPlayers: 3 } }, () => Date.now() + offset);
+    const ann = await open(s);
+    await ann.join('player', 'Ann');
+    const bob = await open(s);
+    await bob.join('player', 'Bob');
+    const cy = await open(s);
+    const { token } = await cy.join('player', 'Cy');
+
+    cy.close();
+    await ann.next('lobby', (m) => m.players[2]?.connected === false);
+    offset += TICK_MS;
+    bob.close();
+    await ann.next('lobby', (m) => m.players[1]?.connected === false);
+
+    const newcomer = await open(s);
+    expect((await newcomer.join('player', 'Dee')).lobby.players.map((p) => p.name)).toEqual(['Ann', 'Bob', 'Dee']);
+    const old = await open(s);
+    old.send({ t: 'join', role: 'player', name: 'Cy', token });
+    expect(await old.next('error')).toMatchObject({ code: 'bad_token' });
+  });
+
+  it('lets only the connected lobby host kick another player', async () => {
+    const s = await start({ lobby: { maxPlayers: 3 } });
+    const ann = await open(s);
+    const first = await ann.join('player', 'Ann');
+    const bob = await open(s);
+    const second = await bob.join('player', 'Bob');
+    const floor = await open(s);
+    await floor.join('spectator');
+    await ann.next('lobby', (m) => m.players.length === 2);
+
+    bob.send({ t: 'kick_player', playerId: first.playerId });
+    expect(await bob.next('error')).toMatchObject({ code: 'not_allowed' });
+    floor.send({ t: 'kick_player', playerId: second.playerId });
+    expect(await floor.next('error')).toMatchObject({ code: 'not_allowed' });
+    ann.send({ t: 'kick_player', playerId: first.playerId });
+    expect(await ann.next('error')).toMatchObject({ code: 'not_allowed' });
+
+    ann.send({ t: 'kick_player', playerId: second.playerId });
+    expect(await bob.closed()).toBe(WS_CLOSE_KICKED);
+    expect((await ann.next('lobby', (m) => m.players.length === 1)).players[0]?.id).toBe(first.playerId);
+    const again = await open(s);
+    again.send({ t: 'join', role: 'player', name: 'Bob', token: second.token });
+    expect(await again.next('error')).toMatchObject({ code: 'bad_token' });
+    await again.join('player', 'Bob');
+
+    ann.close();
+    await again.next('lobby', (m) => m.players[0]?.connected === false);
+    again.send({ t: 'kick_player', playerId: first.playerId });
+    expect((await again.next('lobby', (m) => m.players.length === 1)).players[0]?.name).toBe('Bob');
+
+    again.send({ t: 'start' });
+    await again.next('phase', (m) => m.phase === 'BRIEFING');
+    again.send({ t: 'kick_player', playerId: first.playerId });
+    expect((await again.next('error')).message).toBe('players can only be removed in the lobby');
   });
 });
 

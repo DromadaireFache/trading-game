@@ -21,11 +21,7 @@ export function RivalsPanel({ className }: { className?: string }) {
         {Array.from({ length: seats }, (_, i) => {
           const player = others[i];
           return player === undefined ? (
-            <div key={`empty-${i}`} className="rival rival--empty">
-              <div className="rival__head">
-                <span className="rival__name">Empty seat</span>
-              </div>
-            </div>
+            <div key={`empty-${i}`} className="rival rival--empty" aria-hidden="true" />
           ) : (
             <Rival key={player.id} player={player} held={holdings[player.id]} />
           );
@@ -72,9 +68,7 @@ function Rival({ player, held }: { player: LobbyPlayer; held: Holdings | undefin
           {!player.connected && <span className="rival__tag">offline</span>}
         </div>
       )}
-      {positions.length === 0 ? (
-        <div className="rival__none">No positions</div>
-      ) : (
+      {positions.length > 0 && (
         <ul className="rival__list">
           {positions.map((p) => (
             <RivalPosition key={p.symbol} position={p} sealed={sealed} />

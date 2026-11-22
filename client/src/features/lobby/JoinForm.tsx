@@ -25,8 +25,7 @@ export function JoinForm() {
   return (
     <main className="center-screen">
       <form className="join-card" onSubmit={onSubmit}>
-        <div className="join-card__brand"><GameLogo variant="full" /></div>
-        <p className="join-card__tagline">Fake companies. Real panic.</p>
+        <div className="join-card__brand"><GameLogo /></div>
 
         <label className="field">
           <span className="field__label">Trader name</span>

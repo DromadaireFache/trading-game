@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultConfig, WS_CLOSE_REPLACED } from '@tg/shared';
+import { defaultConfig, WS_CLOSE_KICKED, WS_CLOSE_REPLACED } from '@tg/shared';
 import type { ClientMsg, LobbyState, PhaseInfo, ServerMsg, WelcomeMsg } from '@tg/shared';
 import { GameClient, reconnectDelayMs } from '../gameClient.ts';
 import type { SocketLike } from '../gameClient.ts';
@@ -88,6 +88,21 @@ describe('reconnectDelayMs', () => {
 });
 
 describe('GameClient', () => {
+  it('returns to name entry after a lobby kick and reconnects without rejoining', () => {
+    const { client, last, storage } = setup();
+    client.start();
+    last().open();
+    client.join('Ann');
+    last().receive(welcome());
+    last().onclose?.({ code: WS_CLOSE_KICKED });
+    expect(client.getState()).toMatchObject({ me: null, join: 'none', error: { message: 'The lobby host removed you.' } });
+    expect(storage.data.size).toBe(0);
+    last().open();
+    expect(last().sent).toEqual([]);
+    client.join('Ann');
+    expect(last().sent).toEqual([{ t: 'join', role: 'player', name: 'Ann' }]);
+  });
+
   it('blocks repeated jailed orders immediately and restores server pending status', () => {
     const { client, last } = setup();
     client.start();

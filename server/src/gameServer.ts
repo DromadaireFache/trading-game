@@ -19,7 +19,7 @@ import type { AddressInfo } from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
-import { PLAYER_COLORS, QUARTER_OPTIONS, QUARTER_SECONDS_OPTIONS, WS_CLOSE_REPLACED, finaleTimeline, quarterSeconds, roundOhlc, withGameLength, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
+import { PLAYER_COLORS, QUARTER_OPTIONS, QUARTER_SECONDS_OPTIONS, WS_CLOSE_KICKED, WS_CLOSE_REPLACED, finaleTimeline, quarterSeconds, roundOhlc, withGameLength, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
 import type { ClientMsg, ErrorCode, GameConfig, HoldingsMsg, JoinMsg, LobbyState, MarketMsg, NetWorthSample, PhaseInfo, PlayerColor, PlayerId, PortfolioMsg, Role, ServerMsg, SetSettingsMsg } from '@tg/shared';
 import type { ServerEnv } from './env.ts';
 import { lanUrls } from './lan.ts';
@@ -107,6 +107,8 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
 
   /** token -> session. */
   const sessions = new Map<string, Session>();
+  // A removed seat must not be silently recreated by an automatic reconnect.
+  const evictedTokens = new Set<string>();
   /** id -> session, in join order (the roster order). */
   const byId = new Map<PlayerId, Session>();
   const bySocket = new Map<WebSocket, Session>();
@@ -260,6 +262,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
 
   /** Lobby only: a player who left frees their seat and name. */
   function evictFromLobby(session: Session): void {
+    evictedTokens.add(session.token);
     dropSession(session);
     sim.submit({ kind: 'remove_player', playerId: session.id });
   }
@@ -347,10 +350,12 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     const players = playerSessions();
     const holder = players.find((s) => nameKey(s.name) === nameKey(name));
     if (holder !== undefined && holder.socket !== null) return { code: 'name_taken', message: `"${name}" is already taken` };
-    // Seats and names held by players who disconnected in the lobby are up for grabs.
-    const seatsTaken = holder !== undefined ? players.length - 1 : players.length;
-    const ghost = holder ?? (seatsTaken >= config.lobby.maxPlayers ? players.find((s) => s.socket === null) : undefined);
-    if (ghost === undefined && seatsTaken >= config.lobby.maxPlayers) return { code: 'game_full', message: 'the game is full' };
+    const full = players.length >= config.lobby.maxPlayers;
+    // If the lobby is full, reclaim the seat that has been offline the longest.
+    const ghost = holder ?? (full
+      ? players.filter((s) => s.socket === null).sort((a, b) => (a.disconnectedAt ?? 0) - (b.disconnectedAt ?? 0))[0]
+      : undefined);
+    if (ghost === undefined && full) return { code: 'game_full', message: 'the game is full' };
     if (ghost !== undefined) evictFromLobby(ghost);
 
     const id = `p${nextPlayerNumber++}`;
@@ -373,6 +378,9 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       return attach(known, socket);
     }
 
+    if (msg.token !== undefined && evictedTokens.has(msg.token)) {
+      return sendError(socket, 'bad_token', 'Your previous seat is no longer available. Enter a name to join again.');
+    }
     const result = freshJoin(msg);
     if ('code' in result) {
       // A stale token that cannot become a fresh join: the client must forget it and ask for a name.
@@ -414,6 +422,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     if (finale !== null && now() < finale.endsAt - FINALE_CLOCK_SLACK_MS) return sendError(socket, 'not_allowed', 'the final results are still being revealed');
     finale = null;
     gameNumber += 1;
+    evictedTokens.clear();
     lastSentWorth = undefined;
     sim = createSim(env.seed + gameNumber - 1, config, { headlines });
     starting = false;
@@ -475,6 +484,17 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
 
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'spectators cannot do that');
     switch (msg.t) {
+      case 'kick_player': {
+        if (!inLobby()) return sendError(socket, 'not_allowed', 'players can only be removed in the lobby');
+        const host = playerSessions().find((player) => player.socket !== null);
+        if (host !== session) return sendError(socket, 'not_allowed', 'only the lobby host can remove players');
+        const target = byId.get(msg.playerId);
+        if (target?.role !== 'player' || target === session) return sendError(socket, 'not_allowed', 'choose another player to remove');
+        const targetSocket = target.socket;
+        evictFromLobby(target);
+        targetSocket?.close(WS_CLOSE_KICKED, 'removed by the lobby host');
+        return broadcastLobby();
+      }
       case 'set_color': {
         if (!inLobby()) return sendError(socket, 'not_allowed', 'player colors can only change in the lobby');
         if (msg.color === session.color) return;

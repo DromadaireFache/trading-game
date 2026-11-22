@@ -11,7 +11,7 @@
  *
  * Everything environment-specific (socket, storage, clock) is injectable so this runs in vitest.
  */
-import { defaultConfig, WS_CLOSE_REPLACED } from '@tg/shared';
+import { defaultConfig, WS_CLOSE_KICKED, WS_CLOSE_REPLACED } from '@tg/shared';
 import type { ClientMsg, JoinMsg, PlayerColor, Role, ServerMsg } from '@tg/shared';
 import { MarketStore } from './marketStore.ts';
 import { NetWorthStore } from './netWorthStore.ts';
@@ -228,7 +228,13 @@ export class GameClient {
       this.socket = null;
       this.socketOpen = false;
       if (!this.running) return;
-      if ((ev as { code?: unknown } | null)?.code === WS_CLOSE_REPLACED) {
+      const code = (ev as { code?: unknown } | null)?.code;
+      if (code === WS_CLOSE_KICKED) {
+        this.forget();
+        this.patch({ error: { code: 'not_allowed', message: 'The lobby host removed you.', at: this.now() } });
+        return;
+      }
+      if (code === WS_CLOSE_REPLACED) {
         // Another tab took over this seat (a duplicated tab copies sessionStorage). Reconnecting
         // would kick that tab out in turn, so stop here; a reload takes the seat back.
         this.running = false;

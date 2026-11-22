@@ -344,10 +344,6 @@ ol {
   border-style: dashed;
   background: transparent;
 }
-.roster__row--empty .roster__name {
-  color: var(--tg-color-text-dim);
-  font-weight: 400;
-}
 
 /* ---------------------------------------------------------------- join screen */
 
@@ -385,10 +381,6 @@ ol {
   filter: drop-shadow(0 8px 8px color-mix(in srgb, var(--tg-color-up) 28%, transparent));
   animation: logo-arrive 700ms cubic-bezier(0.16, 1, 0.3, 1) both,
     logo-glow 3.2s ease-in-out 900ms infinite;
-}
-.join-card__tagline {
-  color: var(--tg-color-text-dim);
-  margin-top: -10px;
 }
 .seat-taken__text {
   color: var(--tg-color-text);

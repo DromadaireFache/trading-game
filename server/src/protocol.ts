@@ -64,6 +64,9 @@ export function parseClientMsg(text: string): ParseResult {
       const color = PLAYER_COLORS.find((option) => option === raw.color);
       return color ? { ok: true, msg: { t: 'set_color', color } } : bad('set_color.color must be a player color');
     }
+    case 'kick_player':
+      if (!isNonEmptyString(raw.playerId)) return bad('kick_player.playerId must be a non-empty string');
+      return { ok: true, msg: { t: 'kick_player', playerId: raw.playerId } };
     case 'end_game':
       if (typeof raw.game !== 'number' || !Number.isSafeInteger(raw.game) || raw.game < 1) {
         return bad('end_game.game must be a positive whole number');

@@ -88,19 +88,6 @@
     transform: scale(2.6) rotate(-4deg);
   }
 }
-.finale__bell-sub {
-  margin-top: 16px;
-  font-size: 20px;
-  color: var(--tg-color-text-dim);
-  animation: finale-fade-up 0.5s ease-out 0.9s both;
-}
-@keyframes finale-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-}
-
 /* ---------------------------------------------------------------- race */
 
 .race {
@@ -108,13 +95,6 @@
   flex-direction: column;
   align-items: center;
   width: min(1200px, 100%);
-}
-.race__title {
-  font-family: var(--tg-font-display);
-  font-size: 18px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--tg-color-text-dim);
 }
 .race__plot {
   position: relative;

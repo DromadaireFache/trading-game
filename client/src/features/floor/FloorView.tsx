@@ -52,7 +52,7 @@ export function FloorView() {
       </header>
 
       <main className={`floor__main${inLobby ? '' : ' floor__main--playing'}`}>
-        {inLobby && <h1 className="floor__lobby-brand"><GameLogo variant="full" /></h1>}
+        {inLobby && <h1 className="floor__lobby-brand"><GameLogo /></h1>}
         <div className="floor__status">
           <div className="floor__phase" data-testid="phase" data-phase={current}>
             {PHASE_LABEL[current]}

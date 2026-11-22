@@ -46,8 +46,8 @@ import type {
  * - New player: { role: 'player', name }.
  * - Projector: { role: 'spectator' } (name optional).
  * - Reconnect: add the `token` from a previous welcome. A valid token resumes that session and
- *   name/role are ignored. An unknown token falls back to a fresh join when possible, otherwise
- *   the server answers with error code 'bad_token'.
+ *   name/role are ignored. An unknown token can fall back to a fresh join, but tokens invalidated
+ *   by a lobby removal are rejected for the current game.
  */
 export interface JoinMsg {
   t: 'join';
@@ -88,6 +88,12 @@ export interface SetSettingsMsg {
 export interface SetColorMsg {
   t: 'set_color';
   color: PlayerColor;
+}
+
+/** LOBBY only: the host can remove another player from the lobby. */
+export interface KickPlayerMsg {
+  t: 'kick_player';
+  playerId: PlayerId;
 }
 
 /** FINAL only, any player: a fresh game (next seed) with the connected players back in the lobby. */
@@ -136,7 +142,7 @@ export interface PlayCardMsg {
   direction?: CardDirection;
 }
 
-export type ClientMsg = JoinMsg | StartMsg | SetSettingsMsg | SetColorMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg | EndGameMsg;
+export type ClientMsg = JoinMsg | StartMsg | SetSettingsMsg | SetColorMsg | KickPlayerMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg | EndGameMsg;
 export type ClientMsgType = ClientMsg['t'];
 
 // ---------------------------------------------------------------------------
@@ -400,6 +406,8 @@ export interface MomentMsg {
  * e.g. a duplicated browser tab). A client must NOT auto-reconnect after it, or the two tabs ping-pong.
  */
 export const WS_CLOSE_REPLACED = 4000;
+/** The lobby host removed this player. Clear the seat token before reconnecting. */
+export const WS_CLOSE_KICKED = 4001;
 
 export const ERROR_CODES = [
   'bad_message', // not JSON, unknown `t`, wrong field types, too large

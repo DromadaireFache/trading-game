@@ -11,7 +11,7 @@ import { CreditButton } from './CreditButton.tsx';
 
 /** LOBBY phase on /play: roster and the Start button (any joined player may start). */
 export function LobbyView() {
-  const { lobby, me, connection, config } = useGame();
+  const { lobby, me, connection, config, join } = useGame();
   const client = useGameClient();
   const [debugMode, setDebugMode] = useState(false);
 
@@ -22,12 +22,24 @@ export function LobbyView() {
   const online = lobby?.players.filter((p) => p.connected).length ?? 0;
   const missing = Math.max(0, minPlayers - online);
   const canStart = connection === 'open' && missing === 0;
+  const hostId = lobby?.players.find((player) => player.connected)?.id;
+  const canKick = hostId !== undefined && hostId === me?.playerId && connection === 'open' && join === 'joined';
 
   return (
     <div className="lobby">
-      <h1 className="lobby__hero"><GameLogo variant="full" /></h1>
+      <h1 className="lobby__hero"><GameLogo /></h1>
       <Panel title="Lobby" aside={`${count}/${maxPlayers} players`} className="lobby__panel">
-        <Roster lobby={lobby} meId={me?.playerId} showEmptySeats />
+        <Roster
+          lobby={lobby}
+          meId={me?.playerId}
+          hostId={hostId}
+          showEmptySeats
+          onKick={canKick ? (player) => {
+            if (window.confirm(`Remove ${player.name} from the lobby?`)) {
+              client.send({ t: 'kick_player', playerId: player.id });
+            }
+          } : undefined}
+        />
 
         <GameSettingsPicker />
 
@@ -68,7 +80,7 @@ export function LobbyView() {
             fall). Cash out whenever you like.
           </li>
           <li>
-            <strong>Watch the news.</strong> Good news pushes a price up, bad news pushes it down. Be the first to react!
+            <strong>Watch the news.</strong> Good news pushes a price up, bad news pushes it down.
           </li>
           <li>
             You can bet up to {config.trading.leverageCap}× your money with borrowed cash. Bigger wins, bigger losses: if you

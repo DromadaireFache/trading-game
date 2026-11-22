@@ -121,7 +121,6 @@ function ClosingBell() {
         <BellIcon size={96} />
       </div>
       <div className="finale__bell-title">Market closed</div>
-      <div className="finale__bell-sub">The books are final. Who made it?</div>
     </div>
   );
 }
@@ -204,7 +203,6 @@ function Race({ final, racers, progress, live }: { final: Final; racers: Racer[]
 
   return (
     <div className={`race${live ? ' race--live' : ''}${done ? ' race--done' : ''}`} data-testid="race">
-      {live && <div className="race__title">The race</div>}
       <div className="race__plot">
         {flash && <div key={flash.key} className="race__flash" style={{ '--race-flash': flash.color } as React.CSSProperties} aria-hidden="true" />}
         <svg viewBox={`-10 -20 ${W + 140} ${H + 50}`} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Net worth of every player over the whole game">
@@ -370,7 +368,6 @@ function Podium({ board, racers, shown, still = false }: { board: LeaderboardEnt
   const colorOf = (id: string) => racers.find((r) => r.playerId === id)?.color;
   return (
     <div className={`podium${still ? ' podium--still' : ''}`} data-testid="podium">
-      {!still && <div className="finale__kicker">The podium</div>}
       <div className="podium__stage">
         {order.map((i) => {
           const p = places[i]!;
@@ -481,9 +478,7 @@ function AwardList({ awards, meId }: { awards: Award[]; meId: string | undefined
   return (
     <>
       <h3 className="recap__heading">Awards</h3>
-      {awards.length === 0 ? (
-        <div className="recap__dim">No awards this time.</div>
-      ) : (
+      {awards.length > 0 && (
         <ul className="recap__award-list" data-testid="awards">
           {awards.map((a) => (
             <li key={a.title} className={`recap__award${a.playerId === meId ? ' recap__award--me' : ''}`} data-testid="award">
@@ -502,9 +497,7 @@ function HighlightList({ highlights }: { highlights: Highlight[] }) {
   return (
     <>
       <h3 className="recap__heading">Highlights</h3>
-      {highlights.length === 0 ? (
-        <div className="recap__dim">A quiet game.</div>
-      ) : (
+      {highlights.length > 0 && (
         <ul className="recap__award-list">
           {highlights.map((h) => (
             <li key={h.title} className="recap__award">

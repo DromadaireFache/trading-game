@@ -35,6 +35,8 @@ The server prints where to connect:
 - Other machines only need port 5173: the page and the websocket (`/ws`, proxied by Vite) share it.
   If they cannot connect, allow Node.js through the host's firewall for private networks.
 - Two windows of one browser are two players (the session is kept per tab). Reloading a tab keeps the seat.
+- If the lobby is full, a newcomer takes the seat that has been offline the longest. Before the game starts,
+  the first connected player in the roster is the host and can use **Kick** to free another player's seat.
 - Lost the tab mid-game (closed it, browser crashed, other laptop)? Open `/play` again and type the same name:
   a seat nobody is connected to goes back to whoever asks for it by name.
 - A new game needs a server restart (stop `npm run play` and start it again), or press Play again at the end.
