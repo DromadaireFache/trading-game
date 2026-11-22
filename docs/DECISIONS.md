@@ -225,3 +225,8 @@ One line per choice that DESIGN.md and the milestone briefs left open. Append, d
 - The room lives only in memory, on plain `accept()` sockets (no hibernation, which would drop the sim), and the 10 Hz clock is `setTimeout` (alarms are billed requests). An empty room is dropped after 5 min, any room after 8 h. A redeploy or eviction ends the games running at that moment.
 - The headline catalog is bundled into the worker (`headlineBuild.ts` is the file-free half of `headlineCatalog.ts`); `headlines.claude.json` is not included. Worker bundle: about 550 KiB gzipped.
 - Client: `/play/:room?` and `/floor/:room?`. The default build offers LAN and online (a switch on the name and room screens, LAN first); the `online` build (`client/.env.online`) is online only and connects to its own origin. Session tokens are stored per room.
+
+## Who played a card on you
+
+- `card_hit` now carries `by` (the player who played it) and `played` (the card name). Only cards aimed at players send it (Mayhem: Freeze, Ice Age, Pickpocket, Flashbang, Uno Reverse, Freak Out, HODL, Force Buy, Are You Human?, MonkeyType, Surprise Bill); market cards (headlines, regimes, Jensen Special) do not, so they never show a banner.
+- The victim sees a paper banner at the top of the desk for 4.5 s: the attacker in their player color, the card, and one line on what it did. Up to three stack; they sit above the flashbang and the challenge, so you see who did it even while blinded. Hits already received before a reload are not replayed.

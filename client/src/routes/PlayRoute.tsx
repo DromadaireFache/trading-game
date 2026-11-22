@@ -19,6 +19,7 @@ import { FxRoot } from '../features/fx/FxLayer.tsx';
 import { GameFx } from '../features/fx/GameFx.tsx';
 import { HypeMeter } from '../features/fx/hype.ts';
 import { ChallengeModal } from '../features/mayhem/ChallengeModal.tsx';
+import { CardHitBanner } from '../features/mayhem/CardHitBanner.tsx';
 import { useGame } from '../net/GameProvider.tsx';
 import { ConnectGate } from './ConnectGate.tsx';
 
@@ -31,6 +32,7 @@ export function PlayRoute() {
         <GameFx role="player" />
         <HypeMeter />
         <ChallengeModal />
+        <CardHitBanner />
       </FxRoot>
     </ConnectGate>
   );

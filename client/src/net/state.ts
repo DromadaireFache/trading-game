@@ -10,6 +10,7 @@ import { defaultConfig } from '@tg/shared';
 import type {
   BetResultMsg,
   Briefing,
+  CardHitMsg,
   CardOffer,
   EarningsMsg,
   ErrorCode,
@@ -86,6 +87,8 @@ export interface GameState {
   readyPlayerIds: PlayerId[];
   /** Settled quick bets, newest first, at most MAX_BET_RESULTS. */
   betResults: BetResult[];
+  /** Cards other players played on this player, newest first, at most MAX_CARD_HITS (CardHitBanner). */
+  cardHits: CardHit[];
   /** Latest quarter (or final) results; shown in RESULTS and FINAL, kept until the next ones. */
   results: Omit<ResultsMsg, 't'> | null;
   /** Latest projector moment and when it arrived (client ms); the floor shows it for a few seconds. */
@@ -94,6 +97,12 @@ export interface GameState {
 
 export const MAX_HEADLINES = 60;
 export const MAX_BET_RESULTS = 8;
+export const MAX_CARD_HITS = 8;
+
+export interface CardHit extends Omit<CardHitMsg, 't'> {
+  /** Running number, so the UI can show a new hit even when it looks like the last one. */
+  seq: number;
+}
 
 export interface BetResult extends Omit<BetResultMsg, 't'> {
   /** Running number, so the UI can celebrate a new result even when it looks like the last one. */
@@ -133,6 +142,7 @@ export const initialGameState: GameState = {
   shop: [],
   readyPlayerIds: [],
   betResults: [],
+  cardHits: [],
   results: null,
   moment: null,
 };
@@ -144,7 +154,7 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       const game = msg.game ?? 1;
       // "Play again" started another game: nothing of the old one stays on screen.
       if (state.game !== 0 && game !== state.game) {
-        state = { ...state, portfolio: null, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null, betResults: [] };
+        state = { ...state, portfolio: null, fills: [], headlines: [], briefing: null, earnings: null, results: null, moment: null, betResults: [], cardHits: [] };
       }
       // Same seat after a reconnect: keep the trading history. Another seat: start clean.
       const sameSeat = state.me?.playerId === msg.playerId;
@@ -236,9 +246,12 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       const seq = (state.betResults[0]?.seq ?? 0) + 1;
       return { ...state, betResults: [{ ...result, seq }, ...state.betResults].slice(0, MAX_BET_RESULTS) };
     }
-    case 'card_hit':
-      // Effects only (fx/GameFx.tsx); the lasting state (frozen, HODL) comes with `portfolio`.
-      return state;
+    case 'card_hit': {
+      // Effects in fx/GameFx.tsx, who did it in CardHitBanner; the lasting state (frozen, HODL) comes with `portfolio`.
+      const { t: _t, ...hit } = msg;
+      const seq = (state.cardHits[0]?.seq ?? 0) + 1;
+      return { ...state, cardHits: [{ ...hit, seq }, ...state.cardHits].slice(0, MAX_CARD_HITS) };
+    }
     default: {
       // Unknown `t` from a newer server: ignore rather than crash.
       const _exhaustive: never = msg;
