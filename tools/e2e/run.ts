@@ -1261,6 +1261,18 @@ async function main(): Promise<void> {
         `the change % restarted from the Q2 open ("${change}" shown, price ${nowPrice}, Q2 open ${q2Open})`);
       await shot(a, '19-play-TRADING-q2');
 
+      // Refresh mid-quarter in Q2 (early, while plenty of the quarter is left): the list and the chart history of BOTH quarters come back.
+      await b.reload();
+      await b.waitForSelector(rowOf(stockB));
+      const q2Snapshot = snapshotsOf('B').at(-1)!;
+      check(q2Snapshot.day > DAYS, `the Q2 reload got a snapshot at day ${q2Snapshot.day}`);
+      const q2Restored = await checkChartDrawn(b, 'B after a Q2 reload', stockB, q2Snapshot.day);
+      const aNow = await chartOf(a);
+      check(aNow !== null && Math.abs(aNow.candles - q2Restored.candles) <= 1 && q2Restored.candles >= q2Chart.candles,
+        `B's chart has both quarters again (${q2Restored.candles} candles, A has ${aNow?.candles})`);
+      check((await boardOf(b)).length === SYMBOL_COUNT, `B lists ${SYMBOL_COUNT} symbols again`);
+      await shot(b, '19-play-after-reload-q2');
+
       // Milestone 5: A plays its cards on the selected stock (cards with a direction go "up").
       const handBefore = await a.locator(tid('hand-card')).count();
       check(handBefore > 0, `A still holds ${handBefore} cards in Q2`);
@@ -1298,17 +1310,6 @@ async function main(): Promise<void> {
       if ((await phaseOf(floor)) === 'TRADING') check(await floorChart.locator('canvas').count() > 0, 'the projector draws the Q2 net-worth lines');
       await shot(floor, '19-floor-TRADING-q2');
 
-      // Refresh mid-quarter in Q2: the list and the chart history of BOTH quarters come back.
-      await b.reload();
-      await b.waitForSelector(rowOf(stockB));
-      const q2Snapshot = snapshotsOf('B').at(-1)!;
-      check(q2Snapshot.day > DAYS, `the Q2 reload got a snapshot at day ${q2Snapshot.day}`);
-      const q2Restored = await checkChartDrawn(b, 'B after a Q2 reload', stockB, q2Snapshot.day);
-      const aNow = await chartOf(a);
-      check(aNow !== null && Math.abs(aNow.candles - q2Restored.candles) <= 1 && q2Restored.candles >= q2Chart.candles,
-        `B's chart has both quarters again (${q2Restored.candles} candles, A has ${aNow?.candles})`);
-      check((await boardOf(b)).length === SYMBOL_COUNT, `B lists ${SYMBOL_COUNT} symbols again`);
-      await shot(b, '19-play-after-reload-q2');
 
       await Promise.all([waitForPhase(a, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(floor, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(b, 'FINAL', GAME_MS + WAIT_MS)]);
       // The live net worth reached the last trading tick before the final standings replaced the chart.
