@@ -563,6 +563,7 @@ ol {
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(320px, 480px) minmax(280px, 420px);
+  grid-auto-rows: max-content;
   justify-content: center;
   align-content: start;
   gap: 12px;
@@ -693,40 +694,6 @@ ol {
   gap: 6px;
   font-size: 13px;
 }
-.rules {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  color: var(--tg-color-text);
-  counter-reset: rule;
-}
-.rules li {
-  position: relative;
-  padding-left: 40px;
-  min-height: 28px;
-  line-height: 1.45;
-  counter-increment: rule;
-}
-.rules li::before {
-  content: counter(rule);
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  font-family: var(--tg-font-display);
-  font-weight: 900;
-  color: var(--tg-color-on-accent);
-  background: var(--tg-color-accent);
-  border-radius: 50%;
-  box-shadow: 0 2px 0 var(--tg-color-shadow);
-}
-.rules strong {
-  color: var(--tg-color-text-bright);
-}
-
 @media (max-width: 760px) {
   .lobby {
     grid-template-columns: minmax(0, 1fr);

@@ -4,10 +4,10 @@ import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { GameLogo } from '../../components/GameLogo.tsx';
 import { Panel } from '../../components/Panel.tsx';
 import { Roster } from '../../components/Roster.tsx';
-import { formatMoney } from '../../lib/format.ts';
 import { PLAYER_COLOR_APPEARANCE } from '../../lib/playerColor.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { CreditButton } from './CreditButton.tsx';
+import { HowToPlay } from './HowToPlay.tsx';
 
 /** LOBBY phase on /play: roster and the Start button (any joined player may start). */
 export function LobbyView() {
@@ -69,29 +69,7 @@ export function LobbyView() {
         <ErrorBanner />
       </Panel>
 
-      <Panel title="How to play" className="lobby__panel">
-        <ol className="rules">
-          <li>
-            You start with <strong>{formatMoney(config.economy.startingCash)}</strong>. Whoever has the most money after{' '}
-            {config.time.quarters} quarters wins.
-          </li>
-          <li>
-            Pick a stock and <strong>bet UP</strong> (you think it will rise) or <strong>bet DOWN</strong> (you think it will
-            fall). Cash out whenever you like.
-          </li>
-          <li>
-            <strong>Watch the news.</strong> Good news pushes a price up, bad news pushes it down.
-          </li>
-          <li>
-            You can bet up to {config.trading.leverageCap}× your money with borrowed cash. Bigger wins, bigger losses: if you
-            lose too much the bank closes your bets, and below {formatMoney(config.economy.eliminationEquity)} you are out.
-          </li>
-          <li>
-            Between quarters, buy <strong>cards</strong>: insider tips, fake news, world events. Illegal ones can get you
-            arrested.
-          </li>
-        </ol>
-      </Panel>
+      <HowToPlay />
     </div>
   );
 }

@@ -1,0 +1,66 @@
+.tutorial {
+  min-width: 0;
+}
+.tutorial__deck {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+}
+.tutorial__title {
+  margin: 0;
+  font: 700 21px/1.2 var(--tg-font-display);
+  color: var(--tg-color-text-bright);
+}
+.tutorial__image {
+  display: block;
+  overflow: hidden;
+  border: 1px solid var(--tg-color-border-strong);
+  border-radius: 6px;
+  background: var(--tg-color-bg-inset);
+}
+.tutorial__image img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.tutorial__lines {
+  margin: 0;
+  padding-inline-start: 1.3em;
+  display: grid;
+  gap: 5px;
+  color: var(--tg-color-text);
+  font-size: 14px;
+  line-height: 1.35;
+}
+.tutorial__lines li::marker {
+  color: var(--tg-color-accent);
+}
+.tutorial__nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--tg-color-border);
+  font: 600 13px var(--tg-font-mono);
+  color: var(--tg-color-text-dim);
+}
+.tutorial__nav .game-button {
+  min-height: 30px;
+  min-width: 66px;
+}
+.tutorial__nav .tutorial__next {
+  background: var(--tg-color-accent);
+  color: var(--tg-color-on-accent);
+}
+.tutorial__nav .tutorial__next:hover:not(:disabled) {
+  background: var(--tg-color-accent);
+  filter: brightness(1.1);
+}
+.tutorial__deck:focus-visible,
+.tutorial__image:focus-visible {
+  outline: 2px solid var(--tg-color-accent);
+  outline-offset: 2px;
+}
