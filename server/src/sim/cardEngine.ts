@@ -61,6 +61,8 @@ export interface CardEngineDeps {
   quarterEndTick(): number;
   /** Mayhem draws (which card a Pickpocket takes). Optional: a bare engine uses the first card. */
   mayhemRng?: Rng;
+  /** Current market price of a symbol (Surprise Bill sizes its buys with it). */
+  priceOf(symbol: SymbolId): number | undefined;
 }
 
 type CardEvent = SimEventOf<'headline'> | SimEventOf<'moment'> | SimEventOf<'portfolio'> | SimEventOf<'fill'> | SimEventOf<'card_hit'>;
@@ -91,6 +93,8 @@ interface PlayerCards {
   /** Market tick until which a Freeze card refuses this player's orders, and a HODL card their sells. */
   frozenUntil?: number;
   hodlUntil?: number;
+  /** A Mayhem challenge to pass before trading again (cleared at the quarter's close). */
+  challenge?: { id: string; kind: 'captcha' | 'typing'; seed: number };
   /**
    * Stocks this player moved with a card this quarter (true = only with legal cards), and those
    * already heated for trading them.
@@ -122,6 +126,10 @@ export interface CardEngine {
   isFrozen(id: PlayerId): boolean;
   /** True while a HODL card refuses the player's sells (orders that shrink a position). */
   isHodl(id: PlayerId): boolean;
+  /** True while the player has a Mayhem challenge to pass before trading. */
+  hasChallenge(id: PlayerId): boolean;
+  /** The player passed challenge `challengeId`: false when it is not theirs (or already passed). */
+  solveChallenge(id: PlayerId, challengeId: string): CardResult;
   /** An order on `symbol` went through (manipulated-target heat). */
   onOrder(id: PlayerId, symbol: SymbolId): void;
   /** SHOP starts: each player draws their own selection, priced for them. Empty in the last quarter. */
@@ -162,6 +170,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
   let regimes: RegimeState = emptyRegimeState();
   let pendingDRate = 0;
   let cardSeq = 0;
+  let challengeSeq = 0;
   let previewSeq = 0;
   let regimeSeq = 0;
   let reveals: CardReveal[] = [];
@@ -186,6 +195,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
       ...(p.jailedUntil === undefined ? {} : { jailedUntil: p.jailedUntil }),
       ...(p.frozenUntil !== undefined && p.frozenUntil > now ? { frozenUntil: p.frozenUntil / tpc } : {}),
       ...(p.hodlUntil !== undefined && p.hodlUntil > now ? { hodlUntil: p.hodlUntil / tpc } : {}),
+      ...(p.challenge === undefined ? {} : { challenge: { ...p.challenge } }),
     };
   }
 
@@ -294,6 +304,16 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
     isHodl(id) {
       const until = players.get(id)?.hodlUntil;
       return until !== undefined && deps.marketTick() < until;
+    },
+
+    hasChallenge: (id) => players.get(id)?.challenge !== undefined,
+
+    solveChallenge(id, challengeId) {
+      const p = players.get(id);
+      if (p === undefined) return fail('unknown_player', 'unknown player');
+      if (p.challenge?.id !== challengeId) return fail('invalid', 'that challenge is not yours to solve');
+      p.challenge = undefined;
+      return { ok: true, events: portfolioOf(id) };
     },
 
     onOrder(id, symbol) {
@@ -532,6 +552,52 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           revealed = `${entry.name} on ${o.name} (${biggest.symbol})`;
           break;
         }
+        case 'force_trade': {
+          // Everybody else goes all in on the stock, in the chosen direction (clipped to the leverage cap).
+          const symbol = (shockTarget as { symbol: SymbolId }).symbol;
+          const side = direction === 'down' ? -1 : 1;
+          for (const o of others(id)) {
+            // A size no account can reach: the leverage clip brings it down to all the buying power.
+            for (const event of trading.forceOrder(o.id, symbol, side * 1e12, 'card')) {
+              events.push(event.e === 'portfolio' ? decorate(event) : (event as SimEventOf<'fill'>));
+            }
+            events.push({ e: 'card_hit', to: o.id, kind: 'forced', cardName: entry.name, symbol });
+          }
+          revealed = `${entry.name} on ${symbol} (${direction})`;
+          break;
+        }
+        case 'challenge':
+          for (const o of others(id)) {
+            const seed = deps.mayhemRng ? deps.mayhemRng.int(1_000_000_000) : ++challengeSeq;
+            o.challenge = { id: `ch${++challengeSeq}`, kind: fx.challenge, seed };
+            events.push({ e: 'card_hit', to: o.id, kind: 'challenge', cardName: entry.name });
+            events.push(...portfolioOf(o.id));
+          }
+          break;
+        case 'surprise_bill':
+          // Everybody (the player too) buys random stocks they do not hold until they hold `positions`.
+          for (const o of [...players.values()]) {
+            if (trading.portfolio(o.id)?.eliminated) continue;
+            const heldSymbols = () => new Set((trading.portfolio(o.id)?.positions ?? []).map((pos) => pos.symbol));
+            let guard = 0;
+            let bought = false;
+            while (heldSymbols().size < fx.positions && guard++ < fx.positions * 4) {
+              const free = universe.companies.map((c) => c.symbol).filter((s) => !heldSymbols().has(s));
+              if (free.length === 0) break;
+              const symbol = free[deps.mayhemRng ? deps.mayhemRng.int(free.length) : 0]!;
+              const account = trading.portfolio(o.id)!;
+              const price = deps.priceOf(symbol);
+              const budget = (account.buyingPower ?? 0) * fx.stake;
+              const qty = price && price > 0 ? Math.floor(budget / price) : 0;
+              if (qty <= 0) break;
+              const fills = trading.forceOrder(o.id, symbol, qty, 'card');
+              if (fills.length === 0) break;
+              bought = true;
+              for (const event of fills) events.push(event.e === 'portfolio' ? decorate(event) : (event as SimEventOf<'fill'>));
+            }
+            if (bought && o.id !== id) events.push({ e: 'card_hit', to: o.id, kind: 'bill', cardName: entry.name });
+          }
+          break;
         case 'force_sell':
           // Everybody sells, the player who plays it too (they knew it was coming).
           for (const o of [...players.values()]) {
@@ -629,9 +695,10 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
         p.manipulated = new Map();
         p.heated = new Set();
         p.playedIllegal = false;
-        // Freeze and HODL end with the quarter.
+        // Freeze, HODL and challenges end with the quarter.
         p.frozenUntil = undefined;
         p.hodlUntil = undefined;
+        p.challenge = undefined;
       }
       const quarterReveals = reveals;
       reveals = [];

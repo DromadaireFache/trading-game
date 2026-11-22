@@ -27,7 +27,9 @@ export function HandPanel({ className }: { className?: string }) {
     );
   }
 
-  const { hand = [], heat, jailedUntil, eliminated } = live.portfolio;
+  const { hand: held = [], heat, jailedUntil, eliminated } = live.portfolio;
+  // Once the game is over a leftover card is worth nothing: the hand shows empty slots.
+  const hand = phase?.phase === 'FINAL' ? [] : held;
   const jailed = jailedUntil !== undefined && Math.max(0, lastDay) < jailedUntil;
   // In jail the one card held can still be played.
   const open = phase?.phase === 'TRADING' && !eliminated;
@@ -82,7 +84,6 @@ function HandCard({ card, open }: { card: Card; open: boolean }) {
   const holdings = useHoldings();
   const rivals = (lobby?.players ?? []).filter((p) => p.id !== me?.playerId && holdings[p.id]?.eliminated !== true);
   if (def.targetKind === 'player') {
-    const whyRival = !open ? 'Cards can be played while the market is open' : rivals.length === 0 ? 'Nobody left to aim at' : undefined;
     return (
       <CardFace card={def} testId="hand-card">
         <div className="card__target">Pick a rival</div>
@@ -93,7 +94,6 @@ function HandCard({ card, open }: { card: Card; open: boolean }) {
               type="button"
               className="card__btn card__btn--rival"
               disabled={!open}
-              title={whyRival ?? `${def.name} on ${r.name}`}
               onClick={() => client.send({ t: 'play_card', cardId: card.cardId, target: r.id })}
               data-testid="play"
             >
@@ -105,7 +105,6 @@ function HandCard({ card, open }: { card: Card; open: boolean }) {
     );
   }
   const missing = def.targetKind !== 'none' && target === undefined;
-  const why = !open ? 'Cards can be played while the market is open' : missing ? `Select a ${def.targetKind} in the market list first` : undefined;
   const play = (direction?: CardDirection) =>
     client.send({ t: 'play_card', cardId: card.cardId, ...(target === undefined ? {} : { target }), ...(direction ? { direction } : {}) });
 
@@ -114,15 +113,15 @@ function HandCard({ card, open }: { card: Card; open: boolean }) {
       <div className="card__target">{def.targetKind === 'none' ? 'No target needed' : label ? label.trim() : `Pick a ${def.targetKind}`}</div>
       {def.needsDirection ? (
         <>
-          <button type="button" className="card__btn card__btn--up" disabled={!open || missing} title={why} onClick={() => play('up')} data-testid="play-up">
+          <button type="button" className="card__btn card__btn--up" disabled={!open || missing} onClick={() => play('up')} data-testid="play-up">
             ▲ Up
           </button>
-          <button type="button" className="card__btn card__btn--down" disabled={!open || missing} title={why} onClick={() => play('down')} data-testid="play-down">
+          <button type="button" className="card__btn card__btn--down" disabled={!open || missing} onClick={() => play('down')} data-testid="play-down">
             ▼ Down
           </button>
         </>
       ) : (
-        <button type="button" className="card__btn" disabled={!open || missing} title={why} onClick={() => play()} data-testid="play">
+        <button type="button" className="card__btn" disabled={!open || missing} onClick={() => play()} data-testid="play">
           Play
         </button>
       )}

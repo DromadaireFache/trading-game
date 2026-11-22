@@ -1279,6 +1279,7 @@ async function main(): Promise<void> {
       const handBefore = await a.locator(tid('hand-card')).count();
       check(handBefore > 0, `A still holds ${handBefore} cards in Q2`);
       for (let i = 0; i < handBefore; i++) {
+        if ((await a.locator(tid('hand-card')).count()) === 0) break;
         const cardEl = a.locator(tid('hand-card')).first();
         // The headline papers lie over the cards: throw them away first, as a player would.
         // (A thrown paper flies off with pointer-events off, so it no longer blocks the cards.)
@@ -1291,7 +1292,9 @@ async function main(): Promise<void> {
             await resting.last().click().catch(() => undefined);
             await sleep(50);
           }
-          if (await button.isDisabled()) break; // e.g. a sector card with the index fund selected
+          // The hand can empty under us (a stolen card, an arrest) and a card can lack a play button: stop, don't hang.
+          if ((await button.count()) === 0) break;
+          if (await button.isDisabled({ timeout: 1_500 }).catch(() => true)) break; // e.g. a sector card with the index fund selected
           played = await button.click({ timeout: 1_500 }).then(() => true, () => false);
         }
         if (!played) break;

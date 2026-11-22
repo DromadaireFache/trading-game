@@ -31,9 +31,9 @@ export function MoneyPanel({ className }: { className?: string }) {
           OUT! Your money fell below {formatMoneyShort(config.economy.eliminationEquity)}. You can still watch.
         </div>
       )}
-      <div className="positions__score" title="Net worth = cash + what your bets are worth now. Highest at the end wins.">
+      <div className="positions__score">
         <MoneyScore equity={live.equity} />{' '}
-        <span className={`positions__pnl change--${changeDirection(pnlFraction)}`} data-testid="total-pnl" title="Since the start of the game">
+        <span className={`positions__pnl change--${changeDirection(pnlFraction)}`} data-testid="total-pnl">
           ({formatPercent(pnlFraction)})
         </span>
       </div>
@@ -111,7 +111,6 @@ function PositionRow({ position, decimals, canTrade }: { position: Position; dec
     <tr
       className={`positions__row positions__row--${up ? 'up' : 'down'}${selected ? ' positions__row--selected' : ''}`}
       onClick={() => market.select(position.symbol)}
-      title={`${formatShares(Math.abs(position.qty))} shares, bought at $${formatPrice(position.avgPrice, decimals)}, now $${formatPrice(last, decimals)}`}
       data-testid="position-row"
       data-symbol={position.symbol}
     >
@@ -122,7 +121,7 @@ function PositionRow({ position, decimals, canTrade }: { position: Position; dec
         </span>
       </td>
       <td>{formatMoneyShort(Math.abs(position.qty) * last)}</td>
-      <td className={`positions__profit change--${changeDirection(pnlFraction)}`} title={formatPercent(pnlFraction)}>
+      <td className={`positions__profit change--${changeDirection(pnlFraction)}`}>
         <span className={hotProfit.className} style={hotProfit.style}>
           {pnl >= 0 ? '+' : ''}
           {formatMoneyShort(pnl)}
@@ -135,7 +134,6 @@ function PositionRow({ position, decimals, canTrade }: { position: Position; dec
           style={hotButton.style}
           disabled={!open}
           aria-label={`Cash out ${position.symbol}`}
-          title={`Cash out ${position.symbol}`}
           onClick={(e) => {
             e.stopPropagation();
             sendOrder(client, e.currentTarget, position.symbol, -position.qty);

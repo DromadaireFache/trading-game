@@ -43,7 +43,7 @@ export function OrderPanel({ className }: { className?: string }) {
     <Panel
       title="Place a bet"
       aside={
-        <span className="order__on" title={info?.name}>
+        <span className="order__on">
           {info?.name ?? symbol} <strong>${price > 0 ? formatPrice(price, config.market.priceDecimals) : '--'}</strong>
         </span>
       }
@@ -69,7 +69,6 @@ export function OrderPanel({ className }: { className?: string }) {
                   const button = event.currentTarget;
                   if (bet(button, symbol, up, share)) betBurst(button, up, share);
                 }}
-                title={`Bet ${formatMoney(usd)} that ${info?.name ?? symbol} goes ${up ? 'up' : 'down'}`}
                 data-testid={`bet-${up ? 'up' : 'down'}-${i}`}
                 data-share={share}
               >

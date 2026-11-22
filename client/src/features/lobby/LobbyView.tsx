@@ -156,7 +156,7 @@ function PlayerColorPicker() {
           const ownerNames = owners.map(({ entry, seat }) => `P${seat} ${entry.name}`).join(', ');
           const title = first ? `${label} (taken by ${ownerNames})` : label;
           return (
-            <label className="lobby__color" key={color} title={title}>
+            <label className="lobby__color" key={color}>
               <input
                 type="radio"
                 name="player-color"

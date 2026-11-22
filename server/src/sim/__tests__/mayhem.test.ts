@@ -90,7 +90,7 @@ const hits = (events: SimEvent[]) => only(events, 'card_hit');
 describe('mayhem cards', () => {
   it('the shipped catalog is valid with the new cards', () => {
     expect(validateCardCatalog(DEFAULT_CATALOG, DEFAULT_HEADLINES, defaultConfig)).toEqual([]);
-    for (const id of ['freeze', 'ice_age', 'pickpocket', 'flashbang', 'uno_reverse', 'freak_out', 'jensen_special', 'hodl']) {
+    for (const id of ['freeze', 'ice_age', 'pickpocket', 'flashbang', 'uno_reverse', 'freak_out', 'jensen_special', 'hodl', 'force_buy', 'are_you_human', 'monkeytype', 'surprise_bill']) {
       expect(card(id), id).toBeDefined();
     }
   });
@@ -244,5 +244,64 @@ describe('mayhem cards', () => {
       const results = only(g.log, 'results').at(-1)!;
       expect(results.recap.cardAuthors).toContainEqual(expect.objectContaining({ playerId: 'p1', cardName: 'Flashbang' }));
     }
+  });
+});
+
+describe('mayhem cards, round two', () => {
+  it('Force Buy puts every other player all in on the stock, in the chosen direction', () => {
+    const g = game([card('force_buy')]);
+    const hand = g.sim.getPortfolio('p1')!.hand!;
+    g.sim.submit({ kind: 'play_card', playerId: 'p1', cardId: hand[0]!.cardId, target: g.stock, direction: 'down' });
+    const events = g.step();
+    expect(held(g, 'p2')).toBeLessThan(0);
+    expect(held(g, 'p1')).toBe(0);
+    const p2 = g.sim.getPortfolio('p2')!;
+    // All of the buying power: what is left is a sliver of the leverage cap.
+    expect(p2.buyingPower!).toBeLessThan(0.05 * BASE.trading.leverageCap * p2.equity);
+    expect(only(events, 'fill').every((f) => f.playerId === 'p2' && f.reason === 'card')).toBe(true);
+    expect(hits(events)).toEqual([expect.objectContaining({ to: 'p2', kind: 'forced', symbol: g.stock })]);
+  });
+
+  for (const [defId, kind] of [['are_you_human', 'captcha'], ['monkeytype', 'typing']] as const) {
+    it(`${defId}: every other player must pass a ${kind} before trading again`, () => {
+      const g = game([card(defId)]);
+      expect(hits(g.play())).toEqual([expect.objectContaining({ to: 'p2', kind: 'challenge' })]);
+      const challenge = g.sim.getPortfolio('p2')!.challenge!;
+      expect(challenge).toMatchObject({ kind });
+      expect(g.sim.getPortfolio('p1')!.challenge).toBeUndefined();
+      expect(rejects(order(g, 'p2', 10))).toEqual(['challenge']);
+      expect(rejects(order(g, 'p1', 10))).toEqual([]);
+      g.sim.submit({ kind: 'solve_challenge', playerId: 'p2', challengeId: 'nope' });
+      expect(rejects(g.step())).toEqual(['invalid']);
+      g.sim.submit({ kind: 'solve_challenge', playerId: 'p2', challengeId: challenge.id });
+      g.step();
+      expect(g.sim.getPortfolio('p2')!.challenge).toBeUndefined();
+      expect(rejects(order(g, 'p2', 10))).toEqual([]);
+    });
+  }
+
+  it('an unsolved challenge ends with the quarter', () => {
+    const g = game([card('are_you_human')]);
+    g.play();
+    expect(g.sim.getPortfolio('p2')!.challenge).toBeDefined();
+    g.to('TRADING', 3, 2);
+    expect(g.sim.getPortfolio('p2')!.challenge).toBeUndefined();
+  });
+
+  it('Surprise Bill makes everyone buy random stocks until they hold five', () => {
+    const g = game([card('surprise_bill')]);
+    order(g, 'p2', 100);
+    const other = g.sim.getUniverse().companies[7]!.symbol;
+    g.sim.submit({ kind: 'order', playerId: 'p2', symbol: other, qty: 50 });
+    g.step();
+    expect(g.sim.getPortfolio('p2')!.positions).toHaveLength(2);
+    const events = g.play();
+    for (const id of ['p1', 'p2']) {
+      const positions = g.sim.getPortfolio(id)!.positions;
+      expect(positions).toHaveLength(card('surprise_bill').effect.kind === 'surprise_bill' ? 5 : 0);
+      expect(positions.every((pos) => pos.qty > 0)).toBe(true);
+    }
+    expect(only(events, 'fill').filter((f) => f.playerId === 'p2')).toHaveLength(3);
+    expect(hits(events)).toEqual([expect.objectContaining({ to: 'p2', kind: 'bill' })]);
   });
 });

@@ -15,8 +15,10 @@ describe('card catalog', () => {
   });
 
   it('has enough cards per tier to fill a shop', () => {
-    const tiers = ['insider', 'fake', 'event', 'regime'] as const;
+    const tiers = ['fake', 'event', 'regime', 'mayhem'] as const;
     for (const tier of tiers) expect(cards.filter((c) => c.tier === tier).length).toBeGreaterThanOrEqual(3);
+    // Insider keeps a single headline tip (plus the earnings peek): the near-copies were removed on purpose.
+    expect(cards.filter((c) => c.tier === 'insider').length).toBeGreaterThanOrEqual(1);
     expect(cards.length).toBeGreaterThan(defaultConfig.cards.offersPerShop);
   });
 

@@ -58,7 +58,6 @@ export function SecMeter({ heat, equity }: { heat: number; equity: number }) {
     <span
       className={`sec-meter sec-meter--${level}`}
       style={{ '--sec-fill': (chance / Math.max(0.01, sec.maxCatchProbability)).toFixed(3) } as CSSProperties}
-      title={`SEC: a ${percent}% chance of being caught at the end of the quarter if you play an illegal card this quarter. Heat ${Math.round(heat)} (from illegal cards and from cards played on stocks you hold); richer players are watched more closely.`}
       data-testid="heat"
       data-level={level}
       data-chance={chance.toFixed(3)}

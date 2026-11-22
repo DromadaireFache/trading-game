@@ -59,7 +59,6 @@ export function ShopPanel({ className }: { className?: string }) {
                   type="button"
                   className="card__btn"
                   disabled={owned || full || tooDear}
-                  title={owned ? 'Bought' : full ? (jailed ? `In jail you can hold only ${limit} card` : 'Your hand is full') : tooDear ? 'You cannot afford it' : `Buy ${offer.card.name}`}
                   onClick={() => {
                     if (client.send({ t: 'buy_card', offerId: offer.offerId })) setBought((b) => new Set(b).add(offer.offerId));
                   }}

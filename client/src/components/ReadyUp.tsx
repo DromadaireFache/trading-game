@@ -25,7 +25,6 @@ export function ReadyUp() {
         onClick={() => {
           if (client.send({ t: 'ready_up', phase: current, quarter })) play('ready');
         }}
-        title={debugMode ? undefined : `${readyPlayerIds.length} of ${total} players ready`}
         data-testid="ready-up"
       >
         <span className="ready-btn__label">{label}</span>

@@ -130,6 +130,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     marketTick,
     quarterEndTick: () => quarter * config.time.daysPerQuarter * tpc - 1,
     mayhemRng,
+    priceOf: (symbol) => market.getPrice(symbol),
   });
   const portfolioOf = (id: string) => {
     const p = trading.portfolio(id);
@@ -316,6 +317,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'the market is closed'), false;
         // Mayhem: a Freeze refuses every order, a HODL every order that shrinks a position.
         if (cards.isFrozen(intent.playerId)) return reject(intent, 'frozen', 'You are frozen: no trading until it thaws.'), false;
+        if (cards.hasChallenge(intent.playerId)) return reject(intent, 'challenge', 'Prove you are human first: pass the challenge on your screen.'), false;
         const held = trading.portfolio(intent.playerId)?.positions.find((pos) => pos.symbol === intent.symbol)?.qty ?? 0;
         if (held !== 0 && Math.sign(intent.qty) === -Math.sign(held) && cards.isHodl(intent.playerId)) {
           return reject(intent, 'hodl', 'HODL: you cannot sell or cash out until it wears off.'), false;
@@ -365,6 +367,13 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         if (readyPlayers.has(intent.playerId)) return false;
         readyPlayers.add(intent.playerId);
         events.push({ e: 'phase_ready', readyPlayerIds: [...readyPlayers] });
+        return false;
+      }
+      case 'solve_challenge': {
+        if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
+        const result = cards.solveChallenge(intent.playerId, intent.challengeId);
+        if (!result.ok) return reject(intent, result.code, result.message), false;
+        for (const event of result.events) events.push(event);
         return false;
       }
       case 'play_card': {

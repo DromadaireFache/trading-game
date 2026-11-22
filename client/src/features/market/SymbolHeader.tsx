@@ -46,11 +46,11 @@ export function SymbolHeader({ symbol, size = 'normal' }: SymbolHeaderProps) {
           <dd data-testid="selected-sector">{symbolGroupLabel(info)}</dd>
         </div>
         <div className="sym-head__fact">
-          <dt title="Total value of the company">{info.kind === 'stock' ? 'Company size' : 'Fund size'}</dt>
+          <dt>{info.kind === 'stock' ? 'Company size' : 'Fund size'}</dt>
           <dd data-testid="selected-cap">{formatMoneyShort(info.marketCap)}</dd>
         </div>
         {eps !== undefined && (
-          <div className="sym-head__fact" title="Expected earnings per share this quarter. The earnings report shows how the company did against this estimate.">
+          <div className="sym-head__fact">
             <dt>Profit est.</dt>
             <dd data-testid="selected-eps">${eps.toFixed(2)}</dd>
           </div>
@@ -84,7 +84,7 @@ function HeaderQuote({ symbol }: { symbol: SymbolId }) {
       <span className="sym-head__price" data-testid="selected-price">
         {quote ? formatPrice(quote.price, decimals) : '--'}
       </span>
-      <span className={`sym-head__change change--${changeDirection(change)}`} data-testid="selected-change" title="Change since the quarter opened">
+      <span className={`sym-head__change change--${changeDirection(change)}`} data-testid="selected-change">
         {formatPercent(change)}
       </span>
     </div>

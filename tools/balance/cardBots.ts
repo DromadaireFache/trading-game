@@ -116,7 +116,7 @@ export function insiderTrader(name = 'insider-trader'): BotFactory {
       name,
       shops: true,
       decide(view) {
-        if (view.phase === 'SHOP') return shop(view, (id) => id === 'insider_tip' || id === 'long_lunch' || id === 'boardroom_mole');
+        if (view.phase === 'SHOP') return shop(view, (id) => id === 'insider_tip' || id === 'boardroom_mole');
         if (view.phase !== 'TRADING' || view.jailed) return [];
         core.now += 1;
         const cap = view.config.trading.leverageCap;

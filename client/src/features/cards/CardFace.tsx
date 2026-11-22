@@ -26,11 +26,10 @@ export function CardFace({ card, children, testId }: { card: CardDef; children?:
       className={`card card--${card.tier}${card.legal ? '' : ' card--illegal'}`}
       data-testid={testId}
       data-def={card.defId}
-      title={`${card.name}: ${card.description}${hint ? ` (target: ${hint})` : ''}`}
     >
       <header className="card__head">
         <span className="card__tier">{TIER_LABEL[card.tier]}</span>
-        <span className={card.legal ? 'card__legal' : 'card__illegal'} title={card.legal ? 'Legal: it can never get you jailed' : 'Illegal: adds heat; the SEC may catch you this quarter'}>
+        <span className={card.legal ? 'card__legal' : 'card__illegal'}>
           {card.legal ? 'legal' : 'ILLEGAL'}
         </span>
       </header>

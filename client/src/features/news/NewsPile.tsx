@@ -13,6 +13,8 @@ type Headline = Omit<HeadlineMsg, 't'>;
 interface Pop {
   key: string;
   headline: Headline;
+  /** When it landed (ms, performance.now()). */
+  at: number;
   /** Thrown out (right click): flying off screen in this direction, then removed. */
   thrown?: { x: number; y: number; spin: number };
 }
@@ -22,6 +24,8 @@ const PILE = 4;
 /** Only headlines this fresh land on the pile: a reload or a late join does not dump old news on it. */
 const FRESH_MS = 4_000;
 const THROW_MS = 520;
+/** An insider tip stays on top this long: headlines that land meanwhile slide under it. */
+const INSIDER_TOP_MS = 5_000;
 
 /**
  * Headlines land as newspaper clippings (julien's paper look) on a pile at the bottom right, over your
@@ -50,9 +54,20 @@ export function NewsPile({ className }: { className?: string }) {
       if (seen.current.has(key)) continue;
       seen.current.add(key);
       if ((today - headline.ts) * msPerDay > FRESH_MS) continue;
-      fresh.push({ key, headline });
+      fresh.push({ key, headline, at: performance.now() });
     }
-    if (fresh.length > 0) setPops((current) => [...current.filter((p) => !p.thrown), ...fresh].slice(-PILE).concat(current.filter((p) => p.thrown)));
+    if (fresh.length > 0) {
+      setPops((current) => {
+        const pile = current.filter((p) => !p.thrown);
+        for (const pop of fresh) {
+          // A fresh insider tip keeps the top for INSIDER_TOP_MS: anything else lands under it.
+          const guard = pop.headline.early ? -1 : pile.findIndex((p) => p.headline.early && pop.at - p.at < INSIDER_TOP_MS);
+          if (guard >= 0) pile.splice(guard, 0, pop);
+          else pile.push(pop);
+        }
+        return pile.slice(-PILE).concat(current.filter((p) => p.thrown));
+      });
+    }
   }, [headlines, config, market]);
 
   useEffect(() => {
@@ -186,7 +201,6 @@ function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
       }}
       onContextMenu={onContextMenu}
       onKeyDown={onKeyDown}
-      title="Drag to move it. Click the ticker to open the stock. x or right-click throws it away."
       data-testid="headline"
       data-id={headline.id}
       data-depth={depth}
@@ -202,7 +216,6 @@ function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
           className="paper__close"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={throwOut}
-          title="Throw it away (or right-click the paper)"
           aria-label="Throw this headline away"
           data-testid="headline-close"
         >
@@ -224,7 +237,6 @@ function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
           onClick={() => {
             if (symbols.some((s) => s.symbol === ticker)) onOpen(ticker);
           }}
-          title={`Open ${ticker}`}
           data-testid="headline-ticker"
         >
             {ticker}

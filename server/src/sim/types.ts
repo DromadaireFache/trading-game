@@ -60,7 +60,9 @@ export type SimIntent =
   // --- later milestones (the stub rejects them) ---
   | { kind: 'buy_card'; playerId: PlayerId; offerId: string }
   | { kind: 'ready_up'; playerId: PlayerId; quarter: number; phase: ReadyPhase }
-  | { kind: 'play_card'; playerId: PlayerId; cardId: string; target?: string; direction?: CardDirection };
+  | { kind: 'play_card'; playerId: PlayerId; cardId: string; target?: string; direction?: CardDirection }
+  /** The player passed their Mayhem challenge (captcha, typing). */
+  | { kind: 'solve_challenge'; playerId: PlayerId; challengeId: string };
 
 export type SimIntentKind = SimIntent['kind'];
 
@@ -88,6 +90,7 @@ export type SimRejectCode =
   | 'nothing_to_reverse'
   | 'frozen'
   | 'hodl'
+  | 'challenge'
   | 'not_implemented';
 
 export type SimEvent =
@@ -125,6 +128,8 @@ export type SimEvent =
       frozenUntil?: number;
       /** Game day until which a HODL card stops this player selling. */
       hodlUntil?: number;
+      /** A Mayhem challenge to pass before trading again. */
+      challenge?: { id: string; kind: 'captcha' | 'typing'; seed: number };
       buyingPower?: number;
       hand?: Card[];
       eliminated?: boolean;
@@ -135,7 +140,7 @@ export type SimEvent =
   | { e: 'bet_result'; playerId: PlayerId; symbol: SymbolId; qty: number; entryPrice: number; exitPrice: number; pnl: number; streak: number }
   | { e: 'shop'; playerId: PlayerId; offers: CardOffer[] }
   /** A Mayhem card hit player `to` (sent to them alone). Mirrors CardHitMsg in @tg/shared. */
-  | { e: 'card_hit'; to: PlayerId; kind: 'frozen' | 'hodl' | 'flashbang' | 'stolen' | 'reversed' | 'freak_out'; cardName: string; untilDay?: number; ms?: number; symbol?: SymbolId }
+  | { e: 'card_hit'; to: PlayerId; kind: 'frozen' | 'hodl' | 'flashbang' | 'stolen' | 'reversed' | 'freak_out' | 'challenge' | 'forced' | 'bill'; cardName: string; untilDay?: number; ms?: number; symbol?: SymbolId }
   | { e: 'phase_ready'; readyPlayerIds: PlayerId[] }
   | {
       e: 'results';
