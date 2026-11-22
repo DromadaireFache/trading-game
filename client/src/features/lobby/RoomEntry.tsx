@@ -45,7 +45,6 @@ export function RoomEntry({ role, notice, onJoin, onHost }: {
             spellCheck={false}
             placeholder="ABCD"
           />
-          <span className="room-hint">Four letters or digits. Codes never use 0, O, 1, I or L.</span>
         </label>
 
         <button type="submit" className="btn btn--primary btn--wide" data-testid="room-join-button" disabled={!valid}>
