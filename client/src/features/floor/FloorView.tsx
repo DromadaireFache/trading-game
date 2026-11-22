@@ -4,6 +4,7 @@ import { GameLogo } from '../../components/GameLogo.tsx';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { Roster } from '../../components/Roster.tsx';
 import { SeatTaken } from '../../components/SeatTaken.tsx';
+import { ViewLink } from '../../components/ViewLink.tsx';
 import { useCountdown } from '../../hooks/useCountdown.ts';
 import { PHASE_LABEL } from '../../lib/phases.ts';
 import { formatQuarter } from '../../lib/time.ts';
@@ -49,6 +50,7 @@ export function FloorView() {
           {formatQuarter(phase?.quarter ?? 0, totalQuarters)}
         </span>
         <span className="floor__status-line">
+          <ViewLink to="play" />
           <SoundToggle />
           <ConnectionBadge />
         </span>

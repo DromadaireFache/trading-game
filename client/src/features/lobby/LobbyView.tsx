@@ -4,6 +4,7 @@ import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { GameLogo } from '../../components/GameLogo.tsx';
 import { Panel } from '../../components/Panel.tsx';
 import { Roster } from '../../components/Roster.tsx';
+import { ViewLink } from '../../components/ViewLink.tsx';
 import { PLAYER_COLOR_APPEARANCE } from '../../lib/playerColor.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { onlinePageHost } from '../../net/target.ts';
@@ -70,6 +71,7 @@ export function LobbyView() {
               Not {me?.name}? Change name
             </button>
             <CreditButton />
+            <ViewLink to="floor" />
           </div>
         </div>
 

@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { ConnectionBadge } from '../../components/ConnectionBadge.tsx';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { GameLogo } from '../../components/GameLogo.tsx';
+import { ViewLink } from '../../components/ViewLink.tsx';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useNetTarget } from '../../net/NetTarget.tsx';
 import { CreditButton } from './CreditButton.tsx';
@@ -64,6 +65,7 @@ export function JoinForm() {
 
         <div className="join-card__foot">
           <CreditButton />
+          <ViewLink to="floor" />
           <ConnectionBadge />
         </div>
       </form>
