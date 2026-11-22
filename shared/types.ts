@@ -308,6 +308,8 @@ export interface CardDef {
   needsDirection: boolean;
   /** Fixed direction of a price shock, when the card has one. */
   priceDirection?: CardDirection;
+  /** How the play button is coloured: `good` (green) helps you or the market, `bad` (red) hurts someone. */
+  tone?: 'good' | 'bad';
 }
 
 /** A card for sale in the SHOP phase. Price already scaled to the buyer. */

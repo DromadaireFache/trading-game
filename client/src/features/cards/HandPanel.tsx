@@ -1,5 +1,5 @@
 import { SECTOR_LABELS, dayOfQuarter, dayToQuarter } from '@tg/shared';
-import type { Card, CardDirection, Sector } from '@tg/shared';
+import type { Card, CardDef, CardDirection, Sector } from '@tg/shared';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
 import { useGame, useGameClient, useHoldings } from '../../net/GameProvider.tsx';
 import { useLastDay, useMarketStore, useSelectedSymbol } from '../../net/marketHooks.ts';
@@ -58,6 +58,12 @@ export function HandPanel({ className }: { className?: string }) {
   );
 }
 
+/** Green for a card that helps, red for one that hurts. */
+function toneClass(def: CardDef): string {
+  const tone = def.priceDirection ?? (def.tone === 'good' ? 'up' : def.tone === 'bad' ? 'down' : undefined);
+  return tone ? ` card__btn--${tone}` : '';
+}
+
 function HandCard({ card, open }: { card: Card; open: boolean }) {
   const client = useGameClient();
   const market = useMarketStore();
@@ -92,7 +98,7 @@ function HandCard({ card, open }: { card: Card; open: boolean }) {
             <button
               key={r.id}
               type="button"
-              className="card__btn card__btn--rival"
+              className={`card__btn card__btn--rival${toneClass(def)}`}
               disabled={!open}
               onClick={() => client.send({ t: 'play_card', cardId: card.cardId, target: r.id })}
               data-testid="play"
@@ -123,7 +129,7 @@ function HandCard({ card, open }: { card: Card; open: boolean }) {
       ) : (
         <button
           type="button"
-          className={`card__btn${def.priceDirection ? ` card__btn--${def.priceDirection}` : ''}`}
+          className={`card__btn${toneClass(def)}`}
           disabled={!open || missing}
           onClick={() => play()}
           data-testid="play"

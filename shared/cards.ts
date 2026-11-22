@@ -208,11 +208,26 @@ export function cardPrice(config: GameConfig, entry: Pick<CardCatalogEntry, 'tie
   return Math.max(config.cards.minPrice, share * Math.max(0, netWorth));
 }
 
+/** Green or red play button: does the effect help (info, boosts, protection) or hurt (shocks, attacks, disasters)? */
+export function cardTone(effect: CardEffect): 'good' | 'bad' {
+  switch (effect.kind) {
+    case 'insider_tip':
+    case 'earnings_peek':
+    case 'lobbying':
+    case 'fact_check':
+      return 'good';
+    case 'event_shock':
+      return effect.direction === 'up' ? 'good' : 'bad';
+    default:
+      return 'bad';
+  }
+}
+
 /** The public part of an entry (what goes into CardOffer / Card on the wire). */
 export function toCardDef(entry: CardCatalogEntry): CardDef {
   const { defId, tier, name, description, legal, targetKind, needsDirection, effect } = entry;
   return {
-    defId, tier, name, description, legal, targetKind, needsDirection,
+    defId, tier, name, description, legal, targetKind, needsDirection, tone: cardTone(effect),
     ...(effect.kind === 'event_shock' ? { priceDirection: effect.direction } : {}),
   };
 }

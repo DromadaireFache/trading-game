@@ -56,7 +56,7 @@ describe('card catalog', () => {
 
   it('toCardDef keeps only the public fields', () => {
     const def = toCardDef(cards[0]!);
-    expect(Object.keys(def).sort()).toEqual(['defId', 'description', 'legal', 'name', 'needsDirection', 'targetKind', 'tier']);
+    expect(Object.keys(def).sort()).toEqual(['defId', 'description', 'legal', 'name', 'needsDirection', 'targetKind', 'tier', 'tone']);
   });
 
   it('publishes the fixed price direction of event cards', () => {
@@ -65,5 +65,14 @@ describe('card catalog', () => {
     expect(publicCards.get('surprise_holiday')).toMatchObject({ needsDirection: false, priceDirection: 'up' });
     expect(publicCards.get('planted_rumor')).toMatchObject({ needsDirection: true });
     expect(publicCards.get('planted_rumor')).not.toHaveProperty('priceDirection');
+  });
+
+  it('tones the play button: green for help, red for harm', () => {
+    const tone = (id: string) => toCardDef(cards.find((card) => card.defId === id)!).tone;
+    expect(tone('insider_tip')).toBe('good');
+    expect(tone('surprise_holiday')).toBe('good');
+    expect(tone('jensen_special')).toBe('bad');
+    expect(tone('war')).toBe('bad');
+    expect(tone('flashbang')).toBe('bad');
   });
 });
