@@ -451,43 +451,76 @@ function Recap({ final, racers, role }: { final: Final; racers: Racer[]; role: '
           <h3 className="recap__heading">The whole game</h3>
           <Race final={final} racers={racers} progress={1} live={false} />
         </section>
-        <section className="recap__block recap__awards">
-          <h3 className="recap__heading">Awards</h3>
-          {(final.awards ?? []).length === 0 ? (
-            <div className="recap__dim">No awards this time.</div>
-          ) : (
-            <ul className="recap__award-list" data-testid="awards">
-              {final.awards!.map((a) => (
-                <li key={a.title} className={`recap__award${a.playerId === me?.playerId ? ' recap__award--me' : ''}`} data-testid="award">
-                  <span className="recap__award-title">{a.title}</span>
-                  <span className="recap__award-name">{a.name}</span>
-                  <span className="recap__dim">{a.detail}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {(final.highlights ?? []).length > 0 && (
-            <>
-              <h3 className="recap__heading">Highlights</h3>
-              <ul className="recap__award-list">
-                {final.highlights!.map((h) => (
-                  <li key={h.title} className="recap__award">
-                    <span className="recap__award-title">
-                      <HighlightIcon kind={h.kind} size={14} className="recap__icon" /> {h.title}
-                    </span>
-                    <span className="recap__award-name">{h.value}</span>
-                    <span className="recap__dim">
-                      {h.name ? `${h.name}: ` : ''}
-                      {h.detail}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </section>
+        {role === 'player' && mine ? (
+          <section className="recap__block recap__awards">
+            <div className="recap__cols">
+              <div>
+                <AwardList awards={final.awards ?? []} meId={me?.playerId} />
+              </div>
+              <div>
+                <HighlightList highlights={final.highlights ?? []} />
+              </div>
+            </div>
+          </section>
+        ) : (
+          <>
+            <section className="recap__block recap__awards">
+              <AwardList awards={final.awards ?? []} meId={undefined} />
+            </section>
+            <section className="recap__block recap__highlights">
+              <HighlightList highlights={final.highlights ?? []} />
+            </section>
+          </>
+        )}
       </div>
     </div>
+  );
+}
+
+function AwardList({ awards, meId }: { awards: Award[]; meId: string | undefined }) {
+  return (
+    <>
+      <h3 className="recap__heading">Awards</h3>
+      {awards.length === 0 ? (
+        <div className="recap__dim">No awards this time.</div>
+      ) : (
+        <ul className="recap__award-list" data-testid="awards">
+          {awards.map((a) => (
+            <li key={a.title} className={`recap__award${a.playerId === meId ? ' recap__award--me' : ''}`} data-testid="award">
+              <span className="recap__award-title">{a.title}</span>
+              <span className="recap__award-name">{a.name}</span>
+              <span className="recap__dim">{a.detail}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+function HighlightList({ highlights }: { highlights: Highlight[] }) {
+  return (
+    <>
+      <h3 className="recap__heading">Highlights</h3>
+      {highlights.length === 0 ? (
+        <div className="recap__dim">A quiet game.</div>
+      ) : (
+        <ul className="recap__award-list">
+          {highlights.map((h) => (
+            <li key={h.title} className="recap__award">
+              <span className="recap__award-title">
+                <HighlightIcon kind={h.kind} size={14} className="recap__icon" /> {h.title}
+              </span>
+              <span className="recap__award-name">{h.value}</span>
+              <span className="recap__dim">
+                {h.name ? `${h.name}: ` : ''}
+                {h.detail}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 
@@ -503,7 +536,7 @@ function Standings({ rows, meId, racers }: { rows: LeaderboardEntry[]; meId: str
               {r.name}
               {r.eliminated && <span className="recap__tag">OUT</span>}
             </td>
-            <td className="recap__num">{formatMoneyShort(r.netWorth)}</td>
+            <td className="recap__num recap__worth">{formatMoneyShort(r.netWorth)}</td>
             <td className={`recap__num ${r.pnl >= 0 ? 'recap__up' : 'recap__down'}`}>{formatMoneyShort(r.pnl)}</td>
           </tr>
         ))}

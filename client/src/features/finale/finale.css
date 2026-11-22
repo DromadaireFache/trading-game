@@ -491,14 +491,35 @@
   flex: none;
 }
 .recap__grid {
+  /* Four quadrants: your game | standings, then the whole game | awards and highlights.
+     The projector (no "your game"): standings | the whole game, then awards | highlights. */
   display: grid;
   flex: 1;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1fr) minmax(320px, 1.4fr) minmax(240px, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   min-height: 0;
 }
-.recap__grid--floor {
-  grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.6fr) minmax(240px, 1fr);
+/* Awards and highlights side by side inside one quadrant. */
+.recap__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+/* Standings: the small podium beside the table. */
+.recap__board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  grid-template-rows: auto 1fr;
+  column-gap: 16px;
+  align-content: start;
+}
+.recap__board .recap__heading {
+  grid-column: 1 / -1;
+}
+.recap__board .recap__table {
+  margin-top: 0;
+  align-self: start;
 }
 .recap__block {
   min-height: 0;
@@ -548,6 +569,14 @@
 .recap__table td {
   padding: 5px 4px;
   border-top: 1px solid var(--tg-color-border);
+}
+.recap__table td {
+  font-size: 16px;
+}
+.recap__table td.recap__worth {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--tg-color-text-bright);
 }
 .recap__rank {
   width: 22px;
@@ -657,11 +686,15 @@
   text-align: right;
 }
 
-@media (max-width: 1100px) {
-  .recap__grid,
-  .recap__grid--floor {
-    grid-template-columns: 1fr 1fr;
+@media (max-width: 900px) {
+  .recap__grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
     overflow: auto;
+  }
+  .recap__board,
+  .recap__cols {
+    grid-template-columns: 1fr;
   }
 }
 

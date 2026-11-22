@@ -98,7 +98,7 @@ export function Leaderboard({ rows, meId, pnlLabel, tally = true }: { rows: read
               {r.eliminated && <span className="results__tag results__tag--down">OUT</span>}
               {r.jailed && <span className="results__tag results__tag--warn">JAIL</span>}
             </td>
-            <td>
+            <td className="results__worth">
               {tally ? (
                 <CountUp value={r.netWorth} from={r.netWorth - r.pnl} format={formatMoneyShort} delayMs={300 + i * 140} sound={i === 0} />
               ) : (

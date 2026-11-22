@@ -64,6 +64,16 @@
   padding: 0 4px;
   border-top: 1px solid var(--tg-color-border);
 }
+.results__table td.results__worth {
+  font-family: var(--tg-font-mono);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 38px;
+  color: var(--tg-color-text-bright);
+}
+.results__table td.results__name {
+  font-size: 16px;
+}
 .results__row--me {
   background: color-mix(in srgb, var(--tg-color-accent) 12%, transparent);
 }
@@ -286,6 +296,14 @@
 .floor-board .results__table {
   font-size: 2.2vw;
   line-height: 1.7;
+}
+.floor-board .results__table td.results__worth,
+.floor-board .results__table td.results__name {
+  font-size: 1em;
+  line-height: inherit;
+}
+.floor-board .results__table td.results__worth {
+  font-size: 1.25em;
 }
 .floor-board .results__table th {
   font-size: 1vw;
