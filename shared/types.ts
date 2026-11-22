@@ -437,8 +437,16 @@ export type MomentKind = 'regime' | 'crash' | 'arrest';
 // Lobby
 // ---------------------------------------------------------------------------
 
+export const PLAYER_COLORS = [
+  'gold', 'light-blue', 'green', 'pink', 'purple', 'orange',
+  'blue', 'red', 'teal', 'lime', 'mint', 'fuchsia',
+  'coral', 'cyan', 'indigo', 'lemon',
+] as const;
+export type PlayerColor = (typeof PLAYER_COLORS)[number];
+
 export interface LobbyPlayer {
   id: PlayerId;
   name: string;
   connected: boolean;
+  color?: PlayerColor;
 }

@@ -19,8 +19,8 @@ import type { AddressInfo } from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
-import { QUARTER_OPTIONS, QUARTER_SECONDS_OPTIONS, WS_CLOSE_REPLACED, finaleTimeline, quarterSeconds, roundOhlc, withGameLength, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
-import type { ClientMsg, ErrorCode, GameConfig, HoldingsMsg, JoinMsg, LobbyState, MarketMsg, NetWorthSample, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg, SetSettingsMsg } from '@tg/shared';
+import { PLAYER_COLORS, QUARTER_OPTIONS, QUARTER_SECONDS_OPTIONS, WS_CLOSE_REPLACED, finaleTimeline, quarterSeconds, roundOhlc, withGameLength, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
+import type { ClientMsg, ErrorCode, GameConfig, HoldingsMsg, JoinMsg, LobbyState, MarketMsg, NetWorthSample, PhaseInfo, PlayerColor, PlayerId, PortfolioMsg, Role, ServerMsg, SetSettingsMsg } from '@tg/shared';
 import type { ServerEnv } from './env.ts';
 import { lanUrls } from './lan.ts';
 import { runTickClock } from './loop.ts';
@@ -44,6 +44,7 @@ interface Session {
   token: string;
   role: Role;
   name: string;
+  color?: PlayerColor;
   socket: WebSocket | null;
   /** Wall-clock time the socket was lost; null while connected. */
   disconnectedAt: number | null;
@@ -167,7 +168,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     let spectators = 0;
     for (const s of bySocket.values()) if (s.role === 'spectator') spectators += 1;
     return {
-      players: playerSessions().map((s) => ({ id: s.id, name: s.name, connected: s.socket !== null })),
+      players: playerSessions().map((s) => ({ id: s.id, name: s.name, connected: s.socket !== null, color: s.color })),
       spectators,
       minPlayers: config.lobby.minPlayers,
       maxPlayers: config.lobby.maxPlayers,
@@ -353,8 +354,10 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     if (ghost !== undefined) evictFromLobby(ghost);
 
     const id = `p${nextPlayerNumber++}`;
+    const taken = new Set(players.filter((s) => s !== ghost).map((s) => s.color));
+    const color = PLAYER_COLORS.find((option) => !taken.has(option)) ?? PLAYER_COLORS[(nextPlayerNumber - 2) % PLAYER_COLORS.length]!;
     sim.submit({ kind: 'add_player', playerId: id, name });
-    return { id, token: randomUUID(), role: 'player', name, socket: null, disconnectedAt: null };
+    return { id, token: randomUUID(), role: 'player', name, color, socket: null, disconnectedAt: null };
   }
 
   function handleJoin(socket: WebSocket, msg: JoinMsg): void {
@@ -472,6 +475,16 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
 
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'spectators cannot do that');
     switch (msg.t) {
+      case 'set_color': {
+        if (!inLobby()) return sendError(socket, 'not_allowed', 'player colors can only change in the lobby');
+        if (msg.color === session.color) return;
+        const players = playerSessions();
+        if (players.length <= PLAYER_COLORS.length && players.some((s) => s.color === msg.color)) {
+          return sendError(socket, 'not_allowed', 'that color is already taken');
+        }
+        session.color = msg.color;
+        return broadcastLobby();
+      }
       case 'end_game':
         if (msg.game !== gameNumber) return sendError(socket, 'not_allowed', 'that game has already ended');
         return sim.submit({ kind: 'end_game', playerId: session.id });

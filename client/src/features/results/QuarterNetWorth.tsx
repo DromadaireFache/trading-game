@@ -1,7 +1,8 @@
 import { useId } from 'react';
 import type { ResultsMsg } from '@tg/shared';
 import { formatMoney } from '../../lib/format.ts';
-import { fitWorthRange, playerColor } from '../../lib/netWorth.ts';
+import { fitWorthRange } from '../../lib/netWorth.ts';
+import { rosterPlayerColor } from '../../lib/playerColor.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 
 const WIDTH = 1000;
@@ -18,10 +19,9 @@ export function QuarterNetWorth({ results, paused = false }: { results: Omit<Res
   const closing = samples.at(-1);
   if (!range || !opening || !closing || opening.tick === closing.tick) return null;
 
-  const players = results.leaderboard.map(({ playerId, name }, index) => {
-    const rosterIndex = lobby?.players.findIndex(({ id }) => id === playerId) ?? -1;
-    return { playerId, name, color: playerColor(rosterIndex < 0 ? index : rosterIndex) };
-  });
+  const players = results.leaderboard.map(({ playerId, name }, index) => ({
+    playerId, name, color: rosterPlayerColor(lobby?.players ?? [], playerId, index),
+  }));
   const ticks = closing.tick - opening.tick;
   const days = config.time.daysPerQuarter;
   const dayMarks = [...new Set(GRID_LINES.map((fraction) => Math.round(fraction * days)))];

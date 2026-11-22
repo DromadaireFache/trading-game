@@ -185,7 +185,7 @@ describe('playing cards', () => {
   });
 
   it('an insider tip shows the next real headline, word for word, to the holder alone and early', () => {
-    const g = game([card('long_lunch')]);
+    const g = game([card('insider_tip')]);
     const { hand } = buyAll(g, 'p1');
     g.to('TRADING', 2, 30);
     g.sim.submit({ kind: 'play_card', playerId: 'p1', cardId: hand[0]!.cardId });

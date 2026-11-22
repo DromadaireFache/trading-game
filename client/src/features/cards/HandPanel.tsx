@@ -1,7 +1,7 @@
 import { SECTOR_LABELS, dayOfQuarter, dayToQuarter } from '@tg/shared';
 import type { Card, CardDirection, Sector } from '@tg/shared';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
-import { useGame, useGameClient } from '../../net/GameProvider.tsx';
+import { useGame, useGameClient, useHoldings } from '../../net/GameProvider.tsx';
 import { useLastDay, useMarketStore, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
 import { SecMeter } from './SecMeter.tsx';
@@ -27,7 +27,9 @@ export function HandPanel({ className }: { className?: string }) {
     );
   }
 
-  const { hand = [], heat, jailedUntil, eliminated } = live.portfolio;
+  const { hand: held = [], heat, jailedUntil, eliminated } = live.portfolio;
+  // Once the game is over a leftover card is worth nothing: the hand shows empty slots.
+  const hand = phase?.phase === 'FINAL' ? [] : held;
   const jailed = jailedUntil !== undefined && Math.max(0, lastDay) < jailedUntil;
   // In jail the one card held can still be played.
   const open = phase?.phase === 'TRADING' && !eliminated;
@@ -78,7 +80,8 @@ function HandCard({ card, open }: { card: Card; open: boolean }) {
     }
   }
   // A card aimed at a player: one button per rival still in the game.
-  const { lobby, me, holdings } = useGame();
+  const { lobby, me } = useGame();
+  const holdings = useHoldings();
   const rivals = (lobby?.players ?? []).filter((p) => p.id !== me?.playerId && holdings[p.id]?.eliminated !== true);
   if (def.targetKind === 'player') {
     const whyRival = !open ? 'Cards can be played while the market is open' : rivals.length === 0 ? 'Nobody left to aim at' : undefined;

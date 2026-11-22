@@ -15,6 +15,8 @@ describe('parseClientMsg', () => {
     expect(parseClientMsg('{"t":"set_settings","quarters":8,"quarterSeconds":180,"x":1}')).toEqual({ ok: true, msg: { t: 'set_settings', quarters: 8, quarterSeconds: 180 } });
     expect(parseClientMsg('{"t":"set_settings","quarters":2.5}').ok).toBe(false);
     expect(parseClientMsg('{"t":"set_settings","quarterSeconds":0}').ok).toBe(false);
+    expect(parseClientMsg('{"t":"set_color","color":"purple","playerId":"another"}')).toEqual({ ok: true, msg: { t: 'set_color', color: 'purple' } });
+    expect(parseClientMsg('{"t":"set_color","color":"black"}').ok).toBe(false);
     expect(parseClientMsg('{"t":"end_game","game":2}')).toEqual({ ok: true, msg: { t: 'end_game', game: 2 } });
     expect(parseClientMsg('{"t":"order","symbol":"ACME","qty":-5}')).toEqual({ ok: true, msg: { t: 'order', symbol: 'ACME', qty: -5 } });
     expect(parseClientMsg('{"t":"order","symbol":"ACME","qty":-5,"requestId":42}')).toEqual({ ok: true, msg: { t: 'order', symbol: 'ACME', qty: -5, requestId: 42 } });

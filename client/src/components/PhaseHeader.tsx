@@ -1,5 +1,6 @@
 import { useCountdown } from '../hooks/useCountdown.ts';
 import { PHASE_LABEL } from '../lib/phases.ts';
+import { PLAYER_COLOR_APPEARANCE } from '../lib/playerColor.ts';
 import { formatQuarter } from '../lib/time.ts';
 import { useGame, useGameClient } from '../net/GameProvider.tsx';
 import { SoundToggle } from '../features/fx/SoundToggle.tsx';
@@ -12,7 +13,7 @@ import { ReadyUp } from './ReadyUp.tsx';
  * countdown, who you are, sound and the connection state.
  */
 export function PhaseHeader() {
-  const { phase, me, config, game, join } = useGame();
+  const { phase, me, lobby, config, game, join } = useGame();
   const client = useGameClient();
   const countdown = useCountdown();
   const current = phase?.phase ?? 'LOBBY';
@@ -20,6 +21,7 @@ export function PhaseHeader() {
   const totalQuarters = phase?.totalQuarters ?? config.time.quarters;
   const urgent = countdown.ms !== null && countdown.ms <= config.presentation.countdownUrgentMs;
   const canEndGame = me?.role === 'player' && current !== 'LOBBY' && current !== 'FINAL';
+  const color = lobby?.players.find((player) => player.id === me?.playerId)?.color;
 
   return (
     <header className={`phase-header phase--${current}`}>
@@ -42,7 +44,7 @@ export function PhaseHeader() {
 
       <div className="phase-header__me">
         <div className="phase-header__player-actions">
-          {me && <span className="phase-header__player" data-testid="me-name">{me.name}</span>}
+          {me && <span className="phase-header__player" data-testid="me-name" style={{ color: color && PLAYER_COLOR_APPEARANCE[color].hex }}>{me.name}</span>}
           {canEndGame && (
             <button
               type="button"

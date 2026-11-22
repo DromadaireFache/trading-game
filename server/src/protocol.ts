@@ -2,6 +2,7 @@
  * Validation of incoming frames. Nothing a client sends is trusted: every field is checked and
  * a clean ClientMsg is rebuilt from scratch (unknown fields are dropped). Never throws.
  */
+import { PLAYER_COLORS } from '@tg/shared';
 import type { CardDirection, ClientMsg, GameConfig, Role } from '@tg/shared';
 
 export type ParseResult = { ok: true; msg: ClientMsg } | { ok: false; message: string };
@@ -59,6 +60,10 @@ export function parseClientMsg(text: string): ParseResult {
     }
     case 'new_game':
       return { ok: true, msg: { t: 'new_game' } };
+    case 'set_color': {
+      const color = PLAYER_COLORS.find((option) => option === raw.color);
+      return color ? { ok: true, msg: { t: 'set_color', color } } : bad('set_color.color must be a player color');
+    }
     case 'end_game':
       if (typeof raw.game !== 'number' || !Number.isSafeInteger(raw.game) || raw.game < 1) {
         return bad('end_game.game must be a positive whole number');

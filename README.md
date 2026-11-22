@@ -17,11 +17,13 @@ Needs Node 20+ (developed on Node 24) and npm.
 
 ```
 npm install
-npm run dev
+npm run play
 ```
 
-One command starts the game server (port 8787) and the web client (Vite, port 5173). The server prints
-where to connect:
+One command builds the web client and starts the game server (port 8787) and the client (port 5173).
+Use `npm run play` for real games: it serves React's production build, which is several times lighter
+on every player's laptop than `npm run dev` (development mode, with hot reload, for working on the code).
+The server prints where to connect:
 
 ```
 [server] this machine:  http://localhost:5173/play   projector: http://localhost:5173/floor
@@ -35,13 +37,14 @@ where to connect:
 - Two windows of one browser are two players (the session is kept per tab). Reloading a tab keeps the seat.
 - Lost the tab mid-game (closed it, browser crashed, other laptop)? Open `/play` again and type the same name:
   a seat nobody is connected to goes back to whoever asks for it by name.
-- A new game needs a server restart (stop `npm run dev` and start it again).
+- A new game needs a server restart (stop `npm run play` and start it again), or press Play again at the end.
 
 ## Scripts
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Game server (tsx watch) + Vite dev server, one command |
+| `npm run play` | For playing: builds the client, then game server + the built client (Vite preview) on the same ports |
+| `npm run dev` | For development: game server (tsx watch) + Vite dev server with hot reload |
 | `npm run typecheck` | `tsc --noEmit` in every workspace |
 | `npm test` | vitest unit tests (sim incl. market statistics, server shell, client stores, config) |
 | `npm run e2e` | Starts server + Vite on free random ports with short phases, drives two players and the projector in a headless browser through a 2-quarter game (about 90 s), writes screenshots to `.e2e/` |

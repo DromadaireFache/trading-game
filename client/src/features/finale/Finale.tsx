@@ -3,7 +3,8 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { FINALE_MAX_AWARDS, FINALE_MAX_HIGHLIGHTS, finaleSegmentAt, finaleTimeline } from '@tg/shared';
 import type { Award, FinaleSegment, GameStatement, Highlight, LeaderboardEntry, NetWorthSample, ResultsMsg } from '@tg/shared';
 import { formatMoneyShort } from '../../lib/format.ts';
-import { fitWorthRange, playerColor } from '../../lib/netWorth.ts';
+import { fitWorthRange } from '../../lib/netWorth.ts';
+import { rosterPlayerColor } from '../../lib/playerColor.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { CountUp } from '../fx/CountUp.tsx';
 import { anchorOf, fx } from '../fx/fx.ts';
@@ -46,10 +47,9 @@ export function Finale({ role }: { role: 'player' | 'spectator' }) {
 
   const racers = useMemo<Racer[]>(
     () =>
-      (final?.leaderboard ?? []).map(({ playerId, name }, i) => {
-        const rosterIndex = lobby?.players.findIndex((p) => p.id === playerId) ?? -1;
-        return { playerId, name, color: playerColor(rosterIndex < 0 ? i : rosterIndex) };
-      }),
+      (final?.leaderboard ?? []).map(({ playerId, name }, i) => ({
+        playerId, name, color: rosterPlayerColor(lobby?.players ?? [], playerId, i),
+      })),
     [final, lobby],
   );
 

@@ -17,40 +17,6 @@
     }
   },
   {
-    "defId": "long_lunch",
-    "tier": "insider",
-    "name": "Long Lunch with the CFO",
-    "description": "See the next real headline twice as early as a normal tip.",
-    "legal": false,
-    "targetKind": "none",
-    "needsDirection": false,
-    "priceMult": 1.8,
-    "shopWeight": 2,
-    "heat": "insiderTip",
-    "effect": {
-      "kind": "insider_tip",
-      "focus": "any",
-      "leadMult": 2
-    }
-  },
-  {
-    "defId": "sector_source",
-    "tier": "insider",
-    "name": "Sector Source",
-    "description": "Pick a sector. See its next real headline early.",
-    "legal": false,
-    "targetKind": "sector",
-    "needsDirection": false,
-    "priceMult": 1.3,
-    "shopWeight": 3,
-    "heat": "insiderTip",
-    "effect": {
-      "kind": "insider_tip",
-      "focus": "sector",
-      "leadMult": 1.5
-    }
-  },
-  {
     "defId": "boardroom_mole",
     "tier": "insider",
     "name": "Boardroom Mole",

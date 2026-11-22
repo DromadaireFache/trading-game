@@ -3,6 +3,7 @@ import type { LeaderboardEntry, Statement } from '@tg/shared';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
 import { ReadyUp } from '../../components/ReadyUp.tsx';
 import { changeDirection, formatMoney, formatMoneyShort, formatPercent } from '../../lib/format.ts';
+import { rosterPlayerColor } from '../../lib/playerColor.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 import { CountUp } from '../fx/CountUp.tsx';
 import { QuarterNetWorth } from './QuarterNetWorth.tsx';
@@ -72,6 +73,7 @@ export function ResultsPanel({ className }: { className?: string }) {
 const fxIndex = (i: number) => ({ '--fx-i': i }) as React.CSSProperties;
 
 export function Leaderboard({ rows, meId, pnlLabel, tally = true }: { rows: readonly LeaderboardEntry[]; meId: string | undefined; pnlLabel: string; tally?: boolean }) {
+  const { lobby } = useGame();
   return (
     <table className="results__table" data-testid="leaderboard">
       <thead>
@@ -92,7 +94,7 @@ export function Leaderboard({ rows, meId, pnlLabel, tally = true }: { rows: read
             data-player={r.playerId}
           >
             <td>{r.rank}</td>
-            <td className="results__name">
+            <td className="results__name" style={{ color: rosterPlayerColor(lobby?.players ?? [], r.playerId, i) }}>
               {r.name}
               {r.playerId === meId && <span className="results__tag">YOU</span>}
               {r.eliminated && <span className="results__tag results__tag--down">OUT</span>}

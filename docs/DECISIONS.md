@@ -192,6 +192,11 @@ One line per choice that DESIGN.md and the milestone briefs left open. Append, d
 - Shorter Mayhem, lighter jail (2026-11-21):
   - **Freeze, Ice Age and HODL** now last a share of one quarter's trading time: Freeze 10% (9 s of a 90 s quarter), Ice Age 5%, HODL 20%. They are capped at the quarter's close and cleared when it closes, so nothing carries into the next quarter.
   - **Jail.** The arrest takes every card but one (`sec.jailHandLimit` 1, the oldest kept). A jailed player can hold, buy and play one card, where before they could do nothing with cards. Orders are still delayed 3 s (`sec.jailOrderDelayMs`).
+- Performance pass with 4 players (2026-11-21), measured in headless Chrome with 3 trading bots. Biggest wins:
+  - **`npm run play`** builds the client and serves the production build (Vite preview, same ports and /ws proxy). `npm run dev` ships React's development build, whose per-element debug work was the top cost in the profile: script time 63 ms/s in dev vs 18 ms/s built.
+  - **Holdings out of GameState** (`HoldingsStore`, `useHoldings`): they arrive several times a second with 4 players, and in GameState each one re-rendered every `useGame()` consumer. Only the rivals panel and the hand (card targets) subscribe now.
+  - **Rival rows** re-render only when their rounded amount changes (`useQuoteValue`), not on every tick (renders roughly halved).
+  - **No full-page compositing work**: the background swirl (a layer several screens wide) no longer rotates, the CRT and panel scanline overlays no longer use `mix-blend-mode`, the freeze banner has no `backdrop-filter`, and `fx.chroma` / `fx.punch` use overlays and a transform instead of a `filter` on the whole page.
 - SEC meter (2026-11-21): the hand panel's heat number is now a bar of the chance of being caught at the end of the quarter, computed as sec.ts does: heat x catchProbabilityPerHeat x the multiplier for the player's wealth rank among those still in, capped at maxCatchProbability. The bar fills toward the cap.
   - **Levels.** Calm (under 10%) is green; warm (10-30%) amber; hot (30-60%) red and throbbing; critical (60% and up) flashes red and blue like police lights, with the reading shaking.
   - **Effects on the way up.** Climbing a level pops "ON THE RADAR", "SEC IS WATCHING" (thump and shake), or "SEC IS COMING!" (siren, shake, burst). Nothing plays on the way down.
@@ -202,3 +207,9 @@ One line per choice that DESIGN.md and the milestone briefs left open. Append, d
   - **Are You Human? / MonkeyType** (legal): every other player gets a challenge, a 3x3 "select the stocks going UP" captcha or a stock and meme sentence to type with pasting blocked. Their orders are refused (`challenge`) until they send `solve_challenge` with its id. The challenge rides on `portfolio`, so a reload shows it again, and it is cleared at the quarter's close. The client draws the grid or sentence from the challenge's seed and trusts the player's own check (a party game).
   - **Surprise Bill** (legal): everyone, the player who plays it included, buys random stocks they do not hold until they hold five; each buy is 10% of their buying power.
   - The victims get `card_hit` effects (ALL IN <stock>!, a siren for a challenge, SURPRISE BILL!). Tests cover all four, including solving a challenge and its quarter-end expiry.
+
+## Insider cards: one tip, and it stays readable
+
+- Long Lunch and Sector Source were near-copies of Insider Tip (an early look at a coming headline). Removed; Insider Tip stays, and so does Boardroom Mole, which peeks at earnings instead of a headline.
+- A fresh insider-tip paper keeps the top of the headline pile for 5 s: papers arriving in that window slide under it. After that, new papers land on top as usual.
+- At FINAL the hand shows empty slots: a card left over (e.g. a Pickpocket with nobody to rob) is worth nothing once the game is over.

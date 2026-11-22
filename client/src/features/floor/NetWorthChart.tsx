@@ -4,7 +4,8 @@ import type { IPrimitivePaneRenderer, Logical, Time, UTCTimestamp } from 'lightw
 import type { GameConfig, LobbyPlayer, NetWorthMsg, NetWorthSample, PlayerId } from '@tg/shared';
 import { chartTimeToDay, dayToChartTime, formatAxisDay, formatGameDay } from '../../lib/chartTime.ts';
 import { formatMoney } from '../../lib/format.ts';
-import { fitWorthRange, playerColor } from '../../lib/netWorth.ts';
+import { fitWorthRange } from '../../lib/netWorth.ts';
+import { playerColor } from '../../lib/playerColor.ts';
 import { useGameClient } from '../../net/GameProvider.tsx';
 import { theme } from '../../theme.ts';
 import { reducedMotion } from '../fx/fx.ts';
@@ -66,8 +67,8 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
     // Reserve the opening days on the axis so a flat balance visibly travels from the opening bell.
     const timeline = chart.addSeries(LineSeries, { priceScaleId: '', lastValueVisible: false, priceLineVisible: false });
     timeline.setData(Array.from({ length: openingWindow + 1 }, (_, tick) => ({ time: timeOf(tick) })));
-    const series = players.map(({ id }, i) => {
-      const color = playerColor(i);
+    const series = players.map(({ id, color: chosenColor }, i) => {
+      const color = playerColor(i, chosenColor);
       const line = chart.addSeries(LineSeries, {
         color,
         lineWidth: 3,
@@ -233,7 +234,7 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
 export function NetWorthStandings({ players }: { players: readonly LobbyPlayer[] }) {
   const { netWorth } = useGameClient();
   const latest = useSyncExternalStore(netWorth.subscribe, () => netWorth.getSamples().at(-1));
-  const ranked = players.map((player, index) => ({ ...player, color: playerColor(index), equity: latest?.equity[player.id] }));
+  const ranked = players.map((player, index) => ({ ...player, color: playerColor(index, player.color), equity: latest?.equity[player.id] }));
   ranked.sort((a, b) => (b.equity ?? -Infinity) - (a.equity ?? -Infinity));
   return (
     <ol className="floor-worth" aria-label="Current player standings">

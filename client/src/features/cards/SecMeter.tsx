@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { CSSProperties } from 'react';
-import { useGame } from '../../net/GameProvider.tsx';
+import { useGame, useHoldings } from '../../net/GameProvider.tsx';
 import { anchorOf, fx } from '../fx/fx.ts';
 import { play } from '../fx/sound.ts';
 
@@ -23,7 +23,8 @@ const RANK: Record<Level, number> = { calm: 0, warm: 1, hot: 2, critical: 3 };
  * Climbing into hot or critical also pops a warning on the table.
  */
 export function SecMeter({ heat, equity }: { heat: number; equity: number }) {
-  const { config, lobby, me, holdings } = useGame();
+  const { config, lobby, me } = useGame();
+  const holdings = useHoldings();
   const sec = config.sec;
   // Rank 0 = richest of the players still in (ties go to the player: the SEC watches them closer).
   const richer = (lobby?.players ?? []).filter((p) => p.id !== me?.playerId && holdings[p.id] && !holdings[p.id]!.eliminated && holdings[p.id]!.equity > equity).length;
