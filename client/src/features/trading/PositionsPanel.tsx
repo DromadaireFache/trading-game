@@ -104,7 +104,7 @@ function PositionRow({ position, decimals, canTrade }: { position: Position; dec
   // A winning bet's profit and its cash-out button shake, harder the more it made.
   const heat = profitHeat(pnl, cost);
   const hotProfit = hotProps(heat, `positions__profit-value`);
-  const hotButton = hotProps(heat, 'positions__close');
+  const hotButton = hotProps(heat, 'game-button positions__close');
 
   return (
     <tr

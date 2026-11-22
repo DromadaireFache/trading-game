@@ -231,6 +231,9 @@
   overflow: hidden;
   gap: 8px;
 }
+.market-chart__selection {
+  display: contents;
+}
 /* The chart fills what is left; lightweight-charts follows the box (autoSize). */
 .chart {
   flex: 1;

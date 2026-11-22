@@ -32,7 +32,7 @@ export function LobbyView() {
         <div className="lobby__actions">
           <button
             type="button"
-            className="btn btn--primary btn--wide"
+            className="bet-btn bet-btn--up lobby__start"
             data-testid="start-button"
             disabled={!canStart}
             onClick={() => client.startGame(debugMode)}
@@ -135,7 +135,7 @@ function SettingRow(props: {
             type="button"
             role="radio"
             aria-checked={n === props.value}
-            className={`lobby__option${n === props.value ? ' lobby__option--on' : ''}`}
+            className="game-button lobby__option"
             disabled={props.disabled}
             data-value={n}
             onClick={() => {
