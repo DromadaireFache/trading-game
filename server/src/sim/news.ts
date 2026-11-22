@@ -171,6 +171,8 @@ export function createNews(deps: NewsDeps): News {
   const minGapTicks = msToTicks(config, config.news.minGapMs);
   const leadMinTicks = Math.ceil(config.news.leadMinMs / config.time.tickMs);
   const leadMaxTicks = Math.max(leadMinTicks, Math.floor(config.news.leadMaxMs / config.time.tickMs));
+  const gapMinTicks = Math.max(1, Math.ceil(config.earnings.gapDelayMinMs / config.time.tickMs));
+  const gapMaxTicks = Math.max(gapMinTicks, Math.floor(config.earnings.gapDelayMaxMs / config.time.tickMs));
   const settleTicks = 2 * msToTicks(config, config.news.rampMs) + leadMaxTicks;
   const companyBySymbol = new Map(universe.companies.map((c) => [c.symbol, c]));
   /** Expected quarterly EPS per company (fundamentals are fixed for the game), rounded to cents. */
@@ -321,7 +323,7 @@ export function createNews(deps: NewsDeps): News {
       carried = [];
       priced = {};
       if (pendingEarnings !== null) {
-        const delay = leadMinTicks + earningsLeadRng.int(leadMaxTicks - leadMinTicks + 1);
+        const delay = gapMinTicks + earningsLeadRng.int(gapMaxTicks - gapMinTicks + 1);
         // The first step runs one tick after the trading phase is announced.
         pendingEarnings.effectTick = tradingStartTick + Math.min(delay, tradingTicks) - 1;
       }

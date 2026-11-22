@@ -262,6 +262,9 @@ export interface GameConfig {
     surpriseSigma: number;
     /** Price gap = gapFactor * (true_surprise - priced_in). */
     gapFactor: number;
+    /** Delay from the next trading open to the earnings gap. Zero means the first market tick. */
+    gapDelayMinMs: number;
+    gapDelayMaxMs: number;
     leaksPerQuarter: number;
     /** A leak prices in a share, drawn in [leakShareMin, leakShareMax], of the surprise not yet priced in. */
     leakShareMin: number;
@@ -521,6 +524,8 @@ export const defaultConfig: GameConfig = {
   earnings: {
     surpriseSigma: 0.08,
     gapFactor: 1,
+    gapDelayMinMs: 0,
+    gapDelayMaxMs: 3_000,
     leaksPerQuarter: 1,
     // Leaks hint at direction while leaving most of the move for the reported beat or miss.
     leakShareMin: 0.05,
@@ -746,6 +751,7 @@ export function validateConfig(config: GameConfig): GameConfig {
     if (Object.values(n.magnitudeWeights).every((w) => w === 0)) problems.push('config.news.magnitudeWeights must not all be 0');
     if (n.scheduledBeatsPerQuarter > n.beatTitles.length) problems.push('config.news.beatTitles needs one title per scheduled beat');
     const e = config.earnings;
+    if (e.gapDelayMinMs > e.gapDelayMaxMs) problems.push('config.earnings.gapDelayMinMs must be <= gapDelayMaxMs');
     if (e.leakShareMin > e.leakShareMax || e.leakShareMax > 1) problems.push('config.earnings.leakShareMin must be <= leakShareMax <= 1');
     for (const sector of m.rateLovingSectors) {
       if (!SECTORS.includes(sector)) problems.push(`config.market.rateLovingSectors: unknown sector "${String(sector)}"`);

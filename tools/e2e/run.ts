@@ -500,11 +500,9 @@ async function checkEarningsReport(page: Page) {
   return q1Earnings;
 }
 
-async function checkEarningsAtOpen(page: Page, report: EarningsMsg, q1Last: TickMsg, q2First: TickMsg) {
+async function checkEarningsAtOpen(page: Page) {
   check((await page.locator('section.panel.earnings').count()) === 0 && await page.locator(tid('chart')).isVisible(),
     'The Earnings panel closes and the chart shows when trading starts');
-  const biggestOpeningMove = Math.max(...report.reports.map((r) => Math.abs(Math.log(q2First.prices[r.symbol]! / q1Last.prices[r.symbol]!))));
-  check(biggestOpeningMove < 0.03, 'Trading starts before the earnings adjustment');
 }
 
 /** Clicks a row and waits until header and chart follow; returns how long that took. */
@@ -655,9 +653,7 @@ async function main(): Promise<void> {
         await shot(a, 'earnings-briefing-q2');
 
         await waitFor('first tick of Q2', async () => ticksOf('A').some((t) => t.day === DAYS));
-        const ticks = ticksOf('A');
-        const q2Start = ticks.findIndex((t) => t.day === DAYS);
-        await checkEarningsAtOpen(a, report, ticks[q2Start - 1]!, ticks[q2Start]!);
+        await checkEarningsAtOpen(a);
         check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === pick.symbol, 'The prepared stock stays selected when trading starts');
 
         const beforeReload = framesOf('A').length;
@@ -1050,15 +1046,18 @@ async function main(): Promise<void> {
       check(paperBox !== null && handBox !== null && trayBox !== null && paperBox.y >= handBox.y + handBox.height - 6 &&
         paperBox.y + paperBox.height <= trayBox.y + trayBox.height + 1,
         `the paper lies in the tray under the cards (paper ${JSON.stringify(paperBox)}, cards ${JSON.stringify(handBox)}, tray ${JSON.stringify(trayBox)})`);
-      // The bottom row starts where the cards end.
+      // The news tray starts below the cards, and the positions panels share their top and bottom.
       const [positionsBox, rivalsBox] = [await a.locator('.desk__positions').boundingBox(), await a.locator('.desk__rivals').boundingBox()];
-      check(positionsBox !== null && rivalsBox !== null && Math.abs(positionsBox.y - trayBox!.y) < 1 &&
-        Math.abs(handBox!.y + handBox!.height + 8 - trayBox!.y) < 1.5,
+      check(Math.abs(handBox!.y + handBox!.height + 8 - trayBox!.y) < 1.5,
         `the bottom row lines up with the bottom of the cards (cards end ${Math.round(handBox!.y + handBox!.height)}, row starts ${Math.round(trayBox!.y)})`);
-      // The other players' box alone is taller: it starts higher, under a shorter stock list.
       const listBox = (await a.locator('.desk__list').boundingBox())!;
-      check(rivalsBox!.y < positionsBox!.y - 50 && Math.abs(listBox.y + listBox.height + 8 - rivalsBox!.y) < 1.5,
-        `the other players' box is taller than the positions box (${Math.round(rivalsBox!.height)} vs ${Math.round(positionsBox!.height)}) and sits right under the stock list`);
+      check(positionsBox !== null && rivalsBox !== null && Math.abs(positionsBox.y - rivalsBox.y) < 1 &&
+        Math.abs(positionsBox.height - rivalsBox.height) < 1 &&
+        Math.abs(listBox.y + listBox.height + 8 - rivalsBox.y) < 1.5,
+        'both positions panels have the same height and start just below the stock list');
+      // The stock list fits its panel exactly: nothing to scroll.
+      const listScroll = (await a.evaluate(`(() => { const b = document.querySelector('.desk__list .panel__body'); return [b.scrollHeight, b.clientHeight]; })()`)) as [number, number];
+      check(listScroll[0] <= listScroll[1] + 1, `the stock list does not scroll (content ${listScroll[0]} px, room ${listScroll[1]} px)`);
       check((await style(top, 'transform')) !== 'none', 'the paper is angled');
       // Inside its column: never over the positions or the chart.
       const sideBox = trayBox!;
@@ -1229,10 +1228,12 @@ async function main(): Promise<void> {
       await shot(floor, '14-floor-SHOP');
       await a.locator(tid('ready-up')).click();
       await waitFor('the shop shows one player ready', async () => (await textOf(b, 'ready-count')).trim() === '1/2');
-      check(await a.locator(tid('ready-up')).isDisabled(), 'A is marked ready while B is still in the shop');
+      // A's own screen shows it from the same broadcast, a moment later or sooner than B's.
+      await waitFor('A to show itself ready', async () => a.locator(tid('ready-up')).isDisabled());
+      check(true, 'A is marked ready while B is still in the shop');
       await b.locator(tid('ready-up')).click();
       await waitForPhase(a, 'BRIEFING');
-      const q1Report = await checkEarningsReport(a);
+      await checkEarningsReport(a);
       await a.waitForSelector(rowOf(stockA));
       const frozen1 = await boardOf(a);
       await sleep(700);
@@ -1249,7 +1250,7 @@ async function main(): Promise<void> {
       await waitFor('first ticks of Q2', async () => ticksOf('A').length >= q1Ticks.length + 3);
       const q2First = ticksOf('A')[q1Ticks.length]!;
       check(q2First.day === DAYS && q2First.tickOfDay === 1, `the first tick of Q2 is day ${q2First.day}, tick ${q2First.tickOfDay} (days continue)`);
-      await checkEarningsAtOpen(a, q1Report, q1Last, q2First);
+      await checkEarningsAtOpen(a);
       await sleep(4 * DAY_MS);
       const q2Chart = await checkChartDrawn(a, 'A in Q2', stockA, DAYS + 4);
       const q2Open = framesOf('A').flatMap((m) => (m.t === 'candle' && m.day === DAYS ? [m.ohlc[stockA]!.o] : []))[0];
@@ -1261,6 +1262,18 @@ async function main(): Promise<void> {
       check(q2Open !== undefined && Math.abs(Number.parseFloat(change) - (nowPrice / q2Open - 1) * 100) < 0.011,
         `the change % restarted from the Q2 open ("${change}" shown, price ${nowPrice}, Q2 open ${q2Open})`);
       await shot(a, '19-play-TRADING-q2');
+
+      // Refresh mid-quarter in Q2 (early, while plenty of the quarter is left): the list and the chart history of BOTH quarters come back.
+      await b.reload();
+      await b.waitForSelector(rowOf(stockB));
+      const q2Snapshot = snapshotsOf('B').at(-1)!;
+      check(q2Snapshot.day > DAYS, `the Q2 reload got a snapshot at day ${q2Snapshot.day}`);
+      const q2Restored = await checkChartDrawn(b, 'B after a Q2 reload', stockB, q2Snapshot.day);
+      const aNow = await chartOf(a);
+      check(aNow !== null && Math.abs(aNow.candles - q2Restored.candles) <= 1 && q2Restored.candles >= q2Chart.candles,
+        `B's chart has both quarters again (${q2Restored.candles} candles, A has ${aNow?.candles})`);
+      check((await boardOf(b)).length === SYMBOL_COUNT, `B lists ${SYMBOL_COUNT} symbols again`);
+      await shot(b, '19-play-after-reload-q2');
 
       // Milestone 5: A plays its cards on the selected stock (cards with a direction go "up").
       const handBefore = await a.locator(tid('hand-card')).count();
@@ -1292,24 +1305,16 @@ async function main(): Promise<void> {
       const heatText = await textOf(a, 'heat');
       check(/^heat \d+$/.test(heatText), `A sees its heat: "${heatText}"`);
       await shot(a, '19-play-cards-q2');
-      // Q2 is the last quarter: nobody sees the standings until the finale.
-      check((await floor.locator(tid('floor-sealed')).count()) === 1 && (await floor.locator(tid('net-worth-chart')).count()) === 0,
-        'the projector seals the standings in the last quarter (no live net-worth chart)');
-      const rivalWorth = (await a.locator('.rival__worth').allTextContents()).join('|');
-      check(rivalWorth.includes('???') && !/\$\d/.test(rivalWorth), `A sees no rival net worth in the last quarter ("${rivalWorth}")`);
+      // Q2 is the last quarter: nobody sees the standings until the finale. (Playing the cards can take long
+      // enough for Q2's trading to end: then the finale has taken over and there is nothing to check here.)
+      if ((await phaseOf(floor)) === 'TRADING') {
+        check((await floor.locator(tid('floor-sealed')).count()) === 1 && (await floor.locator(tid('net-worth-chart')).count()) === 0,
+          'the projector seals the standings in the last quarter (no live net-worth chart)');
+        const rivalWorth = (await a.locator('.rival__worth').allTextContents()).join('|');
+        check(rivalWorth.includes('???') && !/\$\d/.test(rivalWorth), `A sees no rival net worth in the last quarter ("${rivalWorth}")`);
+      }
       await shot(floor, '19-floor-TRADING-q2');
 
-      // Refresh mid-quarter in Q2: the list and the chart history of BOTH quarters come back.
-      await b.reload();
-      await b.waitForSelector(rowOf(stockB));
-      const q2Snapshot = snapshotsOf('B').at(-1)!;
-      check(q2Snapshot.day > DAYS, `the Q2 reload got a snapshot at day ${q2Snapshot.day}`);
-      const q2Restored = await checkChartDrawn(b, 'B after a Q2 reload', stockB, q2Snapshot.day);
-      const aNow = await chartOf(a);
-      check(aNow !== null && Math.abs(aNow.candles - q2Restored.candles) <= 1 && q2Restored.candles >= q2Chart.candles,
-        `B's chart has both quarters again (${q2Restored.candles} candles, A has ${aNow?.candles})`);
-      check((await boardOf(b)).length === SYMBOL_COUNT, `B lists ${SYMBOL_COUNT} symbols again`);
-      await shot(b, '19-play-after-reload-q2');
 
       await Promise.all([waitForPhase(a, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(floor, 'FINAL', GAME_MS + WAIT_MS), waitForPhase(b, 'FINAL', GAME_MS + WAIT_MS)]);
       // The live net worth reached the last trading tick before the final standings replaced the chart.
