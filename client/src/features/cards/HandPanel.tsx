@@ -121,7 +121,13 @@ function HandCard({ card, open }: { card: Card; open: boolean }) {
           </button>
         </>
       ) : (
-        <button type="button" className="card__btn" disabled={!open || missing} onClick={() => play()} data-testid="play">
+        <button
+          type="button"
+          className={`card__btn${def.priceDirection ? ` card__btn--${def.priceDirection}` : ''}`}
+          disabled={!open || missing}
+          onClick={() => play()}
+          data-testid="play"
+        >
           Play
         </button>
       )}

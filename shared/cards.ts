@@ -210,8 +210,11 @@ export function cardPrice(config: GameConfig, entry: Pick<CardCatalogEntry, 'tie
 
 /** The public part of an entry (what goes into CardOffer / Card on the wire). */
 export function toCardDef(entry: CardCatalogEntry): CardDef {
-  const { defId, tier, name, description, legal, targetKind, needsDirection } = entry;
-  return { defId, tier, name, description, legal, targetKind, needsDirection };
+  const { defId, tier, name, description, legal, targetKind, needsDirection, effect } = entry;
+  return {
+    defId, tier, name, description, legal, targetKind, needsDirection,
+    ...(effect.kind === 'event_shock' ? { priceDirection: effect.direction } : {}),
+  };
 }
 
 /** What a card's target must be, given its effect. */

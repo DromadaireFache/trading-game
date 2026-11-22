@@ -109,15 +109,17 @@
 }
 .card__btn:hover:not(:disabled),
 .game-button:hover:not(:disabled) {
-  background: var(--tg-color-panel-raised);
+  background: var(--card-button-fill, var(--tg-color-panel-raised));
 }
 .card__btn--up {
+  --card-button-fill: var(--tg-color-up);
   color: var(--tg-color-on-up);
-  background: var(--tg-color-up);
+  background: var(--card-button-fill);
 }
 .card__btn--down {
+  --card-button-fill: var(--tg-color-down);
   color: var(--tg-color-on-down);
-  background: var(--tg-color-down);
+  background: var(--card-button-fill);
 }
 .card__btn--up:hover:not(:disabled),
 .card__btn--down:hover:not(:disabled) {

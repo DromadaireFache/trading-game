@@ -58,4 +58,12 @@ describe('card catalog', () => {
     const def = toCardDef(cards[0]!);
     expect(Object.keys(def).sort()).toEqual(['defId', 'description', 'legal', 'name', 'needsDirection', 'targetKind', 'tier']);
   });
+
+  it('publishes the fixed price direction of event cards', () => {
+    const publicCards = new Map(cards.map((card) => [card.defId, toCardDef(card)]));
+    expect(publicCards.get('jensen_special')).toMatchObject({ needsDirection: false, priceDirection: 'down' });
+    expect(publicCards.get('surprise_holiday')).toMatchObject({ needsDirection: false, priceDirection: 'up' });
+    expect(publicCards.get('planted_rumor')).toMatchObject({ needsDirection: true });
+    expect(publicCards.get('planted_rumor')).not.toHaveProperty('priceDirection');
+  });
 });

@@ -306,6 +306,8 @@ export interface CardDef {
   targetKind: 'none' | 'stock' | 'sector' | 'player';
   /** True when the player also picks up/down. */
   needsDirection: boolean;
+  /** Fixed direction of a price shock, when the card has one. */
+  priceDirection?: CardDirection;
 }
 
 /** A card for sale in the SHOP phase. Price already scaled to the buyer. */
