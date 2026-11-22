@@ -23,7 +23,7 @@ export function LobbyView() {
 
   return (
     <div className="lobby">
-      <h1 className="lobby__hero"><GameLogo /></h1>
+      <h1 className="lobby__hero"><GameLogo variant="full" /></h1>
       <Panel title="Lobby" aside={`${count}/${maxPlayers} players`} className="lobby__panel">
         <Roster lobby={lobby} meId={me?.playerId} showEmptySeats />
 
@@ -43,11 +43,7 @@ export function LobbyView() {
             <input type="checkbox" checked={debugMode} onChange={(event) => setDebugMode(event.target.checked)} />
             Debug mode (allow skipping phases)
           </label>
-          <p className="lobby__note">
-            {missing > 0
-              ? `Waiting for ${missing} more player${missing === 1 ? '' : 's'}.`
-              : 'Anyone can press Start once everybody is in.'}
-          </p>
+          {missing > 0 && <p className="lobby__note">Waiting for {missing} more player{missing === 1 ? '' : 's'}.</p>}
           <button type="button" className="btn btn--ghost" data-testid="leave-button" onClick={() => client.forget()}>
             Not {me?.name}? Change name
           </button>

@@ -687,9 +687,14 @@ ol {
    */
   grid-template-columns: 480px minmax(0, 1fr) minmax(0, 1fr) 380px;
   /* The bottom row is tall enough for several positions without scrolling. */
-  grid-template-rows: minmax(0, 1fr) minmax(190px, 26vh);
+  /*
+   * The middle row only lengthens the other players' box: it reaches up into the left column (the
+   * stock list above it is that much shorter); the chart and the side column are not affected.
+   */
+  grid-template-rows: minmax(0, 1fr) 96px minmax(190px, 26vh);
   grid-template-areas:
     'list   chart     chart     side'
+    'rivals chart     chart     side'
     'rivals positions positions news';
   gap: 8px;
   padding: 8px;
@@ -697,6 +702,7 @@ ol {
 /* RESULTS / SHOP / FINAL: one stage panel takes the place of everything but the side column. */
 .desk--stage {
   grid-template-areas:
+    'stage stage stage side'
     'stage stage stage side'
     'stage stage stage side';
 }
@@ -755,6 +761,7 @@ ol {
 }
 .desk--final:has(.desk__earnings > .earnings) {
   grid-template-areas:
+    'stage    stage    stage    side'
     'stage    stage    stage    side'
     'earnings earnings earnings side';
 }

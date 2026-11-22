@@ -1050,9 +1050,13 @@ async function main(): Promise<void> {
         `the paper lies in the tray under the cards (paper ${JSON.stringify(paperBox)}, cards ${JSON.stringify(handBox)}, tray ${JSON.stringify(trayBox)})`);
       // The bottom row starts where the cards end.
       const [positionsBox, rivalsBox] = [await a.locator('.desk__positions').boundingBox(), await a.locator('.desk__rivals').boundingBox()];
-      check(positionsBox !== null && rivalsBox !== null && Math.abs(positionsBox.y - trayBox!.y) < 1 && Math.abs(rivalsBox.y - trayBox!.y) < 1 &&
+      check(positionsBox !== null && rivalsBox !== null && Math.abs(positionsBox.y - trayBox!.y) < 1 &&
         Math.abs(handBox!.y + handBox!.height + 8 - trayBox!.y) < 1.5,
         `the bottom row lines up with the bottom of the cards (cards end ${Math.round(handBox!.y + handBox!.height)}, row starts ${Math.round(trayBox!.y)})`);
+      // The other players' box alone is taller: it starts higher, under a shorter stock list.
+      const listBox = (await a.locator('.desk__list').boundingBox())!;
+      check(rivalsBox!.y < positionsBox!.y - 50 && Math.abs(listBox.y + listBox.height + 8 - rivalsBox!.y) < 1.5,
+        `the other players' box is taller than the positions box (${Math.round(rivalsBox!.height)} vs ${Math.round(positionsBox!.height)}) and sits right under the stock list`);
       check((await style(top, 'transform')) !== 'none', 'the paper is angled');
       // Inside its column: never over the positions or the chart.
       const sideBox = trayBox!;
@@ -1222,7 +1226,7 @@ async function main(): Promise<void> {
       check(Number(await floor.locator(tid('net-worth-chart')).getAttribute('data-day')) === DAYS, 'the floor net-worth chart stays on the Q1 close during SHOP');
       await shot(floor, '14-floor-SHOP');
       await a.locator(tid('ready-up')).click();
-      await waitFor('the shop shows one player ready', async () => (await textOf(b, 'ready-count')) === '1/2 players ready');
+      await waitFor('the shop shows one player ready', async () => (await textOf(b, 'ready-count')).trim() === '1/2');
       check(await a.locator(tid('ready-up')).isDisabled(), 'A is marked ready while B is still in the shop');
       await b.locator(tid('ready-up')).click();
       await waitForPhase(a, 'BRIEFING');

@@ -576,6 +576,121 @@ span.fx-hot {
   padding: 2px 10px;
 }
 
+/* ------------------------------------------------------------------ logo */
+
+.game-logo {
+  display: inline-block;
+  line-height: 0;
+}
+.game-logo__img {
+  display: block;
+  width: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.phase-header__brand .game-logo__img {
+  height: 24px;
+}
+.floor__brand .game-logo__img {
+  height: 3.4vw;
+}
+.join-card__brand .game-logo__img,
+.lobby__hero .game-logo__img {
+  width: min(460px, 80vw);
+  height: auto;
+}
+.floor__lobby-brand .game-logo__img {
+  width: 52vw;
+  height: auto;
+}
+
+/* ------------------------------------------------------------------ ready up: one chunky Balatro button */
+
+.ready-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px 5px 14px;
+  font-family: var(--tg-font-paper);
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--tg-color-on-accent);
+  background: var(--tg-color-accent);
+  border: 2px solid var(--tg-color-card-text);
+  border-radius: 8px;
+  box-shadow: 0 4px 0 var(--tg-color-card-text);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+.ready-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px) rotate(-1deg);
+}
+.ready-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--tg-color-card-text);
+}
+/* Pressed: green, still counting the others in. */
+.ready-btn--ready,
+.ready-btn--ready:disabled {
+  color: var(--tg-color-on-up);
+  background: var(--tg-color-up);
+  cursor: default;
+  opacity: 1;
+}
+.ready-btn:disabled:not(.ready-btn--ready) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* The count of ready players sits inside the button, as a dark chip. */
+.ready-btn__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-family: var(--tg-font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--tg-color-card-face);
+  background: var(--tg-color-card-text);
+  border-radius: 5px;
+}
+
+/* ------------------------------------------------------------------ popups and sale chips */
+
+/* Every popup: the condensed industrial face with a thick ink outline, like a stamped readout. */
+.fx-popup {
+  font-family: var(--tg-font-repo);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  -webkit-text-stroke: 0;
+  text-shadow:
+    -2px -2px 0 var(--tg-color-shadow),
+    2px -2px 0 var(--tg-color-shadow),
+    -2px 2px 0 var(--tg-color-shadow),
+    2px 2px 0 var(--tg-color-shadow),
+    0 4px 0 var(--tg-color-shadow),
+    0 0 18px color-mix(in srgb, var(--fx-color) 70%, transparent);
+}
+/* Money from a trade: a tilted chip in the trade's color, Balatro score style, with the stock font. */
+.fx-popup--chip {
+  padding: 0.08em 0.45em 0.02em;
+  font-family: var(--tg-font-mono);
+  letter-spacing: -0.01em;
+  color: var(--tg-color-card-text);
+  text-shadow: none;
+  background: var(--fx-color);
+  border: 3px solid var(--tg-color-shadow);
+  border-radius: 0.25em;
+  box-shadow:
+    0 5px 0 var(--tg-color-shadow),
+    0 0 24px color-mix(in srgb, var(--fx-color) 60%, transparent);
+}
+
 /* ------------------------------------------------------------------ comfort */
 
 @media (prefers-reduced-motion: reduce) {

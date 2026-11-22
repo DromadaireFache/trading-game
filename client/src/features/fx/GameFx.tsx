@@ -117,7 +117,7 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
             return;
           }
           play('fill', msg.qty > 0 ? 1 : 0.85);
-          fx.popup({ text: `${msg.qty > 0 ? '+' : ''}${formatShares(msg.qty)} ${msg.symbol}`, tone: msg.qty > 0 ? 'up' : 'down', ...at, size: 0.8 + 0.5 * getHype() });
+          fx.popup({ text: `${msg.qty > 0 ? '▲' : '▼'} ${formatShares(Math.abs(msg.qty))} ${msg.symbol}`, tone: msg.qty > 0 ? 'up' : 'down', ...at, size: 0.8 + 0.5 * getHype(), chip: true });
           if (msg.realizedPnl !== undefined && Math.abs(msg.realizedPnl) >= 1) {
             const startingCash = client.getState().config.economy.startingCash;
             if (msg.realizedPnl > 0) combo.current++;
@@ -240,7 +240,7 @@ function celebrate(pnl: number, startingCash: number, button: ReturnType<typeof 
     // Wins also scale with how well the player is doing overall (hype.ts).
     const hype = getHype();
     if (button) popWinningButton(button, Math.min(1, strength + 0.5 * hype));
-    fx.popup({ text: `+${formatMoneyShort(pnl)}`, tone: 'up', ...at, size: 1.1 + 1.1 * strength + 0.6 * hype });
+    fx.popup({ text: `+${formatMoneyShort(pnl)}`, tone: 'up', ...at, size: 1.1 + 1.1 * strength + 0.6 * hype, chip: true });
     play('cash', 1 + 0.12 * strength + 0.08 * hype);
     fx.burst({ ...at, tone: 'accent', count: Math.round(22 + 60 * strength + 40 * hype), power: 6 + 4 * strength + 3 * hype });
     if (strength + hype > 0.9) window.setTimeout(() => fx.burst({ ...at, tone: 'up', count: Math.round(20 + 30 * hype), power: 9 }), 180);
@@ -252,7 +252,7 @@ function celebrate(pnl: number, startingCash: number, button: ReturnType<typeof 
     }
   } else {
     const at = button ? { x: button.rect.x + button.rect.width / 2, y: button.rect.y + button.rect.height / 2 } : anchorOf('[data-testid=positions]', anchorOf('.desk__positions'));
-    fx.popup({ text: `-${formatMoneyShort(-pnl)}`, tone: 'down', ...at, size: 1.1 + 1.1 * strength });
+    fx.popup({ text: `-${formatMoneyShort(-pnl)}`, tone: 'down', ...at, size: 1.1 + 1.1 * strength, chip: true });
     // A sad little puff of red: the money going away.
     fx.burst({ ...at, tone: 'down', count: Math.round(8 + 14 * strength), power: 2.5 + 2 * strength });
     play(strength >= 0.4 ? 'loss' : 'thump');

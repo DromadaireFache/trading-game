@@ -1,14 +1,14 @@
-export function GameLogo() {
+import fullLogo from '../assets/logo/oligopoly.png';
+import wordLogo from '../assets/logo/oligopoly-word.png';
+
+/**
+ * The game's logo: OLIGOPOLY spelled in green and red candlesticks. `word` is the word alone (header,
+ * projector bar); `full` adds the "THE STOCK TRADING GAME" line (join screen, lobby, projector lobby).
+ */
+export function GameLogo({ variant = 'word' }: { variant?: 'word' | 'full' }) {
   return (
-    <span className="game-logo">
-      <svg className="game-logo__mark" viewBox="0 0 40 40" aria-hidden="true">
-        <path d="M5 33.5h30" />
-        <rect x="7" y="22" width="6" height="9.5" rx="1" />
-        <rect x="17" y="15" width="6" height="16.5" rx="1" />
-        <rect x="27" y="7" width="6" height="24.5" rx="1" />
-        <path d="m8 18 9-7 7 4 9-9" />
-      </svg>
-      <span>OLIGOPOLY</span>
+    <span className={`game-logo game-logo--${variant}`}>
+      <img className="game-logo__img" src={variant === 'full' ? fullLogo : wordLogo} alt="Oligopoly" draggable={false} />
     </span>
   );
 }

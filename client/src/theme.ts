@@ -71,9 +71,10 @@ export const theme = {
   font: {
     /** The stock font: tickers, prices, money (IBM Plex Mono, bundled). */
     mono: '"IBM Plex Mono", ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, "SF Mono", Menlo, monospace',
-    sans: '"Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif',
-    /** Chunky headings and big numbers. */
-    display: '"Trebuchet MS", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif',
+    /** Body text: the paper face too, so nothing on the table falls back to a plain system font. */
+    sans: '"Bergoom", "Source Sans 3", "Segoe UI", system-ui, sans-serif',
+    /** Chunky headings and big numbers outside the stock side: the paper face, bold. */
+    display: '"Bergoom", "Source Sans 3", "Segoe UI", system-ui, sans-serif',
     /** Headlines and cards: Bergoom, an open font after the Bloomberg Terminal face (bundled). */
     paper: '"Bergoom", "Source Sans 3", "Segoe UI", system-ui, sans-serif',
     /** R.E.P.O. titles on the stock side: condensed industrial capitals (Teko, bundled). */

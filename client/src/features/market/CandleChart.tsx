@@ -136,7 +136,7 @@ export function CandleChart({ symbol, size = 'normal', className }: CandleChartP
     const update = (day: number, candle: OHLC | undefined) => {
       if (!candle) return;
       try {
-        series.update(toBar(config, day, candle));
+        series.update(toBar(config, day, candle, candleAt(market.getClosedCandles(symbol!), day - 1)?.c));
       } catch {
         // The library refuses updates older than its last bar; fall back to a full redraw.
         redraw();
@@ -158,12 +158,18 @@ export function CandleChart({ symbol, size = 'normal', className }: CandleChartP
   return <div ref={containerRef} className={`chart${className ? ` ${className}` : ''}`} data-testid="chart" />;
 }
 
-function toBar(config: GameConfig, day: number, candle: OHLC): CandlestickData<Time> {
+/**
+ * One chart bar. It opens at the previous day's close (when there is one), so a jump between days
+ * (a headline landing on the first tick, the earnings gap at an open) draws as a long body, never as
+ * an empty gap between two candles; the wick widens to keep the open inside it.
+ */
+function toBar(config: GameConfig, day: number, candle: OHLC, previousClose?: number): CandlestickData<Time> {
+  const open = previousClose ?? candle.o;
   return {
     time: dayToChartTime(config, day) as UTCTimestamp,
-    open: candle.o,
-    high: candle.h,
-    low: candle.l,
+    open,
+    high: Math.max(candle.h, open),
+    low: Math.min(candle.l, open),
     close: candle.c,
   };
 }
@@ -174,15 +180,10 @@ function buildData(market: MarketStore, config: GameConfig, symbol: SymbolId): C
   const data: CandlestickData<Time>[] = new Array(count);
   for (let day = 0; day < count; day++) {
     const i = day * CANDLE_FIELDS;
-    data[day] = {
-      time: dayToChartTime(config, day) as UTCTimestamp,
-      open: flat[i]!,
-      high: flat[i + 1]!,
-      low: flat[i + 2]!,
-      close: flat[i + 3]!,
-    };
+    const previousClose = day > 0 ? flat[i - 1]! : undefined;
+    data[day] = toBar(config, day, { o: flat[i]!, h: flat[i + 1]!, l: flat[i + 2]!, c: flat[i + 3]! }, previousClose);
   }
   const live = market.getLiveCandle(symbol);
-  if (live && live.day >= count) data.push(toBar(config, live.day, live.candle));
+  if (live && live.day >= count) data.push(toBar(config, live.day, live.candle, count > 0 ? flat[count * CANDLE_FIELDS - 1] : undefined));
   return data;
 }

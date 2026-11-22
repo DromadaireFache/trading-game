@@ -12,6 +12,7 @@ interface Popup {
   x: number;
   y: number;
   size: number;
+  chip?: boolean;
 }
 
 interface Particle {
@@ -97,7 +98,7 @@ export function FxRoot({ children }: { children: ReactNode }) {
         const half = Math.min(window.innerWidth / 2, (e.text.length * size * POPUP_FONT_PX * 0.62) / 2 + 8);
         const x = Math.min(window.innerWidth - half, Math.max(half, e.x));
         const y = Math.min(window.innerHeight - 30, Math.max(60, e.y));
-        setPopups((list) => [...list.slice(-(MAX_POPUPS - 1)), { id, text: e.text, tone: e.tone, x, y, size }]);
+        setPopups((list) => [...list.slice(-(MAX_POPUPS - 1)), { id, text: e.text, tone: e.tone, x, y, size, ...(e.chip ? { chip: true } : {}) }]);
         return;
       }
       if (e.kind === 'flash') {
@@ -205,7 +206,7 @@ export function FxRoot({ children }: { children: ReactNode }) {
         {popups.map((p) => (
           <span
             key={p.id}
-            className={`fx-popup fx-popup--${p.tone}`}
+            className={`fx-popup fx-popup--${p.tone}${p.chip ? ' fx-popup--chip' : ''}`}
             style={{ left: p.x, top: p.y, fontSize: `${(p.size * POPUP_FONT_PX).toFixed(0)}px` }}
             onAnimationEnd={() => setPopups((list) => list.filter((x) => x.id !== p.id))}
           >

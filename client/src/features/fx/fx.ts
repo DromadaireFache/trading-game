@@ -15,6 +15,8 @@ export interface PopupFx {
   y: number;
   /** 1 = normal, 2 = big. */
   size?: number;
+  /** Money from a trade: drawn as a chip (a tilted tag with an ink outline), Balatro score style. */
+  chip?: boolean;
 }
 
 export interface BurstFx {

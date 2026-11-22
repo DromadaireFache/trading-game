@@ -9,7 +9,7 @@ export function SeatTaken() {
   return (
     <main className="center-screen" data-testid="seat-taken">
       <div className="join-card" role="alert">
-        <div className="join-card__brand"><GameLogo /></div>
+        <div className="join-card__brand"><GameLogo variant="full" /></div>
         <p className="seat-taken__text">
           This seat was opened in another tab or window, so this one is disconnected. Reload to take the seat back here.
         </p>
