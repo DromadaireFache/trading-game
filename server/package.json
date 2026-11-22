@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    "./sim": "./src/sim/index.ts"
+    "./sim": "./src/sim/index.ts",
+    "./room": "./src/room.ts",
+    "./headlines": "./src/headlineBuild.ts"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",

@@ -6,12 +6,13 @@ import { Panel } from '../../components/Panel.tsx';
 import { Roster } from '../../components/Roster.tsx';
 import { PLAYER_COLOR_APPEARANCE } from '../../lib/playerColor.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
+import { onlinePageHost } from '../../net/target.ts';
 import { CreditButton } from './CreditButton.tsx';
 import { HowToPlay } from './HowToPlay.tsx';
 
 /** LOBBY phase on /play: roster and the Start button (any joined player may start). */
 export function LobbyView() {
-  const { lobby, me, connection, config, join } = useGame();
+  const { lobby, me, connection, config, join, room } = useGame();
   const client = useGameClient();
   const [debugMode, setDebugMode] = useState(false);
 
@@ -29,6 +30,12 @@ export function LobbyView() {
     <div className="lobby" data-testid="phase" data-phase="LOBBY">
       <h1 className="lobby__hero"><GameLogo /></h1>
       <Panel title="Lobby" aside={`${count}/${maxPlayers} players`} className="lobby__panel">
+        {room !== null && (
+          <div className="room-chip" data-testid="room-chip">
+            Room <span className="room-chip__code">{room}</span>
+            <span className="room-chip__link">Projector: {onlinePageHost()}/floor/{room}</span>
+          </div>
+        )}
         <Roster
           lobby={lobby}
           meId={me?.playerId}

@@ -217,3 +217,11 @@ One line per choice that DESIGN.md and the milestone briefs left open. Append, d
 ## No tooltips
 
 - Every hover tooltip (`title=` on elements) is gone from the client. Icon-only buttons keep their `aria-label`; panel headings (the `Panel` `title` prop) are not tooltips and stay.
+
+## Online play on Cloudflare (2026-11-22)
+
+- `server/src/room.ts` is the game room (sessions, lobby, clock, sim events) with no socket library: it talks to a `RoomSocket` (`readyState`, `send`, `close`). `gameServer.ts` is now only the Node/`ws` shell for the LAN game; `worker/src/room.ts` is the Durable Object shell for the online game. The wire protocol is unchanged except `welcome.room` and close codes `WS_CLOSE_NO_ROOM` (4002) and `WS_CLOSE_CODE_IN_USE` (4003).
+- Rooms are Durable Objects named by a four-character code (`shared/room.ts`: 31-letter alphabet without 0/O/1/I/L). Only a socket that connects with `create=1` makes a room; any other code gets 4002, so typos never create rooms. `create=1` on a room that exists is refused unless that room is under 15 s old and still empty (a host retrying).
+- The room lives only in memory, on plain `accept()` sockets (no hibernation, which would drop the sim), and the 10 Hz clock is `setTimeout` (alarms are billed requests). An empty room is dropped after 5 min, any room after 8 h. A redeploy or eviction ends the games running at that moment.
+- The headline catalog is bundled into the worker (`headlineBuild.ts` is the file-free half of `headlineCatalog.ts`); `headlines.claude.json` is not included. Worker bundle: about 550 KiB gzipped.
+- Client: `/play/:room?` and `/floor/:room?`. The default build offers LAN and online (a switch on the name and room screens, LAN first); the `online` build (`client/.env.online`) is online only and connects to its own origin. Session tokens are stored per room.

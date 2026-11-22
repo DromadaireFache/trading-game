@@ -1,7 +1,8 @@
 /**
  * Typed websocket client + store. One instance per page (see GameProvider).
  *
- * - Connects to the page's own origin at config.net.wsPath (Vite proxies it to the game server).
+ * - Connects to the page's own origin at config.net.wsPath (Vite proxies it to the game server), or to
+ *   `url` (the online game: a Cloudflare room, see target.ts).
  * - First frame on every socket is `join`; with a stored token it resumes the session.
  * - Reconnects forever with exponential backoff (config.net.reconnectMinMs .. reconnectMaxMs).
  * - State is exposed for React through subscribe/getState (useSyncExternalStore).
@@ -11,7 +12,7 @@
  *
  * Everything environment-specific (socket, storage, clock) is injectable so this runs in vitest.
  */
-import { defaultConfig, WS_CLOSE_KICKED, WS_CLOSE_REPLACED } from '@tg/shared';
+import { defaultConfig, WS_CLOSE_CODE_IN_USE, WS_CLOSE_KICKED, WS_CLOSE_NO_ROOM, WS_CLOSE_REPLACED } from '@tg/shared';
 import type { ClientMsg, JoinMsg, PlayerColor, Role, ServerMsg } from '@tg/shared';
 import { MarketStore } from './marketStore.ts';
 import { NetWorthStore } from './netWorthStore.ts';
@@ -33,8 +34,12 @@ export interface SocketLike {
 
 export interface GameClientOptions {
   role: Role;
-  /** Defaults to ws(s)://<page host><config.net.wsPath>. */
-  url?: string;
+  /** Defaults to ws(s)://<page host><config.net.wsPath>. A function is asked again at every (re)connect. */
+  url?: string | (() => string);
+  /** Names this client's saved session (the online game: the room code). */
+  scope?: string;
+  /** The online server refused the room: no game has that code, or the code to create is taken. No reconnect follows. */
+  onRoomError?: (kind: 'no_room' | 'code_in_use') => void;
   createSocket?: (url: string) => SocketLike;
   storage?: SessionStorageLike | null;
   now?: () => number;
@@ -55,7 +60,9 @@ export function reconnectDelayMs(attempt: number, minMs: number, maxMs: number):
 
 export class GameClient {
   readonly role: Role;
-  private readonly url: string | undefined;
+  private readonly url: string | (() => string) | undefined;
+  private readonly scope: string | undefined;
+  private readonly onRoomError: ((kind: 'no_room' | 'code_in_use') => void) | undefined;
   private readonly createSocket: (url: string) => SocketLike;
   private readonly storage: SessionStorageLike | null;
   private readonly now: () => number;
@@ -82,6 +89,8 @@ export class GameClient {
   constructor(options: GameClientOptions) {
     this.role = options.role;
     this.url = options.url;
+    this.scope = options.scope;
+    this.onRoomError = options.onRoomError;
     this.createSocket = options.createSocket ?? ((url) => new WebSocket(url) as unknown as SocketLike);
     this.storage = options.storage === undefined ? browserSessionStorage() : options.storage;
     this.now = options.now ?? (() => Date.now());
@@ -145,7 +154,7 @@ export class GameClient {
 
   /** Forget the stored session and go back to name entry (the server keeps the old seat). */
   forget(): void {
-    clearSession(this.storage, this.role);
+    clearSession(this.storage, this.role, this.scope);
     this.pendingName = null;
     this.patch({ me: null, join: 'none', error: null });
     if (this.running) {
@@ -203,7 +212,7 @@ export class GameClient {
   private open(): void {
     let socket: SocketLike;
     try {
-      socket = this.createSocket(this.url ?? defaultWsUrl());
+      socket = this.createSocket(typeof this.url === 'function' ? this.url() : (this.url ?? defaultWsUrl()));
     } catch {
       this.scheduleReconnect();
       return;
@@ -232,6 +241,13 @@ export class GameClient {
       if (code === WS_CLOSE_KICKED) {
         this.forget();
         this.patch({ error: { code: 'not_allowed', message: 'The lobby host removed you.', at: this.now() } });
+        return;
+      }
+      if (code === WS_CLOSE_NO_ROOM || code === WS_CLOSE_CODE_IN_USE) {
+        // The online server refused this room code; trying again would get the same answer.
+        this.running = false;
+        this.patch({ connection: 'closed', join: 'none' });
+        this.onRoomError?.(code === WS_CLOSE_NO_ROOM ? 'no_room' : 'code_in_use');
         return;
       }
       if (code === WS_CLOSE_REPLACED) {
@@ -279,7 +295,7 @@ export class GameClient {
 
   /** Sends `join` if there is something to join with: a stored token, a typed name, or the spectator role. */
   private sendJoin(): void {
-    const session = loadSession(this.storage, this.role);
+    const session = loadSession(this.storage, this.role, this.scope);
     const name = this.pendingName ?? session?.name ?? undefined;
     if (!session && this.role === 'player' && !this.pendingName) {
       // Nothing to join with yet: wait for name entry.
@@ -307,7 +323,7 @@ export class GameClient {
 
     if (msg.t === 'welcome') {
       this.pendingName = null;
-      saveSession(this.storage, this.role, { token: msg.token, name: msg.name });
+      saveSession(this.storage, this.role, { token: msg.token, name: msg.name }, this.scope);
       this.market.setConfig(msg.config);
     } else if (msg.t === 'market' || msg.t === 'tick' || msg.t === 'candle') {
       this.market.apply(msg);
@@ -324,7 +340,7 @@ export class GameClient {
     if (msg.t === 'error' && wasJoining) {
       // The join failed. Whatever we joined with is no good: drop it and fall back to a clean slate.
       const hadToken = this.joinUsedToken;
-      clearSession(this.storage, this.role);
+      clearSession(this.storage, this.role, this.scope);
       this.pendingName = null;
       this.joinUsedToken = false;
       next = { ...next, join: 'none', me: null };

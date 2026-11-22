@@ -1,0 +1,45 @@
+.room-input {
+  font-family: var(--tg-font-display);
+  font-size: 34px;
+  font-weight: 900;
+  letter-spacing: 0.4em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.room-hint {
+  color: var(--tg-color-text-dim);
+  font-size: 12px;
+}
+.room-notice {
+  margin: 0;
+  color: var(--tg-color-text);
+  line-height: 1.4;
+}
+.room-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 14px;
+  border: 2px solid var(--tg-color-border-strong);
+  border-radius: 10px;
+  background: var(--tg-color-bg-inset);
+  color: var(--tg-color-text-dim);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.room-chip__code {
+  font-family: var(--tg-font-display);
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  color: var(--tg-color-accent);
+}
+.room-chip__link {
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.mode-switch {
+  align-self: center;
+}

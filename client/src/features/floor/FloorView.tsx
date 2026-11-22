@@ -8,6 +8,7 @@ import { useCountdown } from '../../hooks/useCountdown.ts';
 import { PHASE_LABEL } from '../../lib/phases.ts';
 import { formatQuarter } from '../../lib/time.ts';
 import { useGame } from '../../net/GameProvider.tsx';
+import { onlinePageHost } from '../../net/target.ts';
 import { Finale } from '../finale/Finale.tsx';
 import { FloorResults, MomentBanner, useVisibleMoment } from '../results/FloorResults.tsx';
 import { SoundToggle } from '../fx/SoundToggle.tsx';
@@ -22,7 +23,7 @@ import { NetWorthChart, NetWorthStandings } from './NetWorthChart.tsx';
  * full-screen BREAKING banner over everything (MomentBanner).
  */
 export function FloorView() {
-  const { phase, lobby, config, joinUrls, replaced } = useGame();
+  const { phase, lobby, config, joinUrls, replaced, room } = useGame();
   const countdown = useCountdown();
   const moment = useVisibleMoment();
   const current = phase?.phase ?? 'LOBBY';
@@ -68,7 +69,11 @@ export function FloorView() {
         </div>
         {current === 'LOBBY' && (
           <div className="floor__hint">
-            Join at <span className="floor__url">{playUrl}</span>
+            {room === null ? (
+              <>Join at <span className="floor__url">{playUrl}</span></>
+            ) : (
+              <>Join at <span className="floor__url">{onlinePageHost()}/play</span> with code <span className="floor__url" data-testid="floor-room">{room}</span></>
+            )}
           </div>
         )}
         <div className="floor__progress" aria-hidden="true">

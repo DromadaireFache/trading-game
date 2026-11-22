@@ -1,0 +1,23 @@
+{
+  // Online game on Cloudflare's free plan: one Worker, one Durable Object per room code.
+  // The page is the built client (static assets, free and unlimited); only /ws runs the Worker.
+  // The Worker lives at https://oligopoly.<your workers.dev subdomain>.workers.dev
+  "name": "oligopoly",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "../client/dist",
+    "binding": "ASSETS",
+    // /play/ABCD and /floor/ABCD are client routes: serve index.html for them.
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/ws", "/health"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "ROOMS", "class_name": "Room" }]
+  },
+  "migrations": [
+    // SQLite-backed, as the free plan requires. A room keeps its game in memory only.
+    { "tag": "v1", "new_sqlite_classes": ["Room"] }
+  ],
+  "observability": { "enabled": false }
+}

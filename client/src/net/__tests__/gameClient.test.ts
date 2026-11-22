@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultConfig, WS_CLOSE_KICKED, WS_CLOSE_REPLACED } from '@tg/shared';
+import { defaultConfig, WS_CLOSE_CODE_IN_USE, WS_CLOSE_KICKED, WS_CLOSE_NO_ROOM, WS_CLOSE_REPLACED } from '@tg/shared';
 import type { ClientMsg, LobbyState, PhaseInfo, ServerMsg, WelcomeMsg } from '@tg/shared';
 import { GameClient, reconnectDelayMs } from '../gameClient.ts';
 import type { SocketLike } from '../gameClient.ts';
@@ -101,6 +101,41 @@ describe('GameClient', () => {
     expect(last().sent).toEqual([]);
     client.join('Ann');
     expect(last().sent).toEqual([{ t: 'join', role: 'player', name: 'Ann' }]);
+  });
+
+  it('does not reconnect after the online server refuses the room, and says why', () => {
+    for (const [code, kind] of [[WS_CLOSE_NO_ROOM, 'no_room'], [WS_CLOSE_CODE_IN_USE, 'code_in_use']] as const) {
+      const kinds: string[] = [];
+      const sockets: FakeSocket[] = [];
+      const client = new GameClient({
+        role: 'player', url: () => 'ws://test/ws?room=ABCD', scope: 'ABCD', storage: memoryStorage(), onRoomError: (k) => kinds.push(k),
+        createSocket: () => { const sock = new FakeSocket(); sockets.push(sock); return sock; },
+      });
+      client.start();
+      sockets[0]!.open();
+      sockets[0]!.onclose?.({ code });
+      expect(kinds).toEqual([kind]);
+      expect(client.getState().connection).toBe('closed');
+      vi.advanceTimersByTime(60_000);
+      expect(sockets).toHaveLength(1);
+    }
+  });
+
+  it('keeps the session token of a room apart from the LAN one', () => {
+    const storage = memoryStorage();
+    const { client, last } = setup('player', storage);
+    client.start();
+    last().open();
+    client.join('Ann');
+    last().receive(welcome());
+    expect([...storage.data.keys()]).toEqual(['tg.session.player']);
+
+    const online = new GameClient({ role: 'player', url: 'ws://test/ws?room=ABCD', scope: 'ABCD', storage, createSocket: () => new FakeSocket() });
+    expect(online.getState().me).toBeNull();
+    online.start();
+    online.join('Bob');
+    // (nothing stored for the room until a welcome arrives)
+    expect([...storage.data.keys()]).toEqual(['tg.session.player']);
   });
 
   it('blocks repeated jailed orders immediately and restores server pending status', () => {

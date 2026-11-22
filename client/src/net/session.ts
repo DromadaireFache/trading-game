@@ -1,6 +1,7 @@
 /**
  * Reconnect session, kept in sessionStorage: per TAB, so two windows of one browser are two players.
- * One entry per role, so /play and /floor in the same tab do not overwrite each other.
+ * One entry per role, so /play and /floor in the same tab do not overwrite each other, and one per
+ * room in the online game (`scope` = the room code), so a token never goes to another room.
  */
 import type { Role } from '@tg/shared';
 
@@ -17,12 +18,12 @@ export interface SessionStorageLike {
   removeItem(key: string): void;
 }
 
-const key = (role: Role) => `tg.session.${role}`;
+const key = (role: Role, scope?: string) => (scope === undefined ? `tg.session.${role}` : `tg.session.${role}.${scope}`);
 
-export function loadSession(storage: SessionStorageLike | null, role: Role): Session | null {
+export function loadSession(storage: SessionStorageLike | null, role: Role, scope?: string): Session | null {
   if (!storage) return null;
   try {
-    const raw = storage.getItem(key(role));
+    const raw = storage.getItem(key(role, scope));
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== 'object' || parsed === null) return null;
@@ -34,17 +35,17 @@ export function loadSession(storage: SessionStorageLike | null, role: Role): Ses
   }
 }
 
-export function saveSession(storage: SessionStorageLike | null, role: Role, session: Session): void {
+export function saveSession(storage: SessionStorageLike | null, role: Role, session: Session, scope?: string): void {
   try {
-    storage?.setItem(key(role), JSON.stringify(session));
+    storage?.setItem(key(role, scope), JSON.stringify(session));
   } catch {
     // Storage full or blocked: play on without reconnect support.
   }
 }
 
-export function clearSession(storage: SessionStorageLike | null, role: Role): void {
+export function clearSession(storage: SessionStorageLike | null, role: Role, scope?: string): void {
   try {
-    storage?.removeItem(key(role));
+    storage?.removeItem(key(role, scope));
   } catch {
     // ignore
   }

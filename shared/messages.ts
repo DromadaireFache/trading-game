@@ -191,6 +191,8 @@ export interface WelcomeMsg {
    * means "play again" started a new game: drop everything from the old one.
    */
   game?: number;
+  /** The room code of an online game (absent on the LAN server). */
+  room?: string;
 }
 
 export interface LobbyState {
@@ -419,6 +421,10 @@ export interface MomentMsg {
 export const WS_CLOSE_REPLACED = 4000;
 /** The lobby host removed this player. Clear the seat token before reconnecting. */
 export const WS_CLOSE_KICKED = 4001;
+/** Online game: no room has this code (or it ended). Do not reconnect; ask for another code. */
+export const WS_CLOSE_NO_ROOM = 4002;
+/** Online game: a room with this code already exists, so it cannot be created. Pick another code. */
+export const WS_CLOSE_CODE_IN_USE = 4003;
 
 export const ERROR_CODES = [
   'bad_message', // not JSON, unknown `t`, wrong field types, too large

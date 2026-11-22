@@ -41,6 +41,23 @@ The server prints where to connect:
   a seat nobody is connected to goes back to whoever asks for it by name.
 - A new game needs a server restart (stop `npm run play` and start it again), or press Play again at the end.
 
+## Online play (Cloudflare, free plan)
+
+The same game also runs on the internet: players type a four-character room code instead of joining a LAN
+host. `worker/` is a Cloudflare Worker with one Durable Object per room (the same room code as the LAN server,
+`server/src/room.ts`); the web client is served from the Worker's static assets.
+
+- **Host** (`/play`, "Host a new game") makes a random code like `K7QX`. Others type it on the same page, or open
+  `/play/K7QX`. The projector opens `/floor/K7QX`. The lobby shows both.
+- A room lives only in memory: it is dropped 5 minutes after the last person leaves, and after 8 hours at most.
+- `npm run online:dev` builds the online client and runs the Worker locally on http://localhost:8787.
+- `npm run online:deploy` typechecks, builds the online client (`vite build --mode online`) and deploys. First time,
+  run `npx wrangler login` once. The game is then at https://oligopoly.julienyang12.workers.dev/play.
+- The normal `npm run play` build keeps working on the LAN and has a "Play online" / "Use the LAN instead" switch
+  (the online game it connects to is `VITE_ONLINE_HOST`, default `oligopoly.julienyang12.workers.dev`).
+- Free plan: static pages are free; only the websocket runs the Worker. Outgoing messages are free and incoming
+  ones count 20:1 against 100,000 requests a day, so a 16-player game costs a few hundred.
+
 ## Scripts
 
 | Command | What it does |
@@ -51,6 +68,7 @@ The server prints where to connect:
 | `npm test` | vitest unit tests (sim incl. market statistics, server shell, client stores, config) |
 | `npm run e2e` | Starts server + Vite on free random ports with short phases, drives two players and the projector in a headless browser through a 2-quarter game (about 90 s), writes screenshots to `.e2e/` |
 | `npm run build` | Typecheck + production build of the client |
+| `npm run online:dev` / `online:deploy` | Run the Cloudflare Worker locally / deploy it (see Online play) |
 
 `npm run e2e` uses the installed Microsoft Edge (or Chrome) through `playwright-core`; nothing is downloaded.
 `TG_E2E_HEADED=1` shows the browser windows.

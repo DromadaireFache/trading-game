@@ -4,12 +4,14 @@ import { ConnectionBadge } from '../../components/ConnectionBadge.tsx';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { GameLogo } from '../../components/GameLogo.tsx';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
+import { useNetTarget } from '../../net/NetTarget.tsx';
 import { CreditButton } from './CreditButton.tsx';
 
 /** Name entry: the first screen of /play. */
 export function JoinForm() {
   const { config, join, connection } = useGame();
   const client = useGameClient();
+  const target = useNetTarget();
   const [name, setName] = useState('');
 
   const trimmed = name.trim();
@@ -47,6 +49,18 @@ export function JoinForm() {
         </button>
 
         <ErrorBanner />
+
+        {target.room !== null && (
+          <div className="room-chip" data-testid="room-chip">
+            Room <span className="room-chip__code">{target.room}</span>
+            <button type="button" className="btn btn--ghost" data-testid="room-leave" onClick={target.leaveRoom}>Change room</button>
+          </div>
+        )}
+        {target.mode === 'lan' && target.canSwitch && (
+          <button type="button" className="btn btn--ghost mode-switch" data-testid="mode-online" onClick={() => target.setMode('online')}>
+            Playing over the internet? Play online
+          </button>
+        )}
 
         <div className="join-card__foot">
           <CreditButton />

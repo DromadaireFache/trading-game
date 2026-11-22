@@ -62,6 +62,8 @@ export interface GameState {
   lobby: LobbyState | null;
   /** The host's LAN `/play` URLs, from `welcome`. */
   joinUrls: string[];
+  /** The room code of an online game, from `welcome` (null on the LAN server). */
+  room: string | null;
   /** serverTime - clientTime in ms. Server "now" = Date.now() + clockOffsetMs. */
   clockOffsetMs: number;
   error: GameError | null;
@@ -117,6 +119,7 @@ export const initialGameState: GameState = {
   phase: null,
   lobby: null,
   joinUrls: [],
+  room: null,
   clockOffsetMs: 0,
   error: null,
   replaced: false,
@@ -156,6 +159,7 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
         phase: msg.phase,
         lobby: msg.lobby,
         joinUrls: Array.isArray(msg.joinUrls) ? msg.joinUrls : [],
+        room: typeof msg.room === 'string' ? msg.room : null,
         clockOffsetMs: msg.phase.serverTime - now,
         shop: [],
         readyPlayerIds: [],

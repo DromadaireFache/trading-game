@@ -10,6 +10,7 @@
     "shared",
     "server",
     "client",
+    "worker",
     "tools"
   ],
   "scripts": {
@@ -23,7 +24,9 @@
     "generate-headlines:claude": "tsx tools/generate-headlines/claude.ts",
     "build": "npm run typecheck && npm run build -w @tg/client",
     "e2e": "npm run e2e -w @tg/tools",
-    "balance": "npm run balance -w @tg/tools --"
+    "balance": "npm run balance -w @tg/tools --",
+    "online:dev": "npm run build:online -w @tg/client && npm run dev -w @tg/worker",
+    "online:deploy": "npm run typecheck && npm run build:online -w @tg/client && npm run deploy -w @tg/worker"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

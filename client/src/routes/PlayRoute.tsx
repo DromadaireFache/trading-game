@@ -19,19 +19,20 @@ import { FxRoot } from '../features/fx/FxLayer.tsx';
 import { GameFx } from '../features/fx/GameFx.tsx';
 import { HypeMeter } from '../features/fx/hype.ts';
 import { ChallengeModal } from '../features/mayhem/ChallengeModal.tsx';
-import { GameProvider, useGame } from '../net/GameProvider.tsx';
+import { useGame } from '../net/GameProvider.tsx';
+import { ConnectGate } from './ConnectGate.tsx';
 
 /** /play: the player's laptop view. */
 export function PlayRoute() {
   return (
-    <GameProvider role="player">
+    <ConnectGate role="player" path="/play">
       <FxRoot>
         <PlayScreen />
         <GameFx role="player" />
         <HypeMeter />
         <ChallengeModal />
       </FxRoot>
-    </GameProvider>
+    </ConnectGate>
   );
 }
 
