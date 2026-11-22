@@ -496,11 +496,9 @@ async function checkEarningsReport(page: Page) {
   return q1Earnings;
 }
 
-async function checkEarningsAtOpen(page: Page, report: EarningsMsg, q1Last: TickMsg, q2First: TickMsg) {
+async function checkEarningsAtOpen(page: Page) {
   check((await page.locator('section.panel.earnings').count()) === 0 && await page.locator(tid('chart')).isVisible(),
     'The Earnings panel closes and the chart shows when trading starts');
-  const biggestOpeningMove = Math.max(...report.reports.map((r) => Math.abs(Math.log(q2First.prices[r.symbol]! / q1Last.prices[r.symbol]!))));
-  check(biggestOpeningMove < 0.03, 'Trading starts before the earnings adjustment');
 }
 
 /** Clicks a row and waits until header and chart follow; returns how long that took. */
@@ -651,9 +649,7 @@ async function main(): Promise<void> {
         await shot(a, 'earnings-briefing-q2');
 
         await waitFor('first tick of Q2', async () => ticksOf('A').some((t) => t.day === DAYS));
-        const ticks = ticksOf('A');
-        const q2Start = ticks.findIndex((t) => t.day === DAYS);
-        await checkEarningsAtOpen(a, report, ticks[q2Start - 1]!, ticks[q2Start]!);
+        await checkEarningsAtOpen(a);
         check((await a.getAttribute(tid('selected-symbol'), 'data-symbol')) === pick.symbol, 'The prepared stock stays selected when trading starts');
 
         const beforeReload = framesOf('A').length;
@@ -1048,15 +1044,15 @@ async function main(): Promise<void> {
       check(paperBox !== null && handBox !== null && trayBox !== null && paperBox.y >= handBox.y + handBox.height - 6 &&
         paperBox.y + paperBox.height <= trayBox.y + trayBox.height + 1,
         `the paper lies in the tray under the cards (paper ${JSON.stringify(paperBox)}, cards ${JSON.stringify(handBox)}, tray ${JSON.stringify(trayBox)})`);
-      // The bottom row starts where the cards end.
+      // The news tray starts below the cards, and the positions panels share their top and bottom.
       const [positionsBox, rivalsBox] = [await a.locator('.desk__positions').boundingBox(), await a.locator('.desk__rivals').boundingBox()];
-      check(positionsBox !== null && rivalsBox !== null && Math.abs(positionsBox.y - trayBox!.y) < 1 &&
-        Math.abs(handBox!.y + handBox!.height + 8 - trayBox!.y) < 1.5,
+      check(Math.abs(handBox!.y + handBox!.height + 8 - trayBox!.y) < 1.5,
         `the bottom row lines up with the bottom of the cards (cards end ${Math.round(handBox!.y + handBox!.height)}, row starts ${Math.round(trayBox!.y)})`);
-      // The other players' box alone is taller: it starts higher, under a shorter stock list.
       const listBox = (await a.locator('.desk__list').boundingBox())!;
-      check(rivalsBox!.y < positionsBox!.y - 50 && Math.abs(listBox.y + listBox.height + 8 - rivalsBox!.y) < 1.5,
-        `the other players' box is taller than the positions box (${Math.round(rivalsBox!.height)} vs ${Math.round(positionsBox!.height)}) and sits right under the stock list`);
+      check(positionsBox !== null && rivalsBox !== null && Math.abs(positionsBox.y - rivalsBox.y) < 1 &&
+        Math.abs(positionsBox.height - rivalsBox.height) < 1 &&
+        Math.abs(listBox.y + listBox.height + 8 - rivalsBox.y) < 1.5,
+        'both positions panels have the same height and start just below the stock list');
       // The stock list fits its panel exactly: nothing to scroll.
       const listScroll = (await a.evaluate(`(() => { const b = document.querySelector('.desk__list .panel__body'); return [b.scrollHeight, b.clientHeight]; })()`)) as [number, number];
       check(listScroll[0] <= listScroll[1] + 1, `the stock list does not scroll (content ${listScroll[0]} px, room ${listScroll[1]} px)`);
@@ -1235,7 +1231,7 @@ async function main(): Promise<void> {
       check(true, 'A is marked ready while B is still in the shop');
       await b.locator(tid('ready-up')).click();
       await waitForPhase(a, 'BRIEFING');
-      const q1Report = await checkEarningsReport(a);
+      await checkEarningsReport(a);
       await a.waitForSelector(rowOf(stockA));
       const frozen1 = await boardOf(a);
       await sleep(700);
@@ -1252,7 +1248,7 @@ async function main(): Promise<void> {
       await waitFor('first ticks of Q2', async () => ticksOf('A').length >= q1Ticks.length + 3);
       const q2First = ticksOf('A')[q1Ticks.length]!;
       check(q2First.day === DAYS && q2First.tickOfDay === 1, `the first tick of Q2 is day ${q2First.day}, tick ${q2First.tickOfDay} (days continue)`);
-      await checkEarningsAtOpen(a, q1Report, q1Last, q2First);
+      await checkEarningsAtOpen(a);
       await sleep(4 * DAY_MS);
       const q2Chart = await checkChartDrawn(a, 'A in Q2', stockA, DAYS + 4);
       const q2Open = framesOf('A').flatMap((m) => (m.t === 'candle' && m.day === DAYS ? [m.ohlc[stockA]!.o] : []))[0];

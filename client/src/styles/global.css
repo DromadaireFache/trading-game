@@ -658,21 +658,12 @@ ol {
   flex: 1;
   min-height: 0;
   display: grid;
-  /*
-   * Top: list | chart | side (bets, money, cards). Bottom, one row whose top lines up with the bottom of
-   * the cards: the others' positions | yours | the headline tray (bottom right, where papers land).
-   */
   grid-template-columns: 480px minmax(0, 1fr) minmax(0, 1fr) 380px;
-  /* The bottom row is tall enough for several positions without scrolling. */
-  /*
-   * The first row is exactly as tall as the stock list needs (it never scrolls). The middle row, the
-   * rest of the height, only lengthens the other players' box up into the left column; the chart and
-   * the side column span both rows and do not affect their sizes.
-   */
+  /* The first row fits the stock list. Both positions panels span the middle and bottom rows. */
   grid-template-rows: auto minmax(0, 1fr) minmax(190px, 26vh);
   grid-template-areas:
     'list   chart     chart     side'
-    'rivals chart     chart     side'
+    'rivals positions positions side'
     'rivals positions positions news';
   gap: 8px;
   padding: 8px;
