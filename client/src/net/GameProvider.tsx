@@ -32,6 +32,12 @@ export function useGame(): GameState {
   return useSyncExternalStore(client.subscribe, client.getState);
 }
 
+/** Every player's holdings; re-renders only when someone's holdings change. */
+export function useHoldings() {
+  const client = useGameClient();
+  return useSyncExternalStore(client.holdings.subscribe, client.holdings.get);
+}
+
 /** Subscribe to raw server messages without re-rendering (charts, sound effects, flashes). */
 export function useServerMessages(handler: (msg: ServerMsg) => void): void {
   const client = useGameClient();

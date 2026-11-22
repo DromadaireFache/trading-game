@@ -331,8 +331,13 @@ export interface GameConfig {
     fineShareOfNetWorth: number;
     /** Jail length in quarters (of trading days), counted from the next quarter's open. */
     jailQuarters: number;
-    /** In jail: no cards (playing or buying), and every order fills this long after it was sent. */
+    /** In jail every order fills this long after it was sent. */
     jailOrderDelayMs: number;
+    /**
+     * In jail a player holds at most this many cards (the rest are taken at the arrest) and can buy
+     * only up to it; the card held can still be played.
+     */
+    jailHandLimit: number;
     /** Heat multiplier applied at the end of each quarter when not caught. */
     heatDecayPerQuarter: number;
     /**
@@ -560,6 +565,7 @@ export const defaultConfig: GameConfig = {
     fineShareOfNetWorth: 0.1,
     jailQuarters: 1,
     jailOrderDelayMs: 3_000,
+    jailHandLimit: 1,
     heatDecayPerQuarter: 0.5,
     legalHeatShare: 0.4,
   },

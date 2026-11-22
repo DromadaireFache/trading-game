@@ -27,6 +27,20 @@ export function useQuote(symbol: SymbolId | null): Quote | undefined {
   return useSyncExternalStore(subscribe, () => (symbol === null ? undefined : market.getQuote(symbol)));
 }
 
+/**
+ * A value derived from one symbol's quote (a formatted string, a sign...). Re-renders only when the
+ * derived value changes, not on every tick: use it where a row shows a rounded number. `select` must
+ * return a primitive (compared with Object.is).
+ */
+export function useQuoteValue<T extends string | number | boolean | undefined>(symbol: SymbolId | null, select: (quote: Quote | undefined) => T): T {
+  const market = useMarketStore();
+  const subscribe = useCallback(
+    (listener: () => void) => (symbol === null ? () => {} : market.subscribeSymbol(symbol, listener)),
+    [market, symbol],
+  );
+  return useSyncExternalStore(subscribe, () => select(symbol === null ? undefined : market.getQuote(symbol)));
+}
+
 /** The latest trading day with data (-1 before the first tick); re-renders once per day, not per tick. */
 export function useLastDay(): number {
   const market = useMarketStore();

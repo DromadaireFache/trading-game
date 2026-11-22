@@ -33,6 +33,16 @@ const POPUP_FONT_PX = 22;
 const MAX_PARTICLES = 400;
 const GRAVITY = 0.35;
 
+/** A full-screen overlay element that plays one animation in the effects layer, then removes itself. */
+function overlay(layer: HTMLElement | null | undefined, className: string, keyframes: Keyframe[], duration: number): void {
+  if (!layer) return;
+  const node = document.createElement('div');
+  node.className = className;
+  layer.append(node);
+  const animation = node.animate(keyframes, { duration, easing: 'ease-out' });
+  animation.onfinish = animation.oncancel = () => node.remove();
+}
+
 /**
  * Wraps a page (/play or /floor) and draws the effects asked for through fx.ts: screen shake on the
  * wrapper, floating popups as DOM, particles on one full-screen canvas. The canvas only animates
@@ -110,27 +120,33 @@ export function FxRoot({ children }: { children: ReactNode }) {
       if (e.kind === 'chroma' || e.kind === 'punch') {
         const el = rootRef.current?.firstElementChild as HTMLElement | null | undefined;
         if (!el) return;
+        // Never a `filter` on the page itself: that repaints the whole desk every frame. Overlays and
+        // a transform only, which the compositor handles on its own.
+        const layer = rootRef.current?.querySelector<HTMLElement>('.fx-layer');
         if (e.kind === 'chroma') {
-          const d = 2 + 5 * e.strength;
-          el.animate(
-            [
-              { filter: `drop-shadow(${d}px 0 0 rgb(255 40 80 / 0.75)) drop-shadow(${-d}px 0 0 rgb(40 220 255 / 0.75))` },
-              { filter: `drop-shadow(${-d / 2}px 0 0 rgb(255 40 80 / 0.5)) drop-shadow(${d / 2}px 0 0 rgb(40 220 255 / 0.5))`, offset: 0.5 },
-              { filter: 'none' },
-            ],
-            { duration: 220 + 180 * e.strength, easing: 'ease-out' },
-          );
+          // Red and cyan fringes at the edges that jitter sideways, like a split image.
+          const d = 3 + 6 * e.strength;
+          overlay(layer, 'fx-chroma', [
+            { opacity: 0.9, transform: `translateX(${d}px)` },
+            { opacity: 0.7, transform: `translateX(${-d}px)`, offset: 0.35 },
+            { opacity: 0, transform: 'translateX(0)' },
+          ], 220 + 180 * e.strength);
         } else {
-          // Freeze (no change for the first part), then a zoom punch that settles.
+          // Freeze for a beat under a white flash, then a zoom punch that settles.
           const hold = 70 + 90 * e.strength;
           const total = hold + 320;
           const at = hold / total;
+          overlay(layer, 'fx-whiteout', [
+            { opacity: 0.35 * e.strength },
+            { opacity: 0.35 * e.strength, offset: at },
+            { opacity: 0 },
+          ], total);
           el.animate(
             [
-              { scale: '1', filter: 'brightness(1.6) saturate(1.4)' },
-              { scale: '1', filter: 'brightness(1.6) saturate(1.4)', offset: at },
-              { scale: String(1 + 0.025 * e.strength), filter: 'brightness(1.15)', offset: at + (1 - at) * 0.3 },
-              { scale: '1', filter: 'none' },
+              { scale: '1' },
+              { scale: '1', offset: at },
+              { scale: String(1 + 0.025 * e.strength), offset: at + (1 - at) * 0.3 },
+              { scale: '1' },
             ],
             { duration: total, easing: 'cubic-bezier(0.2, 1.4, 0.4, 1)' },
           );

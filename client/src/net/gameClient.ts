@@ -17,6 +17,7 @@ import { MarketStore } from './marketStore.ts';
 import { NetWorthStore } from './netWorthStore.ts';
 import { browserSessionStorage, clearSession, loadSession, saveSession } from './session.ts';
 import type { SessionStorageLike } from './session.ts';
+import { HoldingsStore } from './holdingsStore.ts';
 import { applyServerMsg, initialGameState, parseServerMsg } from './state.ts';
 import type { GameState } from './state.ts';
 
@@ -61,6 +62,8 @@ export class GameClient {
   /** Universe, prices and candles; fed by `market`, `tick` and `candle` messages. */
   readonly market: MarketStore;
   readonly netWorth = new NetWorthStore();
+  /** Every player's holdings (not in GameState: see HoldingsStore). */
+  readonly holdings = new HoldingsStore();
 
   private state: GameState = initialGameState;
   private readonly stateListeners = new Set<() => void>();
@@ -304,7 +307,11 @@ export class GameClient {
       this.market.apply(msg);
     } else if (msg.t === 'net_worth') {
       this.netWorth.apply(msg);
+    } else if (msg.t === 'holdings') {
+      this.holdings.apply(msg);
     }
+    // Another game (play again): drop the old game's holdings.
+    if (msg.t === 'welcome' && this.state.game !== 0 && (msg.game ?? 1) !== this.state.game) this.holdings.reset();
 
     let next = applyServerMsg(this.state, msg, this.now());
 

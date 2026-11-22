@@ -1,9 +1,10 @@
 import { SECTOR_LABELS, dayOfQuarter, dayToQuarter } from '@tg/shared';
 import type { Card, CardDirection, Sector } from '@tg/shared';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
-import { useGame, useGameClient } from '../../net/GameProvider.tsx';
+import { useGame, useGameClient, useHoldings } from '../../net/GameProvider.tsx';
 import { useLastDay, useMarketStore, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
+import { SecMeter } from './SecMeter.tsx';
 import { CardFace } from './CardFace.tsx';
 import './cards.css';
 
@@ -28,26 +29,18 @@ export function HandPanel({ className }: { className?: string }) {
 
   const { hand = [], heat, jailedUntil, eliminated } = live.portfolio;
   const jailed = jailedUntil !== undefined && Math.max(0, lastDay) < jailedUntil;
-  const open = phase?.phase === 'TRADING' && !jailed && !eliminated;
-  // High = a 30%+ chance of being caught at the end of the quarter (before the rank multiplier).
-  const heatLevel = heat * config.sec.catchProbabilityPerHeat >= 0.3 ? 'high' : heat > 0 ? 'some' : 'none';
+  // In jail the one card held can still be played.
+  const open = phase?.phase === 'TRADING' && !eliminated;
 
   return (
     <Panel
       title="Your cards"
-      aside={
-        <span title="Heat comes from illegal cards and from cards played on a stock you hold yourself (legal cards bring less). Only a quarter in which you play an illegal card can end in jail: then the more heat (and the richer you are), the likelier the SEC fines and jails you.">
-          SEC{' '}
-          <span className={`hand__heat hand__heat--${heatLevel}`} data-testid="heat">
-            heat {Math.round(heat)}
-          </span>
-        </span>
-      }
+      aside={<SecMeter heat={heat} equity={live.equity} />}
       className={`hand${className ? ` ${className}` : ''}`}
     >
       {jailed && (
         <div className="hand__jail" data-testid="jailed">
-          IN JAIL {jailedUntil! >= config.time.quarters * config.time.daysPerQuarter ? 'for the rest of the game' : `until Q${dayToQuarter(config, jailedUntil!)} day ${dayOfQuarter(config, jailedUntil!)}`}: no cards, and your orders go through {config.sec.jailOrderDelayMs / 1000}s late.
+          IN JAIL {jailedUntil! >= config.time.quarters * config.time.daysPerQuarter ? 'for the rest of the game' : `until Q${dayToQuarter(config, jailedUntil!)} day ${dayOfQuarter(config, jailedUntil!)}`}: {config.sec.jailHandLimit} card max, orders {config.sec.jailOrderDelayMs / 1000}s late.
         </div>
       )}
       <div className="hand__list" data-testid="hand">
@@ -85,7 +78,8 @@ function HandCard({ card, open }: { card: Card; open: boolean }) {
     }
   }
   // A card aimed at a player: one button per rival still in the game.
-  const { lobby, me, holdings } = useGame();
+  const { lobby, me } = useGame();
+  const holdings = useHoldings();
   const rivals = (lobby?.players ?? []).filter((p) => p.id !== me?.playerId && holdings[p.id]?.eliminated !== true);
   if (def.targetKind === 'player') {
     const whyRival = !open ? 'Cards can be played while the market is open' : rivals.length === 0 ? 'Nobody left to aim at' : undefined;

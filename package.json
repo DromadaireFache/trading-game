@@ -14,6 +14,7 @@
   ],
   "scripts": {
     "dev": "concurrently -k -n server,client -c cyan,magenta \"npm run dev -w @tg/server\" \"npm run dev -w @tg/client\"",
+    "play": "npm run build -w @tg/client && concurrently -k -n server,client -c cyan,magenta \"npm run start -w @tg/server\" \"npm run preview -w @tg/client\"",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "node tools/vitest.mjs run",
     "test:watch": "node tools/vitest.mjs",

@@ -100,7 +100,7 @@ export interface SecTipOffEffect {
 
 /**
  * Mayhem: freezes a player (`target`) or every other player (`others`): their orders are refused for
- * `share` of the game's total trading time.
+ * `share` of a quarter's trading time (never past the quarter's close).
  */
 export interface FreezeEffect {
   kind: 'freeze';
@@ -129,7 +129,7 @@ export interface ForceSellEffect {
   kind: 'force_sell';
 }
 
-/** Mayhem: the target cannot reduce or close any position for `share` of the game's trading time. */
+/** Mayhem: the target cannot reduce or close any position for `share` of a quarter's trading time (never past its close). */
 export interface HodlEffect {
   kind: 'hodl';
   share: number;
