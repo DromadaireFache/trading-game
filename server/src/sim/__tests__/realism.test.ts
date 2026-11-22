@@ -65,8 +65,9 @@ describe('price dynamics', () => {
       plain += clustering(daily(m.plain).get(index)!);
     }
     // Measured on the index: with 30 companies (6 sectors) single-company noise dilutes it more.
-    expect(real / 4).toBeGreaterThan(0.03);
-    expect(real).toBeGreaterThan(plain + 0.12);
+    // (The predictability pass cut vol-of-vol to 0.09, so the bars are 0.02 and +0.05.)
+    expect(real / 4).toBeGreaterThan(0.02);
+    expect(real).toBeGreaterThan(plain + 0.05);
   });
 
   it('returns have fat tails (jumps with no headline), and the long-run volatility stays near the configured one', () => {
@@ -137,7 +138,7 @@ describe('news reaction', () => {
   it('some earnings leaks point the wrong way, and the report corrects them', () => {
     let wrong = 0;
     let leaks = 0;
-    for (const seed of [3, 4]) {
+    for (const seed of [3, 4, 5, 6, 7, 8]) {
       const sim = play(seed);
       // Every quarter's plan is gone by now except the last; check that one exactly.
       const plan = sim.news.plan()!;

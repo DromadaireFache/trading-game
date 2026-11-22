@@ -138,6 +138,12 @@ export interface GameConfig {
     /** Per-day volatility of each sector factor S. */
     sectorVolPerDay: number;
     /**
+     * Steady upward trend of the whole market: log-return per trading day on the market factor, felt
+     * by every company in proportion to its market beta (0 = no trend). A trend is the most
+     * predictable thing a market can do: it is what lifts the average ending balance.
+     */
+    marketDriftPerDay: number;
+    /**
      * Realism of the price process (used when createSim runs the market; a bare createMarket without a
      * dynamics stream is the plain factor model). Volatility clusters: the market and each sector carry
      * a log-volatility that wanders (volOfVolPerDay), is pulled back to normal (volReversionPerDay),
@@ -431,8 +437,8 @@ export const defaultConfig: GameConfig = {
     betaMarketMax: 1.6,
     betaSectorMin: 0.5,
     betaSectorMax: 1.5,
-    idioVolPerDayMin: 0.005,
-    idioVolPerDayMax: 0.015,
+    idioVolPerDayMin: 0.004,
+    idioVolPerDayMax: 0.012,
     rateSensitivityMin: 2,
     rateSensitivityMax: 12,
     startPriceMin: 20,
@@ -458,14 +464,17 @@ export const defaultConfig: GameConfig = {
     fundStartPrice: 100,
     // Between the first guess (1% / 0.8%) and the calm pass (0.25% / 0.2%): calm days stay calm, the
     // dynamics below add storms.
-    marketVolPerDay: 0.005,
+    marketVolPerDay: 0.004,
     sectorVolPerDay: 0.004,
+    // Predictability pass: a steady uptrend (about +0.15% a day, e^0.54 over a 360-day game for a beta-1
+    // stock) plus less noise below it, tuned with `npm run balance` to about 5x the old average ending balance.
+    marketDriftPerDay: 0.0015,
     dynamics: {
-      volOfVolPerDay: 0.12,
+      volOfVolPerDay: 0.09,
       volReversionPerDay: 0.08,
       volLeverage: 0.15,
-      volMultMax: 3.5,
-      jumpsPerDay: 0.012,
+      volMultMax: 3,
+      jumpsPerDay: 0.006,
       jumpSize: 0.05,
     },
     priceFloor: 1,
@@ -509,24 +518,24 @@ export const defaultConfig: GameConfig = {
     noiseShare: 0.25,
     scopeWeights: { market: 0.05, sector: 0.3, stock: 0.65 },
     magnitudeWeights: { small: 0.3, medium: 0.3, large: 0.2, huge: 0.2 },
-    shockJitter: 0.25,
+    shockJitter: 0.15,
     quietDays: 2,
     beatTitles: ['Central bank rate decision', 'Jobs report', 'GDP flash estimate', 'Inflation print'],
     replayHeadlines: 30,
     reaction: {
-      sizeSigma: 0.35,
-      reverseChance: 0.08,
+      sizeSigma: 0.2,
+      reverseChance: 0.03,
       reverseScale: 0.5,
-      overshootMin: -0.2,
-      overshootMax: 0.6,
-      rampMultMin: 0.5,
-      rampMultMax: 1.8,
+      overshootMin: 0,
+      overshootMax: 0.4,
+      rampMultMin: 0.8,
+      rampMultMax: 1.3,
       driftChance: 0.5,
-      driftShareMin: -0.4,
+      driftShareMin: 0,
       driftShareMax: 0.5,
       driftDaysMin: 3,
       driftDaysMax: 10,
-      leakAccuracy: 0.75,
+      leakAccuracy: 0.9,
     },
   },
   earnings: {

@@ -107,3 +107,39 @@ Open:
   pull `news.shock.huge` back toward 0.4 first; if it falls under $1B, raise adv before touching shocks.
 - The bots are single players. Several skilled humans crowding the same headline will share the
   impact, so the real winner may finish a little lower than news-trader does here.
+
+## Predictability pass, 2026-11-22
+
+Goal: a slightly more predictable market with about 5x the average ending balance. Measured on the
+default 7-bot lineup, 300 games (seeds 1-300), mean and median over every bot's final net worth:
+
+| | before | after |
+|---|---|---|
+| mean ending net worth | $19.7M | $109.5M (5.6x) |
+| median ending net worth | $9.1M | $19.2M (2.1x) |
+| hold-index mean | $12.4M | $22.0M |
+| winner median | $61.9M | $169.7M |
+
+The mean is dominated by the levered bots (they turn a steady trend into a large multiple), so the
+median and hold-index rows are the honest read for an average player: roughly 2x.
+
+Changed in `shared/config.ts`:
+
+| setting | before | after |
+|---|---|---|
+| `market.marketDriftPerDay` (new: steady uptrend on the market factor, scaled by beta) | 0 | 0.0015 |
+| `market.marketVolPerDay` | 0.005 | 0.004 |
+| `market.idioVolPerDayMin` / `Max` | 0.005 / 0.015 | 0.004 / 0.012 |
+| `market.dynamics.volOfVolPerDay` / `volMultMax` / `jumpsPerDay` | 0.12 / 3.5 / 0.012 | 0.09 / 3 / 0.006 |
+| `news.shockJitter` | 0.25 | 0.15 |
+| `news.reaction.sizeSigma` / `reverseChance` | 0.35 / 0.08 | 0.2 / 0.03 |
+| `news.reaction.overshootMin` / `Max` | -0.2 / 0.6 | 0 / 0.4 |
+| `news.reaction.rampMultMin` / `Max` | 0.5 / 1.8 | 0.8 / 1.3 |
+| `news.reaction.driftShareMin` (no more fades after the news) | -0.4 | 0 |
+| `news.reaction.leakAccuracy` | 0.75 | 0.9 |
+
+The trend is what moves the average; the noise and news-reaction changes make the market easier to
+read (a headline now moves the price its way, by about its planned size, almost every time) without
+changing how often or how big headlines are. To move the average, change `marketDriftPerDay`: 0.0013
+gave about 4.5x, 0.0016 about 7x. The bots below `news-trader` do not read headline text, so only the
+trend shows in their numbers.

@@ -134,12 +134,15 @@ export const createMarket: CreateMarket = (universe, rng, config, dynamicsRng) =
   const sectorIndex = new Map<Sector, number>(SECTORS.map((s, i) => [s, i]));
   const sectorOf = new Int32Array(companyCount);
   const loadMarket = new Float64Array(companyCount);
+  /** Per-tick log-drift from the market trend (config.market.marketDriftPerDay x beta). */
+  const trendPerTick = new Float64Array(companyCount);
   const loadSector = new Float64Array(companyCount);
   const loadIdio = new Float64Array(companyCount);
   const rateSensitivity = new Float64Array(companyCount);
   universe.companies.forEach((c, k) => {
     sectorOf[k] = sectorIndex.get(c.sector)!;
     loadMarket[k] = c.betaM * config.market.marketVolPerDay * sqrtDt;
+    trendPerTick[k] = c.betaM * config.market.marketDriftPerDay * dt;
     loadSector[k] = c.betaS * config.market.sectorVolPerDay * sqrtDt;
     loadIdio[k] = c.sigmaI * sqrtDt;
     rateSensitivity[k] = c.rateSensitivity;
@@ -271,6 +274,7 @@ export const createMarket: CreateMarket = (universe, rng, config, dynamicsRng) =
           loadSector[k]! * sectorShock[s]! +
           loadIdio[k]! * volMult * sectorVol[s]! * noise[epsOffset + k]! +
           jump +
+          trendPerTick[k]! +
           rateSensitivity[k]! * dRate +
           sectorDrift[s]! +
           extraReturn[k]!;
