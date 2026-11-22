@@ -14,6 +14,7 @@ import { OrderPanel } from '../features/trading/OrderPanel.tsx';
 import { MoneyPanel, PositionsPanel } from '../features/trading/PositionsPanel.tsx';
 import { NewsPile } from '../features/news/NewsPile.tsx';
 import { RivalsPanel } from '../features/rivals/RivalsPanel.tsx';
+import { SoundToggle } from '../features/fx/SoundToggle.tsx';
 import { FxRoot } from '../features/fx/FxLayer.tsx';
 import { GameFx } from '../features/fx/GameFx.tsx';
 import { HypeMeter } from '../features/fx/hype.ts';
@@ -46,8 +47,18 @@ function PlayScreen() {
   const current = phase?.phase ?? 'LOBBY';
   return (
     <div className="play" data-testid="play">
-      <PhaseHeader />
-      {current === 'LOBBY' ? <LobbyView /> : <Desk phase={current} />}
+      {current === 'LOBBY' ? (
+        <>
+          {/* The lobby is the main menu: no top bar, just the sound switch in the corner. */}
+          <div className="play__sound"><SoundToggle /></div>
+          <LobbyView />
+        </>
+      ) : (
+        <>
+          <PhaseHeader />
+          <Desk phase={current} />
+        </>
+      )}
     </div>
   );
 }

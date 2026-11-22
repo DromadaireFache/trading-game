@@ -26,7 +26,7 @@ export function LobbyView() {
   const canKick = hostId !== undefined && hostId === me?.playerId && connection === 'open' && join === 'joined';
 
   return (
-    <div className="lobby">
+    <div className="lobby" data-testid="phase" data-phase="LOBBY">
       <h1 className="lobby__hero"><GameLogo /></h1>
       <Panel title="Lobby" aside={`${count}/${maxPlayers} players`} className="lobby__panel">
         <Roster

@@ -1351,7 +1351,7 @@ async function main(): Promise<void> {
       await checkNoOverflow(a, 'desk in FINAL at 1366x768');
       await checkNoOverflow(floor, 'floor in FINAL');
 
-      const expected: string[] = [`LOBBY Q-/${QUARTERS}`];
+      const expected: string[] = [];
       for (let q = 1; q <= QUARTERS; q++) {
         const phases = q < QUARTERS ? QUARTER_PHASES : FINAL_QUARTER_PHASES;
         for (const phase of phases) expected.push(`${phase} Q${q}/${QUARTERS}`);
@@ -1361,7 +1361,9 @@ async function main(): Promise<void> {
         const seen = await seenOn(page);
         const got = seen.map((s) => `${s.phase} ${s.quarter}`);
         log(`  ${label} saw: ${seen.map((s) => `${s.phase}(${s.quarter} ${s.countdown})`).join(' > ')}`);
-        check(got.join(' > ') === expected.join(' > '), `${label} saw all ${expected.length} phases in order`);
+        // The player's lobby has no top bar, so only the floor shows a quarter there.
+        const all = [label === 'A' ? 'LOBBY ' : `LOBBY Q-/${QUARTERS}`, ...expected];
+        check(got.join(' > ') === all.join(' > '), `${label} saw all ${all.length} phases in order`);
         const timed = seen.filter((s) => s.phase !== 'LOBBY' && s.phase !== 'FINAL');
         check(timed.every((s) => countdownSeconds(s.countdown) !== null), `${label} showed a countdown at the start of every timed phase`);
         checkCadence(label, await ticksOn(page));

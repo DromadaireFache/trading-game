@@ -25,7 +25,7 @@ export function Roster({ lobby, meId, showEmptySeats = false, hostId, onKick }: 
           data-testid="roster-player"
         >
           <span className="roster__seat" style={{ color: playerColor(i, p.color) }}>P{i + 1}</span>
-          <span className="roster__name">{p.name}</span>
+          <span className="roster__name" data-testid={p.id === meId ? 'me-name' : undefined}>{p.name}</span>
           {p.id === meId && <span className="roster__tag">you</span>}
           {p.id === hostId && <span className="roster__tag">host</span>}
           <span className="roster__state">{p.connected ? 'online' : 'offline'}</span>

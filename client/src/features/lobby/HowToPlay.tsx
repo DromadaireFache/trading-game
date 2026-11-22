@@ -133,9 +133,9 @@ export function HowToPlay() {
     <Panel title="How to play" className="lobby__panel tutorial">
       <div className="tutorial__deck" role="group" aria-label="Tutorial slides" tabIndex={0} onKeyDown={onKeyDown} data-testid="tutorial">
         <h3 className="tutorial__title" aria-live="polite">{slide.title}</h3>
-        <a className="tutorial__image" href={slide.image} target="_blank" rel="noreferrer" aria-label={`Open screenshot in a new tab. ${slide.alt}`}>
-          <img src={slide.image} alt={slide.alt} width={840} height={472} />
-        </a>
+        <div className="tutorial__image">
+          <img src={slide.image} alt={slide.alt} width={840} height={472} draggable={false} />
+        </div>
         <ul className="tutorial__lines">
           {slide.lines.map((line, i) => <li key={i}>{line}</li>)}
         </ul>
