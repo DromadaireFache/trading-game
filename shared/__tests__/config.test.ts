@@ -35,6 +35,13 @@ describe('config', () => {
     expect('bogus' in merged).toBe(false);
   });
 
+  it('defaults the earnings gap to a 0–3 second delay and accepts a zero-delay open', () => {
+    expect(defaultConfig.earnings.gapDelayMinMs).toBe(0);
+    expect(defaultConfig.earnings.gapDelayMaxMs).toBe(3_000);
+    expect(mergeConfig(defaultConfig, { earnings: { gapDelayMaxMs: 0 } }).earnings.gapDelayMaxMs).toBe(0);
+    expect(() => mergeConfig(defaultConfig, { earnings: { gapDelayMinMs: 4_000 } })).toThrow('earnings.gapDelayMinMs');
+  });
+
   it('accepts the default config and rejects configs that cannot run a game', () => {
     expect(validateConfig(defaultConfig)).toBe(defaultConfig);
     const bad: Array<[unknown, string]> = [

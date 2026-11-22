@@ -340,8 +340,8 @@ describe('news through the sim', () => {
       }
       throw new Error('no earnings move within the configured delay');
     }
-    const minTicks = config.news.leadMinMs / config.time.tickMs;
-    const maxTicks = config.news.leadMaxMs / config.time.tickMs;
+    const minTicks = Math.max(1, config.earnings.gapDelayMinMs / config.time.tickMs);
+    const maxTicks = config.earnings.gapDelayMaxMs / config.time.tickMs;
     const delays = Array.from({ length: 12 }, (_, seed) => delay(seed));
     expect(Math.min(...delays)).toBeGreaterThanOrEqual(minTicks);
     expect(Math.max(...delays)).toBeLessThanOrEqual(maxTicks);
@@ -350,13 +350,14 @@ describe('news through the sim', () => {
   });
 
   it.each([
-    { days: 10, delay: 49 },
-    { days: 1, delay: 9 },
-  ])('allows orders before the earnings move at tick $delay ($days trading days)', ({ days, delay }) => {
+    { days: 10, delayMs: 0, effectStep: 0 },
+    { days: 10, delayMs: 3_000, effectStep: 29 },
+    { days: 1, delayMs: 3_000, effectStep: 9 },
+  ])('processes opening orders and applies earnings on step $effectStep ($days trading days)', ({ days, delayMs, effectStep }) => {
     const config = mergeConfig(CONFIG, {
       time: { daysPerQuarter: days, quarters: 2 },
-      news: { ...quiet, leadMinMs: 5_000, leadMaxMs: 5_000 },
-      earnings: { leaksPerQuarter: 0 },
+      news: quiet,
+      earnings: { leaksPerQuarter: 0, gapDelayMinMs: delayMs, gapDelayMaxMs: delayMs },
     });
     const sim = createSim(13, config);
     const control = createSim(13, mergeConfig(config, { earnings: { gapFactor: 0 } }));
@@ -365,6 +366,7 @@ describe('news through the sim', () => {
       game.submit({ kind: 'start', playerId: 'p1' });
     }
     const tradingTicks = days * config.time.ticksPerCandle;
+    const quickBetCloseStep = Math.min(days, config.trading.quickBetDays) * config.time.ticksPerCandle - 1;
     const beforeOpen: SimEvent[] = [];
     while (sim.getState().quarter !== 2 || sim.getState().phase !== 'TRADING') {
       beforeOpen.push(...sim.tick());
@@ -386,10 +388,10 @@ describe('news through the sim', () => {
       const price = only(events, 'tick')[0]!.prices;
       const baseline = only(control.tick(), 'tick')[0]!.prices;
       if (t === 0) expect(only(events, 'fill').map((e) => e.qty)).toEqual([1, -1, 1]);
-      expect(only(events, 'bet_result')).toHaveLength(t === delay ? 1 : 0);
+      expect(only(events, 'bet_result')).toHaveLength(t === quickBetCloseStep ? 1 : 0);
       for (const r of [beat, miss]) {
         const move = Math.log(price[r.symbol]! / baseline[r.symbol]!);
-        expect(move).toBeCloseTo(t < delay ? 0 : r.gap, 10);
+        expect(move).toBeCloseTo(t < effectStep ? 0 : r.gap, 10);
       }
     }
 
