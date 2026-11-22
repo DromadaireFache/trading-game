@@ -427,7 +427,7 @@
     "defId": "freeze",
     "tier": "mayhem",
     "name": "Freeze",
-    "description": "Freeze a rival: they cannot trade for a tenth of the game.",
+    "description": "Freeze a rival: they cannot trade for a tenth of the quarter.",
     "legal": false,
     "targetKind": "player",
     "needsDirection": false,
@@ -444,7 +444,7 @@
     "defId": "ice_age",
     "tier": "mayhem",
     "name": "Ice Age",
-    "description": "Freeze every other player: nobody but you trades for a twentieth of the game.",
+    "description": "Freeze every other player: nobody but you trades for a twentieth of the quarter.",
     "legal": false,
     "targetKind": "none",
     "needsDirection": false,
@@ -540,7 +540,7 @@
     "defId": "hodl",
     "tier": "mayhem",
     "name": "HODL",
-    "description": "Diamond hands: a rival cannot sell or cash out anything for 15% of the game.",
+    "description": "Diamond hands: a rival cannot sell or cash out anything for a fifth of the quarter.",
     "legal": true,
     "targetKind": "player",
     "needsDirection": false,
@@ -549,7 +549,7 @@
     "heat": null,
     "effect": {
       "kind": "hodl",
-      "share": 0.15
+      "share": 0.2
     }
   }
 ]

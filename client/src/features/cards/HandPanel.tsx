@@ -28,7 +28,8 @@ export function HandPanel({ className }: { className?: string }) {
 
   const { hand = [], heat, jailedUntil, eliminated } = live.portfolio;
   const jailed = jailedUntil !== undefined && Math.max(0, lastDay) < jailedUntil;
-  const open = phase?.phase === 'TRADING' && !jailed && !eliminated;
+  // In jail the one card held can still be played.
+  const open = phase?.phase === 'TRADING' && !eliminated;
   // High = a 30%+ chance of being caught at the end of the quarter (before the rank multiplier).
   const heatLevel = heat * config.sec.catchProbabilityPerHeat >= 0.3 ? 'high' : heat > 0 ? 'some' : 'none';
 
@@ -47,7 +48,7 @@ export function HandPanel({ className }: { className?: string }) {
     >
       {jailed && (
         <div className="hand__jail" data-testid="jailed">
-          IN JAIL {jailedUntil! >= config.time.quarters * config.time.daysPerQuarter ? 'for the rest of the game' : `until Q${dayToQuarter(config, jailedUntil!)} day ${dayOfQuarter(config, jailedUntil!)}`}: no cards, and your orders go through {config.sec.jailOrderDelayMs / 1000}s late.
+          IN JAIL {jailedUntil! >= config.time.quarters * config.time.daysPerQuarter ? 'for the rest of the game' : `until Q${dayToQuarter(config, jailedUntil!)} day ${dayOfQuarter(config, jailedUntil!)}`}: {config.sec.jailHandLimit} card max, orders {config.sec.jailOrderDelayMs / 1000}s late.
         </div>
       )}
       <div className="hand__list" data-testid="hand">

@@ -147,8 +147,14 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
   const { config, universe, catalog, news, trading } = deps;
   const players = new Map<PlayerId, PlayerCards>();
   const tpc = config.time.ticksPerCandle;
-  /** `share` of the game's whole trading time, in market ticks (at least one). */
-  const shareTicks = (share: number) => Math.max(1, Math.round(share * config.time.quarters * config.time.daysPerQuarter * tpc));
+  /**
+   * The market tick a Freeze or HODL of `share` of a quarter's trading time ends at, starting now.
+   * It never runs past the quarter's close: nothing carries into the next quarter.
+   */
+  const untilTick = (share: number) =>
+    Math.min(deps.marketTick() + Math.max(1, Math.round(share * config.time.daysPerQuarter * tpc)), deps.quarterEndTick() + 1);
+  /** Game day -> in jail? (the market tick's day, as the sim's market.getDay()). */
+  const jailedNow = (p: PlayerCards) => isJailed(p.jailedUntil, Math.floor(deps.marketTick() / tpc));
   /** Players still in the game other than `id`. */
   const others = (id: PlayerId) => [...players.values()].filter((o) => o.id !== id && trading.portfolio(o.id)?.eliminated !== true);
   const companyBySymbol = new Map(universe.companies.map((c) => [c.symbol, c]));
@@ -336,7 +342,11 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
       const offer = p.offers.get(offerId);
       if (offer === undefined) return fail('invalid', 'that offer is not in your shop');
       if (offer.bought) return fail('invalid', 'you already bought that card');
-      if (p.hand.length >= config.cards.handLimit) return fail('hand_full', `your hand is full (${config.cards.handLimit} cards)`);
+      // In jail a player holds at most sec.jailHandLimit cards.
+      const limit = jailedNow(p) ? Math.min(config.cards.handLimit, config.sec.jailHandLimit) : config.cards.handLimit;
+      if (p.hand.length >= limit) {
+        return fail('hand_full', jailedNow(p) ? `in jail you can hold only ${limit} card${limit === 1 ? '' : 's'}` : `your hand is full (${limit} cards)`);
+      }
       if (portfolio.equity - offer.price < config.economy.eliminationEquity) return fail('insufficient_funds', 'you cannot afford that card');
       trading.charge(id, offer.price);
       offer.bought = true;
@@ -480,7 +490,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           break;
         }
         case 'freeze': {
-          const until = now + shareTicks(fx.share);
+          const until = untilTick(fx.share);
           const hit = fx.who === 'target' ? [victim!] : others(id);
           for (const o of hit) {
             o.frozenUntil = Math.max(o.frozenUntil ?? 0, until);
@@ -491,7 +501,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
         }
         case 'hodl': {
           const o = victim!;
-          o.hodlUntil = Math.max(o.hodlUntil ?? 0, now + shareTicks(fx.share));
+          o.hodlUntil = Math.max(o.hodlUntil ?? 0, untilTick(fx.share));
           events.push({ e: 'card_hit', to: o.id, kind: 'hodl', cardName: entry.name, untilDay: o.hodlUntil / tpc });
           events.push(...portfolioOf(o.id));
           break;
@@ -608,6 +618,8 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           trading.charge(p.id, outcome.fine);
           p.jailedUntil = outcome.jailedUntil;
           p.jailDays += outcome.jailDays;
+          // The SEC takes every card but sec.jailHandLimit (the oldest are kept).
+          if (p.hand.length > config.sec.jailHandLimit) p.hand = p.hand.slice(0, config.sec.jailHandLimit);
           // The richest player behind bars is a projector moment.
           if (outcome.rank === 0) out.push(...moment('arrest', outcome.arrest!.text));
         }
@@ -617,6 +629,9 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
         p.manipulated = new Map();
         p.heated = new Set();
         p.playedIllegal = false;
+        // Freeze and HODL end with the quarter.
+        p.frozenUntil = undefined;
+        p.hodlUntil = undefined;
       }
       const quarterReveals = reveals;
       reveals = [];

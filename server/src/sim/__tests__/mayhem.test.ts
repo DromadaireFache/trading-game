@@ -95,7 +95,7 @@ describe('mayhem cards', () => {
     }
   });
 
-  it('Freeze stops the rival trading for a tenth of the game, then thaws', () => {
+  it('Freeze stops the rival trading for a tenth of the quarter, then thaws', () => {
     const g = game([card('freeze')]);
     const events = g.play('p2');
     expect(hits(events)).toEqual([expect.objectContaining({ to: 'p2', kind: 'frozen' })]);
@@ -104,10 +104,50 @@ describe('mayhem cards', () => {
     expect(rejects(order(g, 'p2', 10))).toEqual(['frozen']);
     expect(rejects(order(g, 'p1', 10))).toEqual([]);
     expect(g.sim.getPortfolio('p2')!.frozenUntil).toBeCloseTo(thaw, 9);
-    // A tenth of 3 quarters x 30 days = 9 trading days.
-    g.step(9 * tpc + 2);
+    // A tenth of a 30-day quarter = 3 trading days.
+    expect(thaw - (g.sim.getMarketSnapshot().day + g.sim.getMarketSnapshot().tickOfDay / tpc)).toBeLessThanOrEqual(3 + 1e-9);
+    g.step(3 * tpc + 2);
     expect(rejects(order(g, 'p2', 10))).toEqual([]);
     expect(g.sim.getPortfolio('p2')!.frozenUntil).toBeUndefined();
+  });
+
+  it('Freeze and HODL never carry into the next quarter', () => {
+    const g = game([card('freeze'), card('hodl')]);
+    // Two days before Q2 closes: both would outlast the quarter.
+    g.to('TRADING', 2, BASE.time.daysPerQuarter * tpc - 2 * tpc - 4);
+    order(g, 'p2', 100);
+    for (const c of g.sim.getPortfolio('p1')!.hand!) {
+      g.sim.submit({ kind: 'play_card', playerId: 'p1', cardId: c.cardId, target: 'p2' });
+      g.step();
+    }
+    const closeDay = 2 * BASE.time.daysPerQuarter;
+    const p2 = g.sim.getPortfolio('p2')!;
+    expect(p2.frozenUntil).toBeLessThanOrEqual(closeDay);
+    expect(p2.hodlUntil).toBeLessThanOrEqual(closeDay);
+    g.to('TRADING', 3, 2);
+    expect(g.sim.getPortfolio('p2')!.frozenUntil).toBeUndefined();
+    expect(g.sim.getPortfolio('p2')!.hodlUntil).toBeUndefined();
+    expect(rejects(order(g, 'p2', -100))).toEqual([]);
+  });
+
+  it('jail: the arrest leaves one card, which can still be played; orders are delayed', () => {
+    const g = game([card('freeze'), card('pickpocket'), card('uno_reverse')], {
+      sec: { catchProbabilityPerHeat: 1, maxCatchProbability: 1, rankMultiplier: [1, 1, 1, 1] },
+    });
+    expect(g.sim.getPortfolio('p1')!.hand!.length).toBeGreaterThan(2);
+    // An illegal card in Q2 gets p1 arrested at RESULTS.
+    const freeze = g.sim.getPortfolio('p1')!.hand!.find((c) => c.card.defId === 'freeze')!;
+    g.sim.submit({ kind: 'play_card', playerId: 'p1', cardId: freeze.cardId, target: 'p2' });
+    g.step();
+    g.to('RESULTS', 2, 1);
+    expect(only(g.log, 'results').at(-1)!.arrests).toEqual([expect.objectContaining({ playerId: 'p1' })]);
+    expect(g.sim.getPortfolio('p1')!.hand).toHaveLength(BASE.sec.jailHandLimit);
+    g.to('TRADING', 3, 2);
+    expect(g.sim.getPortfolio('p1')!.jailedUntil).toBeGreaterThan(g.sim.getMarketSnapshot().day);
+    const kept = g.sim.getPortfolio('p1')!.hand![0]!;
+    g.sim.submit({ kind: 'play_card', playerId: 'p1', cardId: kept.cardId, target: 'p2' });
+    expect(rejects(g.step())).not.toContain('jailed');
+    expect(BASE.sec.jailOrderDelayMs).toBe(3_000);
   });
 
   it('a player card refuses a missing or wrong target and stays in the hand', () => {

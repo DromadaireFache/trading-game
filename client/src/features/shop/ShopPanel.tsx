@@ -12,7 +12,7 @@ import '../cards/cards.css';
  * the hand (limit config.cards.handLimit) and is played in a later TRADING phase.
  */
 export function ShopPanel({ className }: { className?: string }) {
-  const { shop, config } = useGame();
+  const { shop, config, phase } = useGame();
   const client = useGameClient();
   const live = useLivePortfolio();
   // Offers this player clicked (the server refuses a second buy; this just greys the button).
@@ -21,12 +21,17 @@ export function ShopPanel({ className }: { className?: string }) {
   useEffect(() => setBought(new Set()), [shopKey]);
 
   const handSize = live?.portfolio.hand?.length ?? 0;
-  const full = handSize >= config.cards.handLimit;
+  // In jail: at most sec.jailHandLimit cards. jailedUntil is the first free game day; this shop sits
+  // before the next quarter's first day (quarter x daysPerQuarter).
+  const jailedUntil = live?.portfolio.jailedUntil;
+  const jailed = jailedUntil !== undefined && jailedUntil > (phase?.quarter ?? 0) * config.time.daysPerQuarter;
+  const limit = jailed ? Math.min(config.cards.handLimit, config.sec.jailHandLimit) : config.cards.handLimit;
+  const full = handSize >= limit;
 
   return (
     <Panel
       title="Card shop"
-      aside={`${handSize}/${config.cards.handLimit}`}
+      aside={`${handSize}/${limit}${jailed ? ' (jail)' : ''}`}
       className={`shop${className ? ` ${className}` : ''}`}
     >
       <ReadyUp />
@@ -54,7 +59,7 @@ export function ShopPanel({ className }: { className?: string }) {
                   type="button"
                   className="card__btn"
                   disabled={owned || full || tooDear}
-                  title={owned ? 'Bought' : full ? 'Your hand is full' : tooDear ? 'You cannot afford it' : `Buy ${offer.card.name}`}
+                  title={owned ? 'Bought' : full ? (jailed ? `In jail you can hold only ${limit} card` : 'Your hand is full') : tooDear ? 'You cannot afford it' : `Buy ${offer.card.name}`}
                   onClick={() => {
                     if (client.send({ t: 'buy_card', offerId: offer.offerId })) setBought((b) => new Set(b).add(offer.offerId));
                   }}
