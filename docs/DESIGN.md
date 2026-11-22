@@ -143,8 +143,9 @@ With 4 players, overload isn't a real risk. Two light safeguards:
 - **Only illegal cards can get you jailed:** the SEC rolls only for players who played an illegal card that
   quarter. Heat from legal cards just raises the odds for the day you do.
 - At the end of each quarter, `P(caught) = f(heat, net worth rank)`. **Richer players are watched more closely.**
-- **If caught:** a fine, plus **jail** for the next quarter. In jail you can't play or buy cards, and every order
-  goes through 3 seconds late. **Your positions stay open** and you can still trade, just slower.
+- **If caught:** a fine, plus **jail** for the next quarter. The SEC takes all your cards but one; in jail you can
+  hold (and buy, and play) only one card, and every order goes through 3 seconds late. **Your positions stay
+  open** and you can still trade, just slower.
 - The arrest is announced at RESULTS ("Player 7 arrested for insider trading. 45 days.").
 
 ### Counter-cards (stretch goal)

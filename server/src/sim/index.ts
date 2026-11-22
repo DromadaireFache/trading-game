@@ -352,7 +352,6 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       case 'buy_card': {
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
         if (phase !== 'SHOP') return reject(intent, 'wrong_phase', 'cards can only be bought in the SHOP phase'), false;
-        if (cards.isJailed(intent.playerId, market.getDay())) return reject(intent, 'jailed', 'you are in jail: no cards until you are out'), false;
         const result = cards.buy(intent.playerId, intent.offerId);
         if (!result.ok) return reject(intent, result.code, result.message), false;
         for (const event of result.events) events.push(event);
@@ -372,7 +371,6 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
         if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'cards can only be played while the market is open'), false;
         if (trading.portfolio(intent.playerId)?.eliminated) return reject(intent, 'eliminated', 'you have been eliminated'), false;
-        if (cards.isJailed(intent.playerId, market.getDay())) return reject(intent, 'jailed', 'you are in jail: no cards until you are out'), false;
         const result = cards.play(intent.playerId, intent.cardId, intent.target, intent.direction, quarter);
         if (!result.ok) return reject(intent, result.code, result.message), false;
         for (const event of result.events) {
