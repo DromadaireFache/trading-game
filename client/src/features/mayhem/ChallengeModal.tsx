@@ -193,6 +193,26 @@ function Typing({ seed, onSolved }: { seed: number; onSolved: () => void }) {
     }
   }, [done, onSolved]);
   const noPaste = (e: ClipboardEvent | DragEvent) => e.preventDefault();
+  // The box takes the keyboard the moment the challenge opens (the bare autoFocus lost to whatever
+  // button the player had just clicked) and keeps it: a click anywhere, or a stray blur, puts the
+  // caret back, so they can just start typing. The challenge is a blocking modal, so nothing else
+  // on the page needs focus meanwhile.
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const focus = () => input.current?.focus();
+    focus();
+    const raf = requestAnimationFrame(focus);
+    const keep = (e: MouseEvent) => {
+      if (e.target === input.current) return;
+      e.preventDefault();
+      focus();
+    };
+    document.addEventListener('mousedown', keep);
+    return () => {
+      cancelAnimationFrame(raf);
+      document.removeEventListener('mousedown', keep);
+    };
+  }, []);
   return (
     <>
       <header className="challenge__head challenge__head--typing">
@@ -211,8 +231,10 @@ function Typing({ seed, onSolved }: { seed: number; onSolved: () => void }) {
         })}
       </p>
       <input
+        ref={input}
         className="typing__input"
         autoFocus
+        onBlur={() => setTimeout(() => input.current?.focus(), 0)}
         value={typed}
         onChange={(e) => setTyped(e.target.value.slice(0, sentence.length + 5))}
         onPaste={noPaste}
