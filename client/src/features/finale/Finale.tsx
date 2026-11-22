@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { FINALE_MAX_AWARDS, FINALE_MAX_HIGHLIGHTS, finaleSegmentAt, finaleTimeline } from '@tg/shared';
+import { FINALE_MAX_AWARDS, FINALE_MAX_HIGHLIGHTS, SMALL_GAME_SEATS, finaleSegmentAt, finaleTimeline } from '@tg/shared';
 import type { Award, FinaleSegment, GameStatement, Highlight, LeaderboardEntry, NetWorthSample, ResultsMsg } from '@tg/shared';
 import { formatMoneyShort } from '../../lib/format.ts';
 import { fitWorthRange } from '../../lib/netWorth.ts';
@@ -255,9 +255,11 @@ function Race({ final, racers, progress, live }: { final: Final; racers: Racer[]
                       <path className="race__crown" d={CROWN_PATH} />
                     </g>
                   )}
-                  <text className="race__name" x={14} y={5} fill={r.color}>
-                    {r.name}
-                  </text>
+                  {(racers.length <= SMALL_GAME_SEATS || isLeader || isWinner) && (
+                    <text className="race__name" x={14} y={5} fill={r.color}>
+                      {r.name}
+                    </text>
+                  )}
                 </g>
               );
             })}

@@ -1,4 +1,4 @@
-import { dayOfQuarter, dayToQuarter } from '@tg/shared';
+import { SMALL_GAME_SEATS, dayOfQuarter, dayToQuarter } from '@tg/shared';
 import type { LobbyPlayer, Position } from '@tg/shared';
 import { Panel } from '../../components/Panel.tsx';
 import { formatMoneyShort } from '../../lib/format.ts';
@@ -8,24 +8,25 @@ import { useLastDay, useMarketStore, useQuoteValue } from '../../net/marketHooks
 import type { Holdings } from '../../net/state.ts';
 import './rivals.css';
 
-/** One column per other seat (maxPlayers - 1), so the layout does not jump when people join. */
+/** Small games use one column per seat. Larger rosters wrap into scrollable rows. */
 export function RivalsPanel({ className }: { className?: string }) {
   const { lobby, me, config } = useGame();
   const holdings = useHoldings();
   const others = (lobby?.players ?? []).filter((p) => p.id !== me?.playerId);
-  const seats = Math.max(1, config.lobby.maxPlayers - 1);
+  const large = others.length >= SMALL_GAME_SEATS;
+  const seats = Math.max(1, Math.min(SMALL_GAME_SEATS, config.lobby.maxPlayers) - 1);
   const sealed = useStandingsSealed();
   return (
     <Panel title="The other players" aside={sealed ? 'last quarter: amounts hidden' : undefined} className={`rivals${className ? ` ${className}` : ''}`}>
-      <div className="rivals__cols" style={{ gridTemplateColumns: `repeat(${seats}, minmax(0, 1fr))` }} data-testid="rivals">
-        {Array.from({ length: seats }, (_, i) => {
-          const player = others[i];
-          return player === undefined ? (
-            <div key={`empty-${i}`} className="rival rival--empty" aria-hidden="true" />
-          ) : (
-            <Rival key={player.id} player={player} held={holdings[player.id]} />
-          );
-        })}
+      <div
+        className={`rivals__cols${large ? ' rivals__cols--large' : ''}`}
+        style={large ? undefined : { gridTemplateColumns: `repeat(${seats}, minmax(0, 1fr))` }}
+        data-testid="rivals"
+      >
+        {others.map((player) => <Rival key={player.id} player={player} held={holdings[player.id]} />)}
+        {!large && Array.from({ length: Math.max(0, seats - others.length) }, (_, i) => (
+          <div key={`empty-${i}`} className="rival rival--empty" aria-hidden="true" />
+        ))}
       </div>
     </Panel>
   );

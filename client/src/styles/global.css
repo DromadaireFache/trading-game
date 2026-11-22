@@ -344,6 +344,10 @@ ol {
   border-style: dashed;
   background: transparent;
 }
+.lobby .roster--large {
+  max-height: 220px;
+  overflow-y: auto;
+}
 
 /* ---------------------------------------------------------------- join screen */
 
@@ -1137,6 +1141,24 @@ ol {
 }
 .floor .roster__row {
   padding: 1.2vh 1vw;
+}
+.floor__side--large > :is(.roster, .floor-worth) {
+  align-content: start;
+  min-height: 0;
+  overflow-y: auto;
+}
+.floor__side--large .roster__row,
+.floor__side--large .floor-worth__player {
+  flex: none;
+  padding-block: 4px;
+}
+.floor__side--large .floor-worth__player {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+}
+.floor__side--large .floor-worth__value {
+  font-size: 18px;
 }
 
 .phase-header__status {

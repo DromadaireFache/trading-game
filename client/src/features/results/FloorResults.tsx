@@ -1,5 +1,6 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
+import { SMALL_GAME_SEATS } from '@tg/shared';
 import { formatMoneyShort } from '../../lib/format.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 import { CountUp } from '../fx/CountUp.tsx';
@@ -18,6 +19,8 @@ export function FloorResults({ pauseReplay }: { pauseReplay: boolean }) {
   if (current === 'FINAL' ? !results.final : current !== 'RESULTS' || results.final || results.recap.quarter !== phase.quarter) return null;
 
   const winner = results.leaderboard[0];
+  const large = results.leaderboard.length > SMALL_GAME_SEATS;
+  const leaderboard = <Leaderboard rows={results.leaderboard} meId={undefined} pnlLabel={results.final ? 'Total P&L' : `Q${results.recap.quarter} P&L`} tally={!results.final} />;
   return (
     <section className="floor-board" data-testid="floor-results">
       {results.final && winner && (
@@ -27,7 +30,7 @@ export function FloorResults({ pauseReplay }: { pauseReplay: boolean }) {
           <span className="results__dim">({(winner.netWorth / config.economy.startingCash).toFixed(1)}×)</span>
         </div>
       )}
-      <Leaderboard rows={results.leaderboard} meId={undefined} pnlLabel={results.final ? 'Total P&L' : `Q${results.recap.quarter} P&L`} tally={!results.final} />
+      {large ? <div className="floor-board__standings">{leaderboard}</div> : leaderboard}
       {results.final ? (
         <ul className="results__award-list">
           {(results.awards ?? []).map((a, i) => (

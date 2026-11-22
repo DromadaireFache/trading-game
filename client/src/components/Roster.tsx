@@ -1,3 +1,4 @@
+import { SMALL_GAME_SEATS } from '@tg/shared';
 import type { LobbyPlayer, LobbyState, PlayerId } from '@tg/shared';
 import { playerColor } from '../lib/playerColor.ts';
 
@@ -5,7 +6,7 @@ interface RosterProps {
   lobby: LobbyState | null;
   /** Highlights this player's own row. */
   meId?: PlayerId;
-  /** Show empty seats up to maxPlayers (lobby) or only the joined players (in game). */
+  /** Fill out the first four seats in the lobby. In-game rosters show only joined players. */
   showEmptySeats?: boolean;
   hostId?: PlayerId;
   onKick?: (player: LobbyPlayer) => void;
@@ -14,9 +15,9 @@ interface RosterProps {
 /** Player list with connection state. Used by the lobby, the in-game side bar and the projector. */
 export function Roster({ lobby, meId, showEmptySeats = false, hostId, onKick }: RosterProps) {
   const players = lobby?.players ?? [];
-  const emptySeats = showEmptySeats && lobby ? Math.max(0, lobby.maxPlayers - players.length) : 0;
+  const emptySeats = showEmptySeats && lobby ? Math.max(0, Math.min(SMALL_GAME_SEATS, lobby.maxPlayers) - players.length) : 0;
   return (
-    <ul className="roster" data-testid="roster">
+    <ul className={`roster${players.length > SMALL_GAME_SEATS ? ' roster--large' : ''}`} data-testid="roster">
       {players.map((p, i) => (
         <li
           key={p.id}

@@ -121,6 +121,25 @@ afterEach(async () => {
 });
 
 describe('join and lobby', () => {
+  it('starts and finishes with 16 players and rejects a seventeenth', async () => {
+    expect(defaultConfig.lobby.maxPlayers).toBe(16);
+    const s = await start({ lobby: { maxPlayers: defaultConfig.lobby.maxPlayers }, time: { quarters: 1 } });
+    const seats = await Promise.all(Array.from({ length: 16 }, () => open(s)));
+    for (const [i, seat] of seats.entries()) await seat.join('player', `Trader ${i + 1}`);
+    const host = seats[0]!;
+    const { players } = await host.next('lobby', (msg) => msg.players.length === 16);
+    expect(new Set(players.map((player) => player.color)).size).toBe(16);
+
+    const late = await open(s);
+    late.send({ t: 'join', role: 'player', name: 'Trader 17' });
+    expect((await late.next('error')).code).toBe('game_full');
+
+    host.send({ t: 'start' });
+    expect((await seats[15]!.next('phase')).phase).toBe('BRIEFING');
+    const final = await host.next('results', (msg) => msg.final === true);
+    expect(final.leaderboard.map((row) => row.playerId).sort()).toEqual(players.map((player) => player.id).sort());
+  });
+
   it('welcomes a player with token, phase, roster and the effective config', async () => {
     const s = await start();
     const ann = await open(s);

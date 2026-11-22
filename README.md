@@ -1,6 +1,6 @@
 # Oligopoly
 
-Multiplayer LAN trading game for 2-4 players, each on their own laptop, plus one projector view.
+Multiplayer LAN trading game for up to 16 players, each on their own laptop, plus one projector view.
 Fake companies, a fast simulated market, shared news and cards. Spec: [docs/DESIGN.md](docs/DESIGN.md).
 Choices made along the way: [docs/DECISIONS.md](docs/DECISIONS.md).
 

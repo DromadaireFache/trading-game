@@ -1,3 +1,4 @@
+import { SMALL_GAME_SEATS } from '@tg/shared';
 import { ConnectionBadge } from '../../components/ConnectionBadge.tsx';
 import { GameLogo } from '../../components/GameLogo.tsx';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
@@ -31,6 +32,7 @@ export function FloorView() {
   const isLoopback = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
   const playUrl = (isLoopback ? joinUrls[0] : undefined) ?? `${location.origin}/play`;
   const inLobby = current === 'LOBBY';
+  const large = (lobby?.players.length ?? 0) > SMALL_GAME_SEATS;
   const isResults = current === 'RESULTS' || current === 'FINAL';
   // The last quarter keeps the standings secret until the finale (see useStandingsSealed).
   const sealed = (phase?.quarter ?? 0) >= totalQuarters && (current === 'BRIEFING' || current === 'TRADING');
@@ -85,7 +87,7 @@ export function FloorView() {
       {current !== 'FINAL' && moment && <MomentBanner moment={moment} />}
       {current === 'FINAL' && <Finale role="spectator" />}
 
-      <aside className="floor__side">
+      <aside className={`floor__side${large ? ' floor__side--large' : ''}`}>
         <h2 className="floor__side-title">
           Traders <span className="floor__side-count">{lobby?.players.length ?? 0}/{lobby?.maxPlayers ?? config.lobby.maxPlayers}</span>
         </h2>

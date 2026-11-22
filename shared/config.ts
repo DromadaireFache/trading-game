@@ -14,6 +14,9 @@
 import { SECTORS } from './types.ts';
 import type { HeadlineMagnitude, Phase, QuarterPhase, ReadyPhase, Sector } from './types.ts';
 
+const MAX_PLAYERS = 16;
+export const SMALL_GAME_SEATS = 4;
+
 /**
  * Where a sector's companies sit inside the generation ranges of config.market: each value is a
  * POSITION 0..1 between the matching Min and Max (0 = at Min, 1 = at Max).
@@ -393,7 +396,7 @@ export const defaultConfig: GameConfig = {
   },
   lobby: {
     minPlayers: 1,
-    maxPlayers: 4,
+    maxPlayers: MAX_PLAYERS,
     maxSpectators: 8,
     nameMinLength: 1,
     nameMaxLength: 16,
@@ -678,6 +681,7 @@ export function validateConfig(config: GameConfig): GameConfig {
     if (!(pr.underdogDiscount >= 0 && pr.underdogDiscount < 1)) problems.push('config.progression.underdogDiscount must be in [0, 1)');
     positiveInt('lobby.minPlayers', config.lobby.minPlayers);
     positiveInt('lobby.maxPlayers', config.lobby.maxPlayers);
+    if (config.lobby.maxPlayers > MAX_PLAYERS) problems.push(`config.lobby.maxPlayers must be <= ${MAX_PLAYERS}`);
     positiveInt('lobby.nameMinLength', config.lobby.nameMinLength);
     positiveInt('net.maxMessageBytes', config.net.maxMessageBytes);
     positiveInt('net.maxMessagesPerSecond', config.net.maxMessagesPerSecond);

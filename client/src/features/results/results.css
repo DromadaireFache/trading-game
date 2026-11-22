@@ -312,6 +312,14 @@
   font-size: 0.8vw;
   line-height: 1.4;
 }
+.floor-board__standings {
+  flex: 0 1 48%;
+  min-height: 0;
+  overflow: auto;
+}
+.floor-board__standings .results__table {
+  font-size: clamp(14px, 1.3vw, 24px);
+}
 .floor-board .quarter-worth {
   flex: 1;
   min-height: 0;
