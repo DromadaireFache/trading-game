@@ -12,7 +12,7 @@
  * Everything environment-specific (socket, storage, clock) is injectable so this runs in vitest.
  */
 import { defaultConfig, WS_CLOSE_REPLACED } from '@tg/shared';
-import type { ClientMsg, JoinMsg, Role, ServerMsg } from '@tg/shared';
+import type { ClientMsg, JoinMsg, PlayerColor, Role, ServerMsg } from '@tg/shared';
 import { MarketStore } from './marketStore.ts';
 import { NetWorthStore } from './netWorthStore.ts';
 import { browserSessionStorage, clearSession, loadSession, saveSession } from './session.ts';
@@ -180,6 +180,10 @@ export class GameClient {
   /** LOBBY only: change the game's length for everyone in the lobby. */
   setSettings(settings: { quarters?: number; quarterSeconds?: number }): boolean {
     return this.send({ t: 'set_settings', ...settings });
+  }
+
+  setColor(color: PlayerColor): boolean {
+    return this.send({ t: 'set_color', color });
   }
 
   /** FINAL only: everyone back to the lobby for a fresh game. */

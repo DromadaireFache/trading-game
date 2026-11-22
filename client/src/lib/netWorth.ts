@@ -1,8 +1,4 @@
 import type { NetWorthSample } from '@tg/shared';
-import { theme } from '../theme.ts';
-
-const COLORS = [theme.color.accent, theme.color.info, theme.color.up, theme.color.sectorHealth, theme.color.sectorFinance, theme.color.warn] as const;
-export const playerColor = (index: number) => COLORS[index % COLORS.length]!;
 
 export function fitWorthRange(samples: readonly NetWorthSample[]) {
   let min = Infinity;

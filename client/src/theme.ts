@@ -67,6 +67,15 @@ export const theme = {
     /** Balatro chips: the red and blue of its scoring, for card effects. */
     balatroRed: '#fe5f55',
     balatroBlue: '#009dff',
+    playerBlue: '#758dff',
+    playerTeal: '#2cd8c7',
+    playerLime: '#c3e34d',
+    playerMint: '#a0ffc4',
+    playerFuchsia: '#ff4fce',
+    playerCoral: '#ff8975',
+    playerCyan: '#67efff',
+    playerIndigo: '#8e6aff',
+    playerLemon: '#fbf28a',
   },
   font: {
     /** The stock font: tickers, prices, money (IBM Plex Mono, bundled). */

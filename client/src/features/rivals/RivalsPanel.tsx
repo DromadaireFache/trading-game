@@ -2,6 +2,7 @@ import { dayOfQuarter, dayToQuarter } from '@tg/shared';
 import type { LobbyPlayer, Position } from '@tg/shared';
 import { Panel } from '../../components/Panel.tsx';
 import { formatMoneyShort } from '../../lib/format.ts';
+import { PLAYER_COLOR_APPEARANCE } from '../../lib/playerColor.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 import { useLastDay, useMarketStore, useQuote } from '../../net/marketHooks.ts';
 import type { Holdings } from '../../net/state.ts';
@@ -52,7 +53,7 @@ function Rival({ player, held }: { player: LobbyPlayer; held: Holdings | undefin
   return (
     <div className={`rival${player.connected ? '' : ' rival--offline'}`} data-testid="rival" data-player={player.id}>
       <div className="rival__head">
-        <span className="rival__name">{player.name}</span>
+        <span className="rival__name" style={{ color: player.color && PLAYER_COLOR_APPEARANCE[player.color].hex }}>{player.name}</span>
         {held && (
           <span className={`rival__worth${sealed ? ' rival__worth--sealed' : ''}`} title={sealed ? 'Hidden in the last quarter' : undefined}>
             {sealed ? '$ ???' : formatMoneyShort(held.equity)}

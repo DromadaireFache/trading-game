@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { QUARTER_OPTIONS, QUARTER_SECONDS_OPTIONS, quarterSeconds } from '@tg/shared';
+import { PLAYER_COLORS, QUARTER_OPTIONS, QUARTER_SECONDS_OPTIONS, quarterSeconds } from '@tg/shared';
 import { ErrorBanner } from '../../components/ErrorBanner.tsx';
 import { GameLogo } from '../../components/GameLogo.tsx';
 import { Panel } from '../../components/Panel.tsx';
 import { Roster } from '../../components/Roster.tsx';
 import { formatMoney } from '../../lib/format.ts';
+import { PLAYER_COLOR_APPEARANCE } from '../../lib/playerColor.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { CreditButton } from './CreditButton.tsx';
 
@@ -116,6 +117,50 @@ function GameSettingsPicker() {
         format={(n) => (n >= 120 && n % 60 === 0 ? `${n / 60} min` : `${n} s`)}
         onPick={(n) => client.setSettings({ quarterSeconds: n })}
       />
+      <PlayerColorPicker />
+    </div>
+  );
+}
+
+function PlayerColorPicker() {
+  const { lobby, me, connection, join } = useGame();
+  const client = useGameClient();
+  const players = lobby?.players ?? [];
+  const player = players.find((entry) => entry.id === me?.playerId);
+  if (!player) return null;
+
+  return (
+    <div className="lobby__setting" role="radiogroup" aria-label="Your color">
+      <span className="lobby__setting-label">
+        Your color
+        {player.color && <small className="lobby__color-name">{PLAYER_COLOR_APPEARANCE[player.color].label}</small>}
+      </span>
+      <div className="lobby__setting-options lobby__color-options">
+        {PLAYER_COLORS.map((color) => {
+          const { label, hex } = PLAYER_COLOR_APPEARANCE[color];
+          const owners = players.flatMap((entry, index) => entry.color === color ? [{ entry, seat: index + 1 }] : []);
+          const first = owners[0];
+          const taken = players.length <= PLAYER_COLORS.length && owners.some(({ entry }) => entry.id !== player.id);
+          const ownerNames = owners.map(({ entry, seat }) => `P${seat} ${entry.name}`).join(', ');
+          const title = first ? `${label} (taken by ${ownerNames})` : label;
+          return (
+            <label className="lobby__color" key={color} title={title}>
+              <input
+                type="radio"
+                name="player-color"
+                value={color}
+                aria-label={title}
+                checked={player.color === color}
+                disabled={connection !== 'open' || join !== 'joined' || taken}
+                onChange={() => client.setColor(color)}
+              />
+              <span className="lobby__color-swatch" style={{ backgroundColor: hex }} aria-hidden="true">
+                {first && (owners.length === 1 ? `P${first.seat}` : `${first.seat}+`)}
+              </span>
+            </label>
+          );
+        })}
+      </div>
     </div>
   );
 }

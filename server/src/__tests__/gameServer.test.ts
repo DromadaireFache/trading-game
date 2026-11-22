@@ -153,8 +153,8 @@ describe('join and lobby', () => {
     bob.close();
     const after = await ann.next('lobby', (m) => m.players.some((p) => !p.connected));
     expect(after.players).toEqual([
-      { id: expect.any(String), name: 'Ann', connected: true },
-      { id: expect.any(String), name: 'Bob', connected: false },
+      { id: expect.any(String), name: 'Ann', connected: true, color: 'gold' },
+      { id: expect.any(String), name: 'Bob', connected: false, color: 'light-blue' },
     ]);
     floor.close();
     await ann.next('lobby', (m) => m.spectators === 0);
@@ -232,7 +232,7 @@ describe('reconnect', () => {
     const second = await twin.join('player', undefined, first.token);
     expect(second.playerId).toBe(first.playerId);
     expect(await ann.closed()).toBe(CLOSE_REPLACED);
-    expect(second.lobby.players).toEqual([{ id: first.playerId, name: 'Ann', connected: true }]);
+    expect(second.lobby.players).toEqual([{ id: first.playerId, name: 'Ann', connected: true, color: 'gold' }]);
   });
 
   it('falls back to a fresh join for an unknown token in the lobby', async () => {
@@ -292,8 +292,8 @@ describe('reconnect', () => {
     expect(second).toMatchObject({ playerId: first.playerId, name: 'Ann', role: 'player' });
     expect(second.token).not.toBe(first.token);
     expect(second.lobby.players).toEqual([
-      { id: first.playerId, name: 'Ann', connected: true },
-      { id: expect.any(String), name: 'Bob', connected: true },
+      { id: first.playerId, name: 'Ann', connected: true, color: 'gold' },
+      { id: expect.any(String), name: 'Bob', connected: true, color: 'light-blue' },
     ]);
     expect(s.sim.getState().players).toHaveLength(2);
 
@@ -486,6 +486,34 @@ describe('start and phases', () => {
     expect((await again.next('results', (m) => m.final === true)).finaleStartsAt).toBe(final.finaleStartsAt);
     ann.send({ t: 'new_game' });
     expect((await ann.next('welcome')).phase.phase).toBe('LOBBY');
+  });
+
+  it('broadcasts lobby color choices and preserves them on reconnect', async () => {
+    const s = await start();
+    const ann = await open(s);
+    const { playerId, token } = await ann.join('player', 'Ann');
+    const bob = await open(s);
+    expect((await bob.join('player', 'Bob')).lobby.players.map((p) => p.color)).toEqual(['gold', 'light-blue']);
+    const floor = await open(s);
+    await floor.join('spectator');
+
+    ann.send({ t: 'set_color', color: 'teal' });
+    for (const client of [ann, bob, floor]) {
+      const lobby = await client.next('lobby', (m) => m.players.some((p) => p.id === playerId && p.color === 'teal'));
+      expect(lobby.players.map((p) => p.color)).toEqual(['teal', 'light-blue']);
+    }
+    bob.send({ t: 'set_color', color: 'teal' });
+    expect(await bob.next('error')).toMatchObject({ code: 'not_allowed', message: 'that color is already taken' });
+    floor.send({ t: 'set_color', color: 'pink' });
+    expect(await floor.next('error')).toMatchObject({ code: 'not_allowed' });
+
+    const again = await open(s);
+    const welcome = await again.join('player', 'Ann', token);
+    expect(welcome.lobby.players[0]).toMatchObject({ id: playerId, color: 'teal' });
+    again.send({ t: 'start' });
+    await again.next('phase', (m) => m.phase === 'BRIEFING');
+    again.send({ t: 'set_color', color: 'pink' });
+    expect(await again.next('error')).toMatchObject({ code: 'not_allowed', message: 'player colors can only change in the lobby' });
   });
 
   it('lets any player set the game length in the lobby: quarters keep their days, days change length', async () => {

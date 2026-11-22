@@ -1,4 +1,5 @@
 import type { LobbyState, PlayerId } from '@tg/shared';
+import { playerColor } from '../lib/playerColor.ts';
 
 interface RosterProps {
   lobby: LobbyState | null;
@@ -20,7 +21,7 @@ export function Roster({ lobby, meId, showEmptySeats = false }: RosterProps) {
           className={`roster__row${p.connected ? '' : ' roster__row--offline'}${p.id === meId ? ' roster__row--me' : ''}`}
           data-testid="roster-player"
         >
-          <span className="roster__seat">P{i + 1}</span>
+          <span className="roster__seat" style={{ color: playerColor(i, p.color) }}>P{i + 1}</span>
           <span className="roster__name">{p.name}</span>
           {p.id === meId && <span className="roster__tag">you</span>}
           <span className="roster__state">{p.connected ? 'online' : 'offline'}</span>

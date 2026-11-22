@@ -25,6 +25,7 @@ import type {
   MomentKind,
   OHLC,
   Phase,
+  PlayerColor,
   PlayerId,
   Position,
   QuickBet,
@@ -83,6 +84,12 @@ export interface SetSettingsMsg {
   quarterSeconds?: number;
 }
 
+/** LOBBY only: set the sender's player color. */
+export interface SetColorMsg {
+  t: 'set_color';
+  color: PlayerColor;
+}
+
 /** FINAL only, any player: a fresh game (next seed) with the connected players back in the lobby. */
 export interface NewGameMsg {
   t: 'new_game';
@@ -129,7 +136,7 @@ export interface PlayCardMsg {
   direction?: CardDirection;
 }
 
-export type ClientMsg = JoinMsg | StartMsg | SetSettingsMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg | EndGameMsg;
+export type ClientMsg = JoinMsg | StartMsg | SetSettingsMsg | SetColorMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg | EndGameMsg;
 export type ClientMsgType = ClientMsg['t'];
 
 // ---------------------------------------------------------------------------

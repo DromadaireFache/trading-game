@@ -632,6 +632,51 @@ ol {
   flex-wrap: wrap;
   gap: 6px;
 }
+.lobby__color-options {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 23px));
+  justify-content: center;
+}
+.lobby__color-name {
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+}
+.lobby__color {
+  position: relative;
+  cursor: pointer;
+}
+.lobby__color input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.lobby__color-swatch {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 2px solid var(--tg-color-bg-inset);
+  border-radius: 50%;
+  color: var(--tg-color-on-accent);
+  font: 700 10px/1 var(--tg-font-mono);
+  white-space: nowrap;
+}
+.lobby__color:hover input:not(:disabled) + .lobby__color-swatch,
+.lobby__color input:checked + .lobby__color-swatch {
+  box-shadow: 0 0 0 1px var(--tg-color-text-bright);
+}
+.lobby__color input:focus-visible + .lobby__color-swatch {
+  outline: 2px solid var(--tg-color-accent);
+  outline-offset: 2px;
+}
+.lobby__color input:disabled:not(:checked) + .lobby__color-swatch {
+  cursor: not-allowed;
+}
+.lobby__color input:disabled + .lobby__color-swatch:empty {
+  opacity: 0.35;
+}
 .lobby__actions {
   display: flex;
   flex-direction: column;
