@@ -24,6 +24,8 @@ import type {
   Arrest,
   Award,
   CardReveal,
+  GameStatement,
+  Highlight,
   GameConfig,
   LeaderboardEntry,
   PlayerId,
@@ -122,6 +124,11 @@ export function createResults(deps: ResultsDeps): Results {
   let crashThisQuarter = false;
   let previousClose: number | undefined;
   let momentsLeft = config.presentation.maxMomentsPerGame;
+  /** For the finale's highlights: the index's biggest day each way, game-open prices, every arrest. */
+  let bestDay: { move: number; day: number } | undefined;
+  let worstDay: { move: number; day: number } | undefined;
+  let gameOpenPrice: Map<SymbolId, number> | null = null;
+  const allArrests: Arrest[] = [];
   let latest: ResultsEvent | null = null;
 
   const trades: Trade[] = [];
@@ -293,6 +300,72 @@ export function createResults(deps: ResultsDeps): Results {
     return out;
   }
 
+  const quarterOfDay = (day: number) => Math.floor(day / config.time.daysPerQuarter) + 1;
+  const dayOfQuarter = (day: number) => (day % config.time.daysPerQuarter) + 1;
+
+  /** The game's moments, most striking first; the finale shows them one by one. */
+  function highlights(log: readonly PublishedHeadline[]): Highlight[] {
+    const names = new Map(deps.players().map((p) => [p.id, p.name]));
+    const out: Highlight[] = [];
+    if (worstDay && worstDay.move <= -0.02) {
+      out.push({ kind: 'crash', title: 'Worst day', value: pct(worstDay.move), detail: `${indexFund.name}, Q${quarterOfDay(worstDay.day)} day ${dayOfQuarter(worstDay.day)}` });
+    }
+    if (bestDay && bestDay.move >= 0.02) {
+      out.push({ kind: 'rally', title: 'Best day', value: pct(bestDay.move), detail: `${indexFund.name}, Q${quarterOfDay(bestDay.day)} day ${dayOfQuarter(bestDay.day)}` });
+    }
+    if (gameOpenPrice) {
+      let mover: { symbol: SymbolId; change: number } | undefined;
+      for (const c of universe.companies) {
+        const open = gameOpenPrice.get(c.symbol);
+        const close = deps.priceOf(c.symbol);
+        if (!open || close === undefined) continue;
+        const change = close / open - 1;
+        if (!mover || Math.abs(change) > Math.abs(mover.change)) mover = { symbol: c.symbol, change };
+      }
+      if (mover) out.push({ kind: 'mover', title: 'Stock of the game', value: pct(mover.change), detail: `${mover.symbol} from the first bell to the last` });
+    }
+    const card = log
+      .filter((h) => h.ownerId !== undefined && h.source === 'card' && names.has(h.ownerId))
+      .reduce<PublishedHeadline | undefined>((a, h) => (!a || Math.abs(h.logReturn) > Math.abs(a.logReturn) ? h : a), undefined);
+    if (card && card.logReturn !== 0) {
+      out.push({
+        kind: 'card',
+        title: 'Loudest card',
+        value: pct(Math.exp(card.logReturn) - 1),
+        detail: `“${card.text}”`,
+        playerId: card.ownerId!,
+        name: names.get(card.ownerId!)!,
+      });
+    }
+    const top = trades.reduce<Trade | undefined>((a, t) => (!a || Math.abs(t.pnl) > Math.abs(a.pnl) ? t : a), undefined);
+    if (top && names.has(top.playerId) && top.pnl !== 0) {
+      out.push({ kind: 'trade', title: top.pnl > 0 ? 'Biggest win' : 'Biggest blow-up', value: formatMoney(top.pnl), detail: `${top.symbol} in Q${top.quarter}`, playerId: top.playerId, name: names.get(top.playerId)! });
+    }
+    if (allArrests.length > 0) {
+      const who = [...new Set(allArrests.map((a) => a.name))];
+      out.push({ kind: 'arrests', title: 'Perp walk', value: `${allArrests.length} arrest${allArrests.length === 1 ? '' : 's'}`, detail: who.join(', ') });
+    }
+    return out;
+  }
+
+  function gameStatements(extra: FinalExtra, log: readonly PublishedHeadline[]): GameStatement[] {
+    return deps.players().map((p) => {
+      const mine = trades.filter((t) => t.playerId === p.id);
+      const best = mine.reduce<Trade | undefined>((a, t) => (t.pnl > 0 && (!a || t.pnl > a.pnl) ? t : a), undefined);
+      const worst = mine.reduce<Trade | undefined>((a, t) => (t.pnl < 0 && (!a || t.pnl < a.pnl) ? t : a), undefined);
+      return {
+        playerId: p.id,
+        ...(best ? { bestTrade: { symbol: best.symbol, pnl: best.pnl, quarter: best.quarter } } : {}),
+        ...(worst ? { worstTrade: { symbol: worst.symbol, pnl: worst.pnl, quarter: worst.quarter } } : {}),
+        trades: fills.get(p.id) ?? 0,
+        headlinesPlanted: log.filter((h) => h.ownerId === p.id).length,
+        cardSpend: extra.cardSpend?.[p.id] ?? 0,
+        fines: extra.fines?.[p.id] ?? 0,
+        marginCalls: forced.get(p.id) ?? 0,
+      };
+    });
+  }
+
   function addMoment(kind: MomentEvent['kind'], text: string): MomentEvent | null {
     if (momentsLeft <= 0) return null;
     momentsLeft -= 1;
@@ -303,6 +376,7 @@ export function createResults(deps: ResultsDeps): Results {
     startQuarter(q) {
       quarter = q;
       openPrice = new Map(universe.symbols.map((s) => [s, deps.priceOf(s)!]));
+      gameOpenPrice ??= new Map(openPrice);
       openEquity = new Map(deps.players().map((p) => [p.id, deps.equityOf(p.id)]));
       book = new Map();
       for (const p of deps.players()) {
@@ -335,8 +409,11 @@ export function createResults(deps: ResultsDeps): Results {
       const now = close[indexFund.symbol];
       const before = previousClose;
       previousClose = now;
-      if (now === undefined || before === undefined || crashThisQuarter) return null;
+      if (now === undefined || before === undefined) return null;
       const move = now / before - 1;
+      if (move > 0 && (!bestDay || move > bestDay.move)) bestDay = { move, day: _day };
+      if (move < 0 && (!worstDay || move < worstDay.move)) worstDay = { move, day: _day };
+      if (crashThisQuarter) return null;
       if (move > -config.presentation.crashMoveThreshold) return null;
       crashThisQuarter = true;
       return addMoment('crash', `MARKET CRASH: ${indexFund.name} ${pct(move)} in a day`);
@@ -366,6 +443,7 @@ export function createResults(deps: ResultsDeps): Results {
         };
       });
       statementsByQuarter.push(statements);
+      allArrests.push(...(extra.arrests ?? []));
       latest = {
         e: 'results',
         leaderboard: leaderboard((id) => openEquity.get(id) ?? startCash, extra),
@@ -386,6 +464,8 @@ export function createResults(deps: ResultsDeps): Results {
         arrests: extra.arrests ?? [],
         final: true,
         awards: awards(extra, log),
+        highlights: highlights(log),
+        gameStatements: gameStatements(extra, log),
       };
       return latest;
     },

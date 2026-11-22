@@ -396,7 +396,44 @@ ol {
 }
 .join-card__foot {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+}
+.credit-dialog {
+  width: min(320px, calc(100% - 32px));
+  margin: auto;
+  padding: 24px;
+  color: var(--tg-color-text);
+  background: var(--tg-color-panel);
+  border: 1px solid var(--tg-color-border-strong);
+  border-radius: 8px;
+  box-shadow: 0 6px 0 var(--tg-color-shadow);
+  text-align: center;
+}
+.credit-dialog::backdrop {
+  background: color-mix(in srgb, var(--tg-color-shadow) 75%, transparent);
+}
+.credit-dialog h2 {
+  margin-bottom: 16px;
+  color: var(--tg-color-accent);
+}
+.credit-dialog h3 {
+  font-size: 14px;
+  color: var(--tg-color-text-dim);
+}
+.credit-dialog__authors {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 20px;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.credit-dialog__contributors {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 20px;
+  font-size: 14px;
 }
 
 /* ---------------------------------------------------------------- /play shell + header */
@@ -601,6 +638,13 @@ ol {
   align-items: center;
   gap: 8px;
   margin-top: 6px;
+}
+.lobby__secondary-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
 }
 .lobby__note {
   color: var(--tg-color-text-dim);
@@ -930,6 +974,26 @@ ol {
 .floor__countdown--idle {
   font-size: 4vw;
   color: var(--tg-color-border-strong);
+}
+.floor__sealed {
+  display: grid;
+  place-content: center;
+  gap: 1vh;
+  min-height: 40vh;
+  text-align: center;
+  border: 2px dashed var(--tg-color-border-strong);
+  border-radius: 12px;
+}
+.floor__sealed-title {
+  font-size: 5vw;
+  font-weight: 900;
+  color: var(--tg-color-accent);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.floor__sealed-text {
+  font-size: 2vw;
+  color: var(--tg-color-text-dim);
 }
 .floor__hint {
   font-size: 2vw;

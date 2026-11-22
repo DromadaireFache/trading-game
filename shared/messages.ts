@@ -14,6 +14,8 @@ import type {
   Briefing,
   Card,
   EarningsReport,
+  GameStatement,
+  Highlight,
   CardDirection,
   CardOffer,
   ForcedFillReason,
@@ -366,6 +368,17 @@ export interface ResultsMsg {
   /** Set on the last quarter / FINAL. */
   final?: boolean;
   awards?: Award[];
+  /** FINAL: the game's moments for the highlight reel. */
+  highlights?: Highlight[];
+  /** FINAL: each player's whole game. */
+  gameStatements?: GameStatement[];
+  /** FINAL: net worth over the whole game (downsampled), for the race chart. */
+  gameNetWorth?: NetWorthSample[];
+  /**
+   * FINAL: server clock when the finale cutscene starts. Every screen plays it from this moment
+   * (see shared finale.ts), so a reveal lands everywhere at once and a reload resumes in place.
+   */
+  finaleStartsAt?: number;
 }
 
 /** Projector moment (full-screen BREAKING banner). */

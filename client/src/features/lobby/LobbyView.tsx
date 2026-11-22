@@ -6,6 +6,7 @@ import { Panel } from '../../components/Panel.tsx';
 import { Roster } from '../../components/Roster.tsx';
 import { formatMoney } from '../../lib/format.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
+import { CreditButton } from './CreditButton.tsx';
 
 /** LOBBY phase on /play: roster and the Start button (any joined player may start). */
 export function LobbyView() {
@@ -44,9 +45,12 @@ export function LobbyView() {
             Debug mode (allow skipping phases)
           </label>
           {missing > 0 && <p className="lobby__note">Waiting for {missing} more player{missing === 1 ? '' : 's'}.</p>}
-          <button type="button" className="btn btn--ghost" data-testid="leave-button" onClick={() => client.forget()}>
-            Not {me?.name}? Change name
-          </button>
+          <div className="lobby__secondary-actions">
+            <button type="button" className="btn btn--ghost" data-testid="leave-button" onClick={() => client.forget()}>
+              Not {me?.name}? Change name
+            </button>
+            <CreditButton />
+          </div>
         </div>
 
         <ErrorBanner />

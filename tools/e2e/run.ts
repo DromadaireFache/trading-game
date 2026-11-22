@@ -47,10 +47,14 @@ const DAY_MS = TICKS_PER_DAY * defaultConfig.time.tickMs;
 const TRADING_MS = DAYS * DAY_MS;
 // Leave time for the browser to check and capture each screen before the next phase starts.
 const PHASE_MS = { BRIEFING: 1500, RESULTS: 3500, SHOP: 5000 };
+/** The finale at a fifth of its speed (about 10 s); FINALE_WAIT_MS covers it. */
+const FINALE_SCALE = 0.2;
+const FINALE_WAIT_MS = 20_000;
 const overrides: DeepPartial<GameConfig> = {
   time: { quarters: QUARTERS, daysPerQuarter: DAYS },
   phaseMs: PHASE_MS,
   lobby: { minPlayers: 2 },
+  presentation: { finaleScale: FINALE_SCALE },
   ...(earningsOnly ? {
     news: { randomHeadlinesPerQuarter: 3, scheduledBeatsPerQuarter: 0, noiseShare: 1, quietDays: 0, maxGapMs: 0 },
     earnings: { leaksPerQuarter: 0 },
@@ -662,10 +666,8 @@ async function main(): Promise<void> {
         await shot(a, 'news-trading-q2');
 
         await waitForPhase(a, 'FINAL', TRADING_MS + WAIT_MS);
-        const standings = await a.locator('.desk__stage').boundingBox();
-        const earnings = await a.locator('section.panel.earnings').boundingBox();
-        check(standings && earnings && earnings.y >= standings.y + standings.height - 1 && earnings.height >= 120,
-          'The final earnings report sits under the final standings');
+        await a.waitForSelector(tid('finale'));
+        check(true, 'The finale takes over the desk in FINAL');
         await checkNoOverflow(a, 'Final desk at 1366x768');
         await shot(a, 'news-final');
       });
@@ -1303,11 +1305,14 @@ async function main(): Promise<void> {
       const heatText = await textOf(a, 'heat');
       check(/^heat \d+$/.test(heatText), `A sees its heat: "${heatText}"`);
       await shot(a, '19-play-cards-q2');
-      const floorChart = floor.locator(tid('net-worth-chart'));
-      // (Playing the cards can take long enough for Q2's trading to end: then the chart has made way for the standings.)
-      await waitFor('the projector chart advances into Q2', async () =>
-        (await phaseOf(floor)) !== 'TRADING' || Number(await floorChart.getAttribute('data-day')) >= DAYS + 4);
-      if ((await phaseOf(floor)) === 'TRADING') check(await floorChart.locator('canvas').count() > 0, 'the projector draws the Q2 net-worth lines');
+      // Q2 is the last quarter: nobody sees the standings until the finale. (Playing the cards can take long
+      // enough for Q2's trading to end: then the finale has taken over and there is nothing to check here.)
+      if ((await phaseOf(floor)) === 'TRADING') {
+        check((await floor.locator(tid('floor-sealed')).count()) === 1 && (await floor.locator(tid('net-worth-chart')).count()) === 0,
+          'the projector seals the standings in the last quarter (no live net-worth chart)');
+        const rivalWorth = (await a.locator('.rival__worth').allTextContents()).join('|');
+        check(rivalWorth.includes('???') && !/\$\d/.test(rivalWorth), `A sees no rival net worth in the last quarter ("${rivalWorth}")`);
+      }
       await shot(floor, '19-floor-TRADING-q2');
 
 
@@ -1316,13 +1321,24 @@ async function main(): Promise<void> {
       const lastWorthTick = (framesOf('floor').filter((m) => m.t === 'net_worth') as Array<{ samples: Array<{ tick: number }> }>)
         .flatMap((m) => m.samples).reduce((max, sample) => Math.max(max, sample.tick), 0);
       check(lastWorthTick === QUARTERS * DAYS * TICKS_PER_DAY, `the floor net worth reaches the last trading tick (${lastWorthTick})`);
+      // The finale: one cutscene from one server time on every screen, then the recap.
+      const finaleStart = (framesOf('A').filter((m) => m.t === 'results').at(-1) as { finaleStartsAt?: number } | undefined)?.finaleStartsAt;
+      check(typeof finaleStart === 'number' &&
+        finaleStart === (framesOf('floor').filter((m) => m.t === 'results').at(-1) as { finaleStartsAt?: number }).finaleStartsAt,
+        'A and the projector got the same finale start time');
+      await Promise.all([a.waitForSelector(tid('race'), { timeout: FINALE_WAIT_MS }), floor.waitForSelector(tid('race'), { timeout: FINALE_WAIT_MS })]);
+      check(true, 'the race chart plays on the desk and on the projector');
+      await shot(a, '20-play-FINAL-race');
+      await a.waitForSelector(tid('podium-place'), { timeout: FINALE_WAIT_MS });
+      check(true, 'the podium comes up');
       // Milestone 6: the final standings and awards, on the desk and on the projector.
-      await a.waitForSelector(tid('winner'));
+      await a.waitForSelector(tid('winner'), { timeout: FINALE_WAIT_MS });
       check((await a.locator(tid('leaderboard-row')).count()) === 2, 'A shows the final standings');
       const finalMsg = framesOf('A').filter((m) => m.t === 'results').at(-1) as { final?: boolean; awards?: unknown[] } | undefined;
       check(finalMsg?.final === true && Array.isArray(finalMsg.awards), `A got the final results with ${finalMsg?.awards?.length ?? 0} awards`);
       check((await a.locator(tid('award')).count()) === (finalMsg?.awards?.length ?? -1), 'every award is on screen');
-      await floor.waitForSelector(tid('floor-winner'));
+      await floor.waitForSelector(tid('floor-winner'), { timeout: FINALE_WAIT_MS });
+      check((await a.locator(tid('my-game')).count()) === 1, 'A sees its own game in the recap');
       check(true, 'the floor shows the winner in FINAL');
       check((await floor.locator(tid('floor-tape')).count()) === 0, 'the projector hides the headline ticker in Final Standings');
       await sleep(200);

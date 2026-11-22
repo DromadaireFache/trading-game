@@ -11,6 +11,8 @@
 import type {
   Arrest,
   Award,
+  GameStatement,
+  Highlight,
   Briefing,
   Card,
   CardDirection,
@@ -144,6 +146,8 @@ export type SimEvent =
       netWorthHistory?: NetWorthSample[];
       final?: boolean;
       awards?: Award[];
+      highlights?: Highlight[];
+      gameStatements?: GameStatement[];
     }
   | { e: 'moment'; kind: MomentKind; text: string };
 

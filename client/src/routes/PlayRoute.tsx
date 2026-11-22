@@ -7,7 +7,7 @@ import { HandPanel } from '../features/cards/HandPanel.tsx';
 import { JoinForm } from '../features/lobby/JoinForm.tsx';
 import { LobbyView } from '../features/lobby/LobbyView.tsx';
 import { MarketPanel } from '../features/market/MarketPanel.tsx';
-import { FinalPanel } from '../features/results/FinalPanel.tsx';
+import { Finale } from '../features/finale/Finale.tsx';
 import { ResultsPanel } from '../features/results/ResultsPanel.tsx';
 import { ShopPanel } from '../features/shop/ShopPanel.tsx';
 import { OrderPanel } from '../features/trading/OrderPanel.tsx';
@@ -94,7 +94,7 @@ function Stage({ phase }: { phase: Phase }) {
     case 'SHOP':
       return <ShopPanel className="desk__stage" />;
     case 'FINAL':
-      return <FinalPanel className="desk__stage" />;
+      return <Finale role="player" />;
     default:
       return <MarketPanel listClassName="desk__list" chartClassName="desk__chart" />;
   }
