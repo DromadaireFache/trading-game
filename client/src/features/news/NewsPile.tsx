@@ -201,7 +201,6 @@ function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
       }}
       onContextMenu={onContextMenu}
       onKeyDown={onKeyDown}
-      title="Drag to move it. Click the ticker to open the stock. x or right-click throws it away."
       data-testid="headline"
       data-id={headline.id}
       data-depth={depth}
@@ -217,7 +216,6 @@ function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
           className="paper__close"
           onPointerDown={(e) => e.stopPropagation()}
           onClick={throwOut}
-          title="Throw it away (or right-click the paper)"
           aria-label="Throw this headline away"
           data-testid="headline-close"
         >
@@ -239,7 +237,6 @@ function Paper({ pop, depth, symbols, onThrow, onGrab, onOpen }: PaperProps) {
           onClick={() => {
             if (symbols.some((s) => s.symbol === ticker)) onOpen(ticker);
           }}
-          title={`Open ${ticker}`}
           data-testid="headline-ticker"
         >
             {ticker}

@@ -213,3 +213,7 @@ One line per choice that DESIGN.md and the milestone briefs left open. Append, d
 - Long Lunch and Sector Source were near-copies of Insider Tip (an early look at a coming headline). Removed; Insider Tip stays, and so does Boardroom Mole, which peeks at earnings instead of a headline.
 - A fresh insider-tip paper keeps the top of the headline pile for 5 s: papers arriving in that window slide under it. After that, new papers land on top as usual.
 - At FINAL the hand shows empty slots: a card left over (e.g. a Pickpocket with nobody to rob) is worth nothing once the game is over.
+
+## No tooltips
+
+- Every hover tooltip (`title=` on elements) is gone from the client. Icon-only buttons keep their `aria-label`; panel headings (the `Panel` `title` prop) are not tooltips and stay.

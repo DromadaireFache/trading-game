@@ -56,7 +56,7 @@ function Rival({ player, held }: { player: LobbyPlayer; held: Holdings | undefin
       <div className="rival__head">
         <span className="rival__name" style={{ color: player.color && PLAYER_COLOR_APPEARANCE[player.color].hex }}>{player.name}</span>
         {held && (
-          <span className={`rival__worth${sealed ? ' rival__worth--sealed' : ''}`} title={sealed ? 'Hidden in the last quarter' : undefined}>
+          <span className={`rival__worth${sealed ? ' rival__worth--sealed' : ''}`}>
             {sealed ? '$ ???' : formatMoneyShort(held.equity)}
           </span>
         )}
@@ -64,7 +64,7 @@ function Rival({ player, held }: { player: LobbyPlayer; held: Holdings | undefin
       {(jailed || held?.eliminated || !player.connected) && (
         <div className="rival__tags">
           {jailed && (
-            <span className="rival__tag rival__tag--jail" title={`Until Q${dayToQuarter(config, held!.jailedUntil!)} day ${dayOfQuarter(config, held!.jailedUntil!)}`}>
+            <span className="rival__tag rival__tag--jail">
               in jail
             </span>
           )}
@@ -98,7 +98,6 @@ function RivalPosition({ position, sealed }: { position: Position; sealed: boole
       className={`rival__pos rival__pos--${long ? 'long' : 'short'}`}
       data-testid="rival-position"
       data-symbol={position.symbol}
-      title={`${long ? 'Long (betting it goes up)' : 'Short (betting it goes down)'}: click to look at ${position.symbol}`}
       onClick={() => market.select(position.symbol)}
     >
       <span className="rival__dir">{long ? '▲' : '▼'}</span>
