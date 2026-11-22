@@ -57,12 +57,6 @@ export function JoinForm() {
             <button type="button" className="btn btn--ghost" data-testid="room-leave" onClick={target.leaveRoom}>Change room</button>
           </div>
         )}
-        {target.mode === 'lan' && target.canSwitch && (
-          <button type="button" className="btn btn--ghost mode-switch" data-testid="mode-online" onClick={() => target.setMode('online')}>
-            Playing over the internet? Play online
-          </button>
-        )}
-
         <div className="join-card__foot">
           <CreditButton />
           <ViewLink to="floor" />
