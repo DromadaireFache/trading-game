@@ -274,7 +274,7 @@ export interface GameConfig {
     handLimit: number;
     offersPerShop: number;
     /** Card price = max(minPrice, priceShareOfNetWorth[tier] * buyer net worth). */
-    priceShareOfNetWorth: { insider: number; fake: number; event: number; regime: number; counter: number };
+    priceShareOfNetWorth: { insider: number; fake: number; event: number; regime: number; counter: number; mayhem: number };
     minPrice: number;
     /** Insider tip: how long before everyone else the holder sees the headline. */
     insiderLeadMs: number;
@@ -532,7 +532,7 @@ export const defaultConfig: GameConfig = {
   cards: {
     handLimit: 3,
     offersPerShop: 4,
-    priceShareOfNetWorth: { insider: 0.03, fake: 0.05, event: 0.08, regime: 0.15, counter: 0.03 },
+    priceShareOfNetWorth: { insider: 0.03, fake: 0.05, event: 0.08, regime: 0.15, counter: 0.03, mayhem: 0.05 },
     minPrice: 100_000,
     insiderLeadMs: 4_000,
     fakeDebunkMinMs: 10_000,

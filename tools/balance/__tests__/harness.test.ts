@@ -46,7 +46,8 @@ describe('card bots', () => {
   const cardGame = mergeConfig(defaultConfig, { time: { quarters: 3, daysPerQuarter: 20 } });
 
   it('buy cards in SHOP, play them in TRADING, and the harness counts spend, fines and jail', () => {
-    const games = [11, 12, 13].map((seed) => playGame(seed, cardGame, [newsTrader(), insiderTrader(), manipulator(), eventPlayer()]));
+    // Enough games that every bot is offered the cards it wants (the shop draws from the whole catalog, Mayhem included).
+    const games = [11, 12, 13, 14, 15, 16].map((seed) => playGame(seed, cardGame, [newsTrader(), insiderTrader(), manipulator(), eventPlayer()]));
     const rows = games.flatMap((g) => g.bots);
     const of = (name: string) => rows.filter((r) => r.name === name);
     for (const name of ['insider-trader', 'manipulator', 'event-player']) {

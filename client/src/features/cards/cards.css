@@ -33,6 +33,10 @@
 .card--counter {
   --card-tint: var(--tg-color-text-dim);
 }
+/* Mayhem: cards aimed at other players. */
+.card--mayhem {
+  --card-tint: var(--tg-color-balatro-red);
+}
 /* The colored band across the top of the card. */
 .card__head {
   display: flex;

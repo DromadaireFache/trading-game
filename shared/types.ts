@@ -195,7 +195,8 @@ export interface Position {
 }
 
 /** Why a fill happened when the player did not ask for it. */
-export type ForcedFillReason = 'margin_call' | 'elimination' | 'timed';
+/** `card`: a Mayhem card closed or flipped the position (Uno Reverse, Freak the F- Out). */
+export type ForcedFillReason = 'margin_call' | 'elimination' | 'timed' | 'card';
 
 /** A quick bet still running (Simple mode): it cashes out by itself at the close of `closeAtDay`. */
 export interface QuickBet {
@@ -289,7 +290,8 @@ export interface Regime {
 // Cards (DESIGN.md section 5)
 // ---------------------------------------------------------------------------
 
-export type CardTier = 'insider' | 'fake' | 'event' | 'regime' | 'counter';
+/** `mayhem`: cards aimed at other players (freeze, steal, flashbang, reverse, force-sell, HODL). */
+export type CardTier = 'insider' | 'fake' | 'event' | 'regime' | 'counter' | 'mayhem';
 
 /** Static description of a card type. */
 export interface CardDef {
@@ -300,7 +302,8 @@ export interface CardDef {
   description: string;
   legal: boolean;
   /** What the player must choose when playing it. */
-  targetKind: 'none' | 'stock' | 'sector';
+  /** `player`: another player in the game (the target is their playerId). */
+  targetKind: 'none' | 'stock' | 'sector' | 'player';
   /** True when the player also picks up/down. */
   needsDirection: boolean;
 }

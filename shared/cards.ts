@@ -98,7 +98,50 @@ export interface SecTipOffEffect {
   heat: HeatKey;
 }
 
+/**
+ * Mayhem: freezes a player (`target`) or every other player (`others`): their orders are refused for
+ * `share` of the game's total trading time.
+ */
+export interface FreezeEffect {
+  kind: 'freeze';
+  who: 'target' | 'others';
+  share: number;
+}
+
+/** Mayhem: moves a random card from the target's hand to the player's. */
+export interface StealCardEffect {
+  kind: 'steal_card';
+}
+
+/** Mayhem: every other player's screen goes white for `ms`. */
+export interface FlashbangEffect {
+  kind: 'flashbang';
+  ms: number;
+}
+
+/** Mayhem: the target's biggest position flips side at market (long becomes short, and back). */
+export interface ReverseTradeEffect {
+  kind: 'reverse_trade';
+}
+
+/** Mayhem: every player, the one who plays it included, sells everything at market. */
+export interface ForceSellEffect {
+  kind: 'force_sell';
+}
+
+/** Mayhem: the target cannot reduce or close any position for `share` of the game's trading time. */
+export interface HodlEffect {
+  kind: 'hodl';
+  share: number;
+}
+
 export type CardEffect =
+  | FreezeEffect
+  | StealCardEffect
+  | FlashbangEffect
+  | ReverseTradeEffect
+  | ForceSellEffect
+  | HodlEffect
   | InsiderTipEffect
   | EarningsPeekEffect
   | FakeHeadlineEffect
@@ -126,6 +169,7 @@ export const TIER_EFFECTS: Record<CardTier, readonly CardEffect['kind'][]> = {
   event: ['event_shock'],
   regime: ['regime', 'lobbying'],
   counter: ['fact_check', 'trading_halt', 'sec_tip_off'],
+  mayhem: ['freeze', 'steal_card', 'flashbang', 'reverse_trade', 'force_sell', 'hodl'],
 };
 
 /** Price of a card for a buyer with this net worth, $. */
@@ -157,7 +201,15 @@ function expectedTarget(effect: CardEffect): { targetKind: CardDef['targetKind']
     case 'regime':
     case 'fact_check':
     case 'sec_tip_off':
+    case 'flashbang':
+    case 'force_sell':
       return { targetKind: 'none', needsDirection: false };
+    case 'freeze':
+      return { targetKind: effect.who === 'target' ? 'player' : 'none', needsDirection: false };
+    case 'steal_card':
+    case 'reverse_trade':
+    case 'hodl':
+      return { targetKind: 'player', needsDirection: false };
   }
 }
 
@@ -249,15 +301,25 @@ export function validateCardCatalog(entries: readonly CardCatalogEntry[], headli
       case 'sec_tip_off':
         if (!heatKeys.includes(fx.heat)) problems.push(`${at}: unknown heat key "${fx.heat}"`);
         break;
+      case 'freeze':
+      case 'hodl':
+        if (!(fx.share > 0) || fx.share > 0.5) problems.push(`${at}: share must be in (0, 0.5]`);
+        break;
+      case 'flashbang':
+        if (!(fx.ms >= 500) || fx.ms > 15_000) problems.push(`${at}: ms must be 500..15000`);
+        break;
       case 'earnings_peek':
       case 'fact_check':
       case 'trading_halt':
+      case 'steal_card':
+      case 'reverse_trade':
+      case 'force_sell':
         break;
     }
   }
 
   for (const tier of tiers as CardTier[]) {
-    if (tier !== 'counter' && !entries.some((e) => e.tier === tier)) problems.push(`no ${tier} card in the catalog`);
+    if (tier !== 'counter' && tier !== 'mayhem' && !entries.some((e) => e.tier === tier)) problems.push(`no ${tier} card in the catalog`);
   }
   return problems;
 }

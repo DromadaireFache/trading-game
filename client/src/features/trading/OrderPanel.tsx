@@ -33,7 +33,9 @@ export function OrderPanel({ className }: { className?: string }) {
   const price = quote?.price ?? 0;
   const eliminated = live.portfolio.eliminated === true;
   const open = phase?.phase === 'TRADING' && !eliminated && price > 0;
-  const canBet = open && live.buyingPower > 0 && pendingOrder === null;
+  // A Freeze card: no orders until the game day it thaws.
+  const frozen = (live.portfolio.frozenUntil ?? -1) > market.getLastDay();
+  const canBet = open && !frozen && live.buyingPower > 0 && pendingOrder === null;
   const info = market.getInfo(symbol);
   const stakes = config.trading.quickBetStakes;
 
@@ -45,9 +47,14 @@ export function OrderPanel({ className }: { className?: string }) {
           {info?.name ?? symbol} <strong>${price > 0 ? formatPrice(price, config.market.priceDecimals) : '--'}</strong>
         </span>
       }
-      className={`order${className ? ` ${className}` : ''}`}
+      className={`order${frozen ? ' order--frozen' : ''}${className ? ` ${className}` : ''}`}
     >
       <JailOrderNotice />
+      {frozen && (
+        <div className="order__frozen" data-testid="frozen">
+          FROZEN
+        </div>
+      )}
       <div className="bet-grid" data-testid="bet-grid">
         {([true, false] as const).map((up) =>
           stakes.map((share, i) => {

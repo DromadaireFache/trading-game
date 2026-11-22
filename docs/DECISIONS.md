@@ -171,3 +171,19 @@ One line per choice that DESIGN.md and the milestone briefs left open. Append, d
   - **Popups.** All popups use Teko with a thick ink outline. Money and shares from a trade are drawn as tilted colored chips in IBM Plex Mono (`chip` on fx.popup), Balatro score style.
   - **Layout.** A 96 px middle row makes only the other players' box taller: it reaches up into the left column under a shorter stock list. The chart, side column and positions are unchanged.
 - Stock list sized to fit (2026-11-21): the desk's first row is `auto`, exactly as tall as the stock list needs, so it never scrolls. The other players' box takes the rest of the height above the bottom row, so on a short screen it shrinks first. The chart and the side column span both rows and do not affect their sizes (grid items that span a flexible track are left out of auto sizing). The e2e checks that the list does not scroll, and two of its timing checks wait instead of reading once.
+- Mayhem cards (2026-11-21):
+  - **A new tier, `mayhem`,** for cards aimed at other players (price share 5% of net worth), and a new target kind, `player`: the card shows one button per rival still in the game.
+  - **The cards:**
+    - **Freeze:** the rival's orders are refused for 10% of the game's trading time.
+    - **Ice Age:** every other player is frozen for 5%.
+    - **Pickpocket:** takes a random card from the rival's hand. An empty hand refuses it and the card is kept.
+    - **Flashbang:** every other player's screen goes white for 4.5 s.
+    - **Uno Reverse:** the rival's biggest position flips side at market (a forced fill, reason `card`). A rival with no bets refuses it.
+    - **Freak the F- Out:** everyone sells everything at market, the player who plays it included.
+    - **HODL:** the rival cannot reduce or close any position for 15%, but can still buy more.
+    - **Jensen Special:** an event card, a large market-wide down shock with an event headline.
+  - **Legality.** Flashbang, HODL and Jensen Special are legal. The rest are illegal (illegalEvent heat).
+  - **Durations** are shares of total trading time (quarters x days), counted in market ticks, so they pause between quarters.
+  - **Wire.** The victim alone gets a `card_hit` message and a loud effect: FROZEN!, HODL!, STOLEN!, REVERSED!, FREAK OUT!, or the flashbang white-out. Who played it stays hidden until RESULTS, where Mayhem plays are revealed with the other headline-less cards. `portfolio` carries `frozenUntil` and `hodlUntil` (game days). The bet panel shows FROZEN, and Cash out buttons lock while frozen or under HODL.
+  - **Randomness.** Pickpocket draws from a new RNG stream appended last, so every earlier stream is unchanged.
+  - **Tests.** The balance bot test now plays six games instead of three, because the larger catalog spreads the offers thinner.

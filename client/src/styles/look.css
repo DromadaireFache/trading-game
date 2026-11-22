@@ -728,6 +728,64 @@ button.positions__close:disabled,
     0 0 24px color-mix(in srgb, var(--fx-color) 60%, transparent);
 }
 
+/* ------------------------------------------------------------------ mayhem */
+
+/* Flashbang: the whole page goes white, then fades back (clicks still go through). */
+.fx-flashbang {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+  background: var(--tg-color-text-bright);
+  animation: fx-flashbang 4500ms cubic-bezier(0.7, 0, 0.9, 0.4) forwards;
+}
+@keyframes fx-flashbang {
+  0%,
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* Frozen: ice over the bet panel. */
+.order--frozen {
+  position: relative;
+}
+.order__frozen {
+  position: absolute;
+  inset: 40px 12px 12px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  font-family: var(--tg-font-repo);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--tg-color-text-bright);
+  text-shadow: 0 0 14px var(--tg-color-info);
+  background: color-mix(in srgb, var(--tg-color-info) 35%, transparent);
+  border: 2px solid var(--tg-color-info);
+  border-radius: 6px;
+  backdrop-filter: blur(2px);
+  animation: look-frost 2.4s ease-in-out infinite;
+}
+@keyframes look-frost {
+  50% {
+    background: color-mix(in srgb, var(--tg-color-info) 22%, transparent);
+  }
+}
+/* Player-aimed cards: one small button per rival. */
+.card__rivals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.card__btn--rival {
+  color: var(--tg-color-card-face);
+  background: var(--tg-color-balatro-red);
+}
+
 /* ------------------------------------------------------------------ comfort */
 
 @media (prefers-reduced-motion: reduce) {
@@ -741,6 +799,7 @@ button.positions__close:disabled,
   .hand .panel__title,
   .paper__ticker,
   .phase-header__countdown--urgent,
+  .order__frozen,
   .market-list .panel__title,
   .market-chart .panel__title,
   .order .panel__title,

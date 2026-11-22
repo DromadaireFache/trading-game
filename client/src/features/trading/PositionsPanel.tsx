@@ -48,6 +48,7 @@ export function MoneyPanel({ className }: { className?: string }) {
 export function PositionsPanel({ className }: { className?: string }) {
   const live = useLivePortfolio();
   const { config } = useGame();
+  const market = useMarketStore();
 
   if (live === null) {
     return (
@@ -79,7 +80,7 @@ export function PositionsPanel({ className }: { className?: string }) {
             </thead>
             <tbody>
               {positions.map((p) => (
-                <PositionRow key={p.symbol} position={p} decimals={config.market.priceDecimals} canTrade={!live.portfolio.eliminated} />
+                <PositionRow key={p.symbol} position={p} decimals={config.market.priceDecimals} canTrade={!live.portfolio.eliminated && !locked(live.portfolio, market.getLastDay())} />
               ))}
             </tbody>
           </table>
@@ -146,4 +147,9 @@ function PositionRow({ position, decimals, canTrade }: { position: Position; dec
       </td>
     </tr>
   );
+}
+
+/** Mayhem: frozen (no orders) or HODL (no selling) keeps every cash-out button shut. */
+function locked(portfolio: { frozenUntil?: number; hodlUntil?: number }, lastDay: number): boolean {
+  return (portfolio.frozenUntil ?? -1) > lastDay || (portfolio.hodlUntil ?? -1) > lastDay;
 }

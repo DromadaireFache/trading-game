@@ -236,6 +236,9 @@ export function applyServerMsg(state: GameState, msg: ServerMsg, now: number): G
       const seq = (state.betResults[0]?.seq ?? 0) + 1;
       return { ...state, betResults: [{ ...result, seq }, ...state.betResults].slice(0, MAX_BET_RESULTS) };
     }
+    case 'card_hit':
+      // Effects only (fx/GameFx.tsx); the lasting state (frozen, HODL) comes with `portfolio`.
+      return state;
     default: {
       // Unknown `t` from a newer server: ignore rather than crash.
       const _exhaustive: never = msg;

@@ -80,6 +80,13 @@ export interface Trading {
   portfolio(id: PlayerId): SimEventOf<'portfolio'> | undefined;
   /** Takes `amount` dollars out of the player's cash (card purchases, SEC fines). */
   charge(id: PlayerId, amount: number): void;
+  /**
+   * A forced fill of `qty` shares at market with its usual slippage and impact, no buying-power check
+   * (cards: Uno Reverse flips a position with -2x its size). Returns the fill and the new portfolio.
+   */
+  forceFill(id: PlayerId, symbol: SymbolId, qty: number, reason: ForcedFillReason): TradingEvent[];
+  /** Closes every position of the player at market (Freak the F- Out). Fills, then the portfolio. */
+  liquidate(id: PlayerId, reason: ForcedFillReason): TradingEvent[];
 }
 
 export function createTrading(deps: TradingDeps): Trading {
@@ -231,6 +238,22 @@ export function createTrading(deps: TradingDeps): Trading {
   }
 
   return {
+    forceFill(id, symbol, qty, reason) {
+      const account = accounts.get(id);
+      const q = Math.trunc(qty);
+      if (account === undefined || account.eliminated || q === 0 || effectivePrice(symbol) === undefined) return [];
+      return [execute(account, symbol, q, reason), portfolio(account)];
+    },
+
+    liquidate(id, reason) {
+      const account = accounts.get(id);
+      if (account === undefined || account.eliminated) return [];
+      const events: TradingEvent[] = [];
+      liquidateAll(account, reason, events);
+      if (events.length > 0) events.push(portfolio(account));
+      return events;
+    },
+
     addAccount(id) {
       if (accounts.has(id)) return;
       accounts.set(id, { id, cash: config.economy.startingCash, holdings: new Map(), eliminated: false, borrowFees: 0, bets: [], streak: 0 });

@@ -587,6 +587,10 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
         const { e: _e, playerId, ...rest } = event;
         return sendTo(playerId, { t: 'shop', ...rest });
       }
+      case 'card_hit': {
+        const { e: _e, to, ...rest } = event;
+        return sendTo(to, { t: 'card_hit', ...rest });
+      }
       case 'phase_ready':
         return broadcast({ t: 'phase_ready', readyPlayerIds: event.readyPlayerIds });
       case 'results': {
