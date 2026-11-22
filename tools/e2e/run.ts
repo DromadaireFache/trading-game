@@ -1303,7 +1303,7 @@ async function main(): Promise<void> {
       log(`  A played cards: hand ${handBefore} -> ${handAfter}${cardErrors.length ? `; refused: ${cardErrors.join(' | ')}` : ''}`);
       check(handAfter < handBefore, 'playing a card takes it out of the hand');
       const heatText = await textOf(a, 'heat');
-      check(/^heat \d+$/.test(heatText), `A sees its heat: "${heatText}"`);
+      check(/^SEC\s*\d+%$/.test(heatText.replace(/\s+/g, ' ').trim()), `A sees its SEC catch chance: "${heatText}"`);
       await shot(a, '19-play-cards-q2');
       // Q2 is the last quarter: nobody sees the standings until the finale. (Playing the cards can take long
       // enough for Q2's trading to end: then the finale has taken over and there is nothing to check here.)

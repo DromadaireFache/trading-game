@@ -192,3 +192,8 @@ One line per choice that DESIGN.md and the milestone briefs left open. Append, d
 - Shorter Mayhem, lighter jail (2026-11-21):
   - **Freeze, Ice Age and HODL** now last a share of one quarter's trading time: Freeze 10% (9 s of a 90 s quarter), Ice Age 5%, HODL 20%. They are capped at the quarter's close and cleared when it closes, so nothing carries into the next quarter.
   - **Jail.** The arrest takes every card but one (`sec.jailHandLimit` 1, the oldest kept). A jailed player can hold, buy and play one card, where before they could do nothing with cards. Orders are still delayed 3 s (`sec.jailOrderDelayMs`).
+- SEC meter (2026-11-21): the hand panel's heat number is now a bar of the chance of being caught at the end of the quarter, computed as sec.ts does: heat x catchProbabilityPerHeat x the multiplier for the player's wealth rank among those still in, capped at maxCatchProbability. The bar fills toward the cap.
+  - **Levels.** Calm (under 10%) is green; warm (10-30%) amber; hot (30-60%) red and throbbing; critical (60% and up) flashes red and blue like police lights, with the reading shaking.
+  - **Effects on the way up.** Climbing a level pops "ON THE RADAR", "SEC IS WATCHING" (thump and shake), or "SEC IS COMING!" (siren, shake, burst). Nothing plays on the way down.
+  - The SEC still rolls only for players who played an illegal card that quarter, which the tooltip says. The e2e reads "SEC N%".
+- Name screen: the full logo fits the card (at most 320 px wide) and is centered, with the tagline centered under it.
