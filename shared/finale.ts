@@ -18,8 +18,8 @@ export const FINALE_MS = {
   bell: 3_000,
   raceDraw: 12_000,
   raceHold: 2_500,
-  highlight: 3_200,
-  award: 2_000,
+  highlight: 2_000,
+  award: 1_200,
   podiumPlace: 1_800,
   podiumHold: 3_500,
 } as const;

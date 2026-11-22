@@ -20,7 +20,8 @@ export function PhaseHeader() {
   const quarter = phase?.quarter ?? 0;
   const totalQuarters = phase?.totalQuarters ?? config.time.quarters;
   const urgent = countdown.ms !== null && countdown.ms <= config.presentation.countdownUrgentMs;
-  const canEndGame = me?.role === 'player' && current !== 'LOBBY' && current !== 'FINAL';
+  // Ending a game early is a debug tool: only a game started with Debug mode shows the button.
+  const canEndGame = me?.role === 'player' && phase?.debugMode === true && current !== 'LOBBY' && current !== 'FINAL';
   const color = lobby?.players.find((player) => player.id === me?.playerId)?.color;
 
   return (
