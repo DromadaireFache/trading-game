@@ -9,6 +9,8 @@ import { createMarket, createRng, createSim, generateUniverse } from '../index.t
 import type { Market, MarketStepInput, Sim, SimEvent, Universe } from '../index.ts';
 
 const mc = defaultConfig.market;
+/** The default market without its steady uptrend: tests of the other hooks read exact zeros. */
+const noTrend = mergeConfig(defaultConfig, { market: { marketDriftPerDay: 0 } });
 const GAME_DAYS = defaultConfig.time.daysPerQuarter * defaultConfig.time.quarters;
 
 function marketOf(seed: number, config: GameConfig = defaultConfig): Market {
@@ -92,8 +94,9 @@ function playToFinal(sim: Sim, onEvents?: (events: SimEvent[]) => void): void {
 
 describe('market: determinism', () => {
   // The calm pass cut the base vols to a quarter of the first guess; the realism pass set them back to
-  // half (the dynamics in createSim add the storms on top).
-  it('keeps the base daily fluctuations at half of the first defaults', () => {
+  // half (the dynamics in createSim add the storms on top); the predictability pass trimmed the market
+  // and stock noise to 0.4 of it (sector noise stays at half).
+  it('keeps the base daily fluctuations at about 0.4 of the first defaults', () => {
     const previous = mergeConfig(defaultConfig, { market: {
       marketVolPerDay: 0.01, sectorVolPerDay: 0.008, idioVolPerDayMin: 0.01, idioVolPerDayMax: 0.03,
     } });
@@ -104,7 +107,8 @@ describe('market: determinism', () => {
       const oldReturns = dailyReturns(old, 90, previous);
       const calmVol = mean(calm.universe.companies.map((c) => std(calmReturns.get(c.symbol)!)));
       const oldVol = mean(old.universe.companies.map((c) => std(oldReturns.get(c.symbol)!)));
-      expect(calmVol / oldVol).toBeCloseTo(0.5, 5);
+      expect(calmVol / oldVol).toBeGreaterThan(0.38);
+      expect(calmVol / oldVol).toBeLessThan(0.46);
     }
   });
 
@@ -211,7 +215,7 @@ describe('market: volatility', () => {
     expect(mean(ratios)).toBeGreaterThan(1.9);
     expect(mean(ratios)).toBeLessThan(2.1);
 
-    const frozen = marketOf(8);
+    const frozen = marketOf(8, noTrend);
     const before = frozen.getPrices();
     for (let i = 0; i < 30; i++) frozen.step({ volMult: 0 });
     expect(frozen.getPrices()).toEqual(before);
@@ -298,7 +302,7 @@ describe('market: hooks for later milestones', () => {
   const still: MarketStepInput = { volMult: 0 };
 
   it('dRate moves each stock by rateSensitivity * dRate and is tracked in getRate()', () => {
-    const market = marketOf(17);
+    const market = marketOf(17, noTrend);
     const before = market.getPrices();
     expect(market.getRate()).toBe(mc.startRate);
     market.step({ ...still, dRate: mc.rateStep });
@@ -315,7 +319,7 @@ describe('market: hooks for later milestones', () => {
   });
 
   it('sectorDriftPerDay is a per-day log drift on that sector only', () => {
-    const market = marketOf(17);
+    const market = marketOf(17, noTrend);
     const before = market.getPrices();
     const days = 3;
     for (let i = 0; i < days * defaultConfig.time.ticksPerCandle; i++) market.step({ ...still, sectorDriftPerDay: { defense: 0.01, airlines: -0.02 } });
@@ -326,7 +330,7 @@ describe('market: hooks for later milestones', () => {
   });
 
   it('symbolReturn on a company moves it and the funds that hold it, once', () => {
-    const market = marketOf(17);
+    const market = marketOf(17, noTrend);
     const target = market.universe.companies[12]!;
     const before = market.getPrices();
     market.step({ ...still, symbolReturn: { [target.symbol]: 0.05 } });
@@ -339,6 +343,17 @@ describe('market: hooks for later milestones', () => {
       const j = fund.members.indexOf(target.symbol);
       if (j < 0) expect(after[fund.symbol]).toBeCloseTo(before[fund.symbol]!, 10);
       else expect(after[fund.symbol]! / before[fund.symbol]! - 1).toBeCloseTo(fund.weights[j]! * (Math.exp(0.05) - 1), 10);
+    }
+  });
+
+  it('marketDriftPerDay is a per-day log drift on every stock, scaled by its market beta', () => {
+    const market = marketOf(17);
+    const before = market.getPrices();
+    const days = 3;
+    for (let i = 0; i < days * defaultConfig.time.ticksPerCandle; i++) market.step(still);
+    expect(mc.marketDriftPerDay).toBeGreaterThan(0);
+    for (const c of market.universe.companies) {
+      expect(Math.log(market.getPrice(c.symbol)! / before[c.symbol]!)).toBeCloseTo(c.betaM * mc.marketDriftPerDay * days, 10);
     }
   });
 });
