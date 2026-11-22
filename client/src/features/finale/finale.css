@@ -419,8 +419,21 @@
 .podium__step--1 .podium__rank {
   color: var(--tg-color-accent);
 }
-/* Small, static version in the recap. */
+/* Static recap podium: share a baseline at the bottom of the standings box. */
+.podium--still {
+  display: flex;
+  flex-direction: column;
+}
+.podium--still .podium__stage {
+  flex: 1;
+}
+.podium--still .podium__step {
+  height: 100%;
+  min-width: 0;
+  justify-content: flex-end;
+}
 .podium--still .podium__who {
+  flex: none;
   min-height: 0;
   padding-bottom: 4px;
 }
@@ -434,13 +447,16 @@
   font-size: 13px;
 }
 .podium--still .podium__step--1 .podium__block {
-  height: 64px;
+  height: 62%;
+  min-height: 64px;
 }
 .podium--still .podium__step--2 .podium__block {
-  height: 46px;
+  height: 45%;
+  min-height: 46px;
 }
 .podium--still .podium__step--3 .podium__block {
-  height: 32px;
+  height: 31%;
+  min-height: 32px;
 }
 .podium--still .podium__rank {
   font-size: 24px;
@@ -653,29 +669,50 @@
   font-weight: 800;
   color: var(--tg-color-accent);
 }
+.recap__mine {
+  display: flex;
+  flex-direction: column;
+}
+.recap__mine > .recap__heading {
+  font-size: clamp(16px, 2.4vh, 24px);
+}
+.my-game {
+  display: grid;
+  flex: 1;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  gap: 8px 16px;
+  align-items: center;
+}
 .my-game__rank {
   font-family: var(--tg-font-display);
-  font-size: 64px;
+  font-size: clamp(52px, 10vh, 112px);
   font-weight: 900;
   line-height: 1;
   color: var(--tg-color-accent);
 }
 .my-game__worth {
-  margin: 4px 0 10px;
-  font-size: 22px;
+  font-size: clamp(22px, 4.5vh, 48px);
   font-weight: 800;
+  line-height: 1.15;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 .my-game__facts {
+  grid-column: 1 / -1;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 3px;
   margin: 0;
+  font-size: clamp(14px, 2.45vh, 28px);
+  line-height: 1.25;
 }
 .my-game__facts div {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  font-size: 13px;
 }
 .my-game__facts dt {
   color: var(--tg-color-text-dim);
@@ -684,6 +721,16 @@
   margin: 0;
   font-weight: 700;
   text-align: right;
+}
+
+@media (max-height: 700px) {
+  .my-game:has(.my-game__facts > :nth-child(6)) .my-game__rank {
+    font-size: clamp(40px, 7.5vh, 52px);
+  }
+  .my-game:has(.my-game__facts > :nth-child(6)) .my-game__facts {
+    gap: 2px;
+    font-size: 14px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -695,6 +742,9 @@
   .recap__board,
   .recap__cols {
     grid-template-columns: 1fr;
+  }
+  .recap__mine {
+    min-height: min-content;
   }
 }
 
