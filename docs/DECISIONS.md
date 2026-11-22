@@ -197,3 +197,8 @@ One line per choice that DESIGN.md and the milestone briefs left open. Append, d
   - **Holdings out of GameState** (`HoldingsStore`, `useHoldings`): they arrive several times a second with 4 players, and in GameState each one re-rendered every `useGame()` consumer. Only the rivals panel and the hand (card targets) subscribe now.
   - **Rival rows** re-render only when their rounded amount changes (`useQuoteValue`), not on every tick (renders roughly halved).
   - **No full-page compositing work**: the background swirl (a layer several screens wide) no longer rotates, the CRT and panel scanline overlays no longer use `mix-blend-mode`, the freeze banner has no `backdrop-filter`, and `fx.chroma` / `fx.punch` use overlays and a transform instead of a `filter` on the whole page.
+- SEC meter (2026-11-21): the hand panel's heat number is now a bar of the chance of being caught at the end of the quarter, computed as sec.ts does: heat x catchProbabilityPerHeat x the multiplier for the player's wealth rank among those still in, capped at maxCatchProbability. The bar fills toward the cap.
+  - **Levels.** Calm (under 10%) is green; warm (10-30%) amber; hot (30-60%) red and throbbing; critical (60% and up) flashes red and blue like police lights, with the reading shaking.
+  - **Effects on the way up.** Climbing a level pops "ON THE RADAR", "SEC IS WATCHING" (thump and shake), or "SEC IS COMING!" (siren, shake, burst). Nothing plays on the way down.
+  - The SEC still rolls only for players who played an illegal card that quarter, which the tooltip says. The e2e reads "SEC N%".
+- Name screen: the full logo fits the card (at most 320 px wide) and is centered, with the tagline centered under it.
