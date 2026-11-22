@@ -3,7 +3,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { WebSocket } from 'ws';
-import { QUARTER_PHASES, SECTORS, defaultConfig, mergeConfig, packCandle, phaseTicks, quarterTicks, roundPrice, totalTradingDays } from '@tg/shared';
+import { QUARTER_PHASES, SECTORS, defaultConfig, finaleTimeline, mergeConfig, packCandle, phaseTicks, quarterTicks, roundPrice, totalTradingDays } from '@tg/shared';
 import type { DeepPartial, GameConfig, MsgOf, OHLC, Phase, ServerMsg, ServerMsgType, SymbolId } from '@tg/shared';
 import { CLOSE_REPLACED, HEALTH_PATH, startGameServer } from '../gameServer.ts';
 import type { GameServer } from '../gameServer.ts';
@@ -15,6 +15,7 @@ const fastConfig: GameConfig = mergeConfig(defaultConfig, {
   time: { tickMs: TICK_MS, ticksPerCandle: 2, daysPerQuarter: 3, quarters: 2 },
   phaseMs: { BRIEFING: 3 * TICK_MS, RESULTS: 3 * TICK_MS, SHOP: 2 * TICK_MS },
   lobby: { minPlayers: 1, maxPlayers: 2, maxSpectators: 1 },
+  presentation: { finaleScale: 0 },
 });
 
 class Client {
@@ -458,6 +459,33 @@ describe('start and phases', () => {
 
     ann.send({ t: 'new_game' });
     expect((await ann.next('welcome')).phase.debugMode).toBeUndefined();
+  });
+
+  it('plays the finale from one server time, with the whole game in it, and holds Play again until it ends', async () => {
+    const s = await start({ time: { quarters: 1, daysPerQuarter: 60 }, presentation: { finaleScale: 0.05 } });
+    const ann = await open(s);
+    await ann.join('player', 'Ann');
+    ann.send({ t: 'start', debugMode: true });
+    await ann.next('phase', (m) => m.phase === 'TRADING');
+    ann.send({ t: 'ready_up', quarter: 1, phase: 'TRADING' });
+    await ann.next('phase', (m) => m.phase === 'FINAL');
+    const final = await ann.next('results', (m) => m.final === true);
+    expect(final.finaleStartsAt).toBeGreaterThan(0);
+    expect(final.gameNetWorth!.length).toBeGreaterThan(1);
+    expect(final.gameNetWorth![0]!.equity).toHaveProperty(final.leaderboard[0]!.playerId);
+    expect(final.gameStatements).toEqual([expect.objectContaining({ playerId: final.leaderboard[0]!.playerId })]);
+    expect(Array.isArray(final.highlights)).toBe(true);
+
+    ann.send({ t: 'new_game' });
+    expect(await ann.next('error')).toMatchObject({ code: 'not_allowed' });
+    const t = finaleTimeline(s.sim.config, { highlights: final.highlights!.length, awards: final.awards!.length, players: 1 });
+    await new Promise((resolve) => setTimeout(resolve, final.finaleStartsAt! + t.totalMs - Date.now() + 50));
+    // A rejoin during FINAL gets the same finale start.
+    const again = await open(s);
+    await again.join('spectator');
+    expect((await again.next('results', (m) => m.final === true)).finaleStartsAt).toBe(final.finaleStartsAt);
+    ann.send({ t: 'new_game' });
+    expect((await ann.next('welcome')).phase.phase).toBe('LOBBY');
   });
 
   it('lets any player set the game length in the lobby: quarters keep their days, days change length', async () => {

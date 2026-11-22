@@ -7,6 +7,7 @@ import { useCountdown } from '../../hooks/useCountdown.ts';
 import { PHASE_LABEL } from '../../lib/phases.ts';
 import { formatQuarter } from '../../lib/time.ts';
 import { useGame } from '../../net/GameProvider.tsx';
+import { Finale } from '../finale/Finale.tsx';
 import { FloorResults, MomentBanner, useVisibleMoment } from '../results/FloorResults.tsx';
 import { SoundToggle } from '../fx/SoundToggle.tsx';
 import { HeadlineTape } from './HeadlineTape.tsx';
@@ -31,7 +32,9 @@ export function FloorView() {
   const playUrl = (isLoopback ? joinUrls[0] : undefined) ?? `${location.origin}/play`;
   const inLobby = current === 'LOBBY';
   const isResults = current === 'RESULTS' || current === 'FINAL';
-  const showChart = !inLobby && !isResults && lobby !== null;
+  // The last quarter keeps the standings secret until the finale (see useStandingsSealed).
+  const sealed = (phase?.quarter ?? 0) >= totalQuarters && (current === 'BRIEFING' || current === 'TRADING');
+  const showChart = !inLobby && !isResults && !sealed && lobby !== null;
 
   if (replaced) return <SeatTaken />;
 
@@ -69,11 +72,18 @@ export function FloorView() {
         <div className="floor__progress" aria-hidden="true">
           <div className="floor__progress-bar" style={{ transform: `scaleX(${countdown.progress ?? 0})` }} />
         </div>
-        {isResults && <FloorResults pauseReplay={moment !== null} />}
+        {current === 'RESULTS' && <FloorResults pauseReplay={moment !== null} />}
         {showChart && <NetWorthChart players={lobby.players} config={config} />}
+        {sealed && (
+          <div className="floor__sealed" data-testid="floor-sealed">
+            <div className="floor__sealed-title">Final quarter</div>
+            <div className="floor__sealed-text">Standings sealed until the closing bell</div>
+          </div>
+        )}
         <ErrorBanner />
       </main>
       {current !== 'FINAL' && moment && <MomentBanner moment={moment} />}
+      {current === 'FINAL' && <Finale role="spectator" />}
 
       <aside className="floor__side">
         <h2 className="floor__side-title">

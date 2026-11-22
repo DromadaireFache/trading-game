@@ -118,3 +118,9 @@
   text-align: right;
   font-weight: 700;
 }
+
+/* Last quarter: the amounts are hidden until the finale. */
+.rival__worth--sealed {
+  color: var(--tg-color-text-dim);
+  letter-spacing: 0.1em;
+}

@@ -12,8 +12,9 @@ export function RivalsPanel({ className }: { className?: string }) {
   const { lobby, me, holdings, config } = useGame();
   const others = (lobby?.players ?? []).filter((p) => p.id !== me?.playerId);
   const seats = Math.max(1, config.lobby.maxPlayers - 1);
+  const sealed = useStandingsSealed();
   return (
-    <Panel title="The other players" className={`rivals${className ? ` ${className}` : ''}`}>
+    <Panel title="The other players" aside={sealed ? 'last quarter: amounts hidden' : undefined} className={`rivals${className ? ` ${className}` : ''}`}>
       <div className="rivals__cols" style={{ gridTemplateColumns: `repeat(${seats}, minmax(0, 1fr))` }} data-testid="rivals">
         {Array.from({ length: seats }, (_, i) => {
           const player = others[i];
@@ -32,8 +33,19 @@ export function RivalsPanel({ className }: { className?: string }) {
   );
 }
 
+/**
+ * In the last quarter nobody sees how rich the others are: the standings stay a secret until the
+ * finale reveals them. Tickers and long / short still show.
+ */
+export function useStandingsSealed(): boolean {
+  const { phase } = useGame();
+  if (!phase || phase.quarter < 1) return false;
+  return phase.quarter >= phase.totalQuarters && (phase.phase === 'BRIEFING' || phase.phase === 'TRADING');
+}
+
 function Rival({ player, held }: { player: LobbyPlayer; held: Holdings | undefined }) {
   const { config } = useGame();
+  const sealed = useStandingsSealed();
   const lastDay = useLastDay();
   const positions = [...(held?.positions ?? [])].sort((a, b) => a.symbol.localeCompare(b.symbol));
   const jailed = held?.jailedUntil !== undefined && Math.max(0, lastDay) < held.jailedUntil;
@@ -41,7 +53,11 @@ function Rival({ player, held }: { player: LobbyPlayer; held: Holdings | undefin
     <div className={`rival${player.connected ? '' : ' rival--offline'}`} data-testid="rival" data-player={player.id}>
       <div className="rival__head">
         <span className="rival__name">{player.name}</span>
-        {held && <span className="rival__worth">{formatMoneyShort(held.equity)}</span>}
+        {held && (
+          <span className={`rival__worth${sealed ? ' rival__worth--sealed' : ''}`} title={sealed ? 'Hidden in the last quarter' : undefined}>
+            {sealed ? '$ ???' : formatMoneyShort(held.equity)}
+          </span>
+        )}
       </div>
       {(jailed || held?.eliminated || !player.connected) && (
         <div className="rival__tags">
@@ -59,7 +75,7 @@ function Rival({ player, held }: { player: LobbyPlayer; held: Holdings | undefin
       ) : (
         <ul className="rival__list">
           {positions.map((p) => (
-            <RivalPosition key={p.symbol} position={p} />
+            <RivalPosition key={p.symbol} position={p} sealed={sealed} />
           ))}
         </ul>
       )}
@@ -68,7 +84,7 @@ function Rival({ player, held }: { player: LobbyPlayer; held: Holdings | undefin
 }
 
 /** Ticker and what the bet is worth now; green = long (betting up), red = short (betting down). */
-function RivalPosition({ position }: { position: Position }) {
+function RivalPosition({ position, sealed }: { position: Position; sealed: boolean }) {
   const market = useMarketStore();
   const quote = useQuote(position.symbol);
   const long = position.qty > 0;
@@ -83,7 +99,7 @@ function RivalPosition({ position }: { position: Position }) {
     >
       <span className="rival__dir">{long ? '▲' : '▼'}</span>
       <span className="rival__ticker">{position.symbol}</span>
-      <span className="rival__amount">{formatMoneyShort(worth)}</span>
+      <span className="rival__amount">{sealed ? '???' : formatMoneyShort(worth)}</span>
     </li>
   );
 }

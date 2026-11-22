@@ -19,7 +19,7 @@ import type { AddressInfo } from 'node:net';
 import { randomUUID } from 'node:crypto';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
-import { QUARTER_OPTIONS, QUARTER_SECONDS_OPTIONS, WS_CLOSE_REPLACED, quarterSeconds, roundOhlc, withGameLength, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
+import { QUARTER_OPTIONS, QUARTER_SECONDS_OPTIONS, WS_CLOSE_REPLACED, finaleTimeline, quarterSeconds, roundOhlc, withGameLength, roundPrice, roundPrices, roundSnapshot } from '@tg/shared';
 import type { ClientMsg, ErrorCode, GameConfig, HoldingsMsg, JoinMsg, LobbyState, MarketMsg, NetWorthSample, PhaseInfo, PlayerId, PortfolioMsg, Role, ServerMsg, SetSettingsMsg } from '@tg/shared';
 import type { ServerEnv } from './env.ts';
 import { lanUrls } from './lan.ts';
@@ -72,6 +72,22 @@ export interface GameServer {
 
 type JoinFailure = { code: ErrorCode; message: string };
 
+/** The finale starts this long after the final results go out, so every screen has them in time. */
+const FINALE_LEAD_MS = 600;
+/** How early (ms) a Play again may come before the server thinks the finale is over. */
+const FINALE_CLOCK_SLACK_MS = 1_500;
+/** Points of the whole-game net-worth chart in the final results. */
+const FINALE_CHART_POINTS = 400;
+
+/** At most `points` samples, evenly spread, always keeping the first and the last. */
+function downsample(samples: readonly NetWorthSample[], points: number): NetWorthSample[] {
+  if (samples.length <= points) return [...samples];
+  const out: NetWorthSample[] = [];
+  const step = (samples.length - 1) / (points - 1);
+  for (let i = 0; i < points; i++) out.push(samples[Math.round(i * step)]!);
+  return out;
+}
+
 export function startGameServer(env: ServerEnv, options: GameServerOptions = {}): Promise<GameServer> {
   /** The server's config; `config` is it with the lobby's game length applied (see handleSettings). */
   const baseConfig = env.config;
@@ -85,6 +101,8 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
   /** 1 for the first game of this server run, +1 per "play again". Game n uses seed env.seed + n - 1. */
   let gameNumber = 1;
   let lastSentWorth: NetWorthSample | undefined;
+  /** FINAL: what the finale adds to the final results (start time, whole-game chart), kept for rejoins. */
+  let finale: { startsAt: number; gameNetWorth: NetWorthSample[]; endsAt: number } | null = null;
 
   /** token -> session. */
   const sessions = new Map<string, Session>();
@@ -296,8 +314,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     const phaseNow = sim.getState().phase;
     const results = sim.getResults();
     if (results !== null && (phaseNow === 'RESULTS' || phaseNow === 'SHOP' || phaseNow === 'FINAL')) {
-      const { e: _e, ...rest } = results;
-      send(socket, { t: 'results', ...rest });
+      send(socket, resultsMsg(results));
     }
     broadcastLobby();
   }
@@ -390,6 +407,9 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
   function handleNewGame(socket: WebSocket, session: Session): void {
     if (session.role !== 'player') return sendError(socket, 'not_allowed', 'only players can start a new game');
     if (sim.getState().phase !== 'FINAL') return sendError(socket, 'not_allowed', 'a new game can only start after the final results');
+    // A screen's clock can run a little ahead of the server's: its Play again may come a beat early.
+    if (finale !== null && now() < finale.endsAt - FINALE_CLOCK_SLACK_MS) return sendError(socket, 'not_allowed', 'the final results are still being revealed');
+    finale = null;
     gameNumber += 1;
     lastSentWorth = undefined;
     sim = createSim(env.seed + gameNumber - 1, config, { headlines });
@@ -429,6 +449,7 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
     const retime = next.time.tickMs !== config.time.tickMs;
     config = next;
     lastSentWorth = undefined;
+    finale = null;
     sim = createSim(env.seed + gameNumber - 1, config, { headlines });
     for (const s of playerSessions()) sim.submit({ kind: 'add_player', playerId: s.id, name: s.name });
     // A new day length can mean a new tick length: the clock restarts on it (nothing runs in the lobby).
@@ -590,14 +611,30 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
       case 'phase_ready':
         return broadcast({ t: 'phase_ready', readyPlayerIds: event.readyPlayerIds });
       case 'results': {
-        const { e: _e, ...rest } = event;
-        return broadcast({ t: 'results', ...rest });
+        if (event.final) {
+          const startsAt = now() + FINALE_LEAD_MS;
+          const timeline = finaleTimeline(config, {
+            highlights: event.highlights?.length ?? 0,
+            awards: event.awards?.length ?? 0,
+            players: event.leaderboard.length,
+          });
+          // A finale of no length (finaleScale 0) holds nothing back.
+          const endsAt = timeline.totalMs > 0 ? startsAt + timeline.totalMs : 0;
+          finale = { startsAt, gameNetWorth: downsample(sim.getNetWorth(), FINALE_CHART_POINTS), endsAt };
+        }
+        return broadcast(resultsMsg(event));
       }
       case 'moment': {
         const { e: _e, ...rest } = event;
         return broadcast({ t: 'moment', ...rest });
       }
     }
+  }
+
+  function resultsMsg(event: SimEventOf<'results'>): ServerMsg {
+    const { e: _e, ...rest } = event;
+    if (!event.final || finale === null) return { t: 'results', ...rest };
+    return { t: 'results', ...rest, gameNetWorth: finale.gameNetWorth, finaleStartsAt: finale.startsAt };
   }
 
   // --- clock ---------------------------------------------------------------

@@ -8,7 +8,8 @@
 
 export type SoundName =
   | 'fill' | 'cash' | 'loss' | 'news' | 'whoosh' | 'sting' | 'bell' | 'pop' | 'count' | 'thump' | 'card' | 'secret' | 'siren'
-  | 'briefing' | 'earnings' | 'shop' | 'final' | 'ready' | 'reject' | 'betWin' | 'betLoss';
+  | 'briefing' | 'earnings' | 'shop' | 'final' | 'ready' | 'reject' | 'betWin' | 'betLoss'
+  | 'closingBell' | 'lead' | 'snare';
 
 const MUTE_KEY = 'tg.muted';
 const MASTER_GAIN = 0.22;
@@ -19,7 +20,7 @@ let muted = readMuted();
 const listeners = new Set<() => void>();
 /** Per-sound minimum gap, so a burst of events does not turn into noise. */
 const lastPlayed = new Map<SoundName, number>();
-const MIN_GAP_MS: Partial<Record<SoundName, number>> = { count: 35, news: 120, fill: 60, reject: 300, betWin: 300, betLoss: 300 };
+const MIN_GAP_MS: Partial<Record<SoundName, number>> = { snare: 30, lead: 150, count: 35, news: 120, fill: 60, reject: 300, betWin: 300, betLoss: 300 };
 
 function readMuted(): boolean {
   try {
@@ -222,6 +223,23 @@ export function play(name: SoundName, pitch = 1): void {
         tone(t, { freq: 988, type: 'sine', dur: 0.5, gain: 0.3 });
         tone(t, { freq: 1480, type: 'sine', start: 0.12, dur: 0.6, gain: 0.25 });
         tone(t, { freq: 2960, type: 'sine', start: 0.12, dur: 0.25, gain: 0.06 });
+        break;
+      case 'closingBell': // three hard strikes of the exchange bell
+        for (let i = 0; i < 3; i++) {
+          const at = i * 0.42;
+          tone(t, { freq: 740, type: 'sine', start: at, dur: 1.2, gain: 0.5 });
+          tone(t, { freq: 1110, type: 'sine', start: at, dur: 0.8, gain: 0.22 });
+          tone(t, { freq: 2220, type: 'triangle', start: at, dur: 0.25, gain: 0.1 });
+          noise(t, { start: at, dur: 0.05, from: 5000, to: 3000, gain: 0.3 });
+        }
+        tone(t, { freq: 55, to: 40, type: 'sine', dur: 0.6, gain: 0.7 });
+        break;
+      case 'lead': // a new leader: quick upward blip
+        tone(t, { freq: 520 * p, to: 1040 * p, type: 'triangle', dur: 0.12, gain: 0.35 });
+        noise(t, { dur: 0.08, from: 3000, to: 6000, gain: 0.2 });
+        break;
+      case 'snare': // one hit of a drumroll; `pitch` doubles as loudness
+        noise(t, { dur: 0.06, from: 2500, to: 1800, gain: Math.min(0.6, 0.15 * p), q: 0.6 });
         break;
       case 'siren': // busted
         tone(t, { freq: 660, to: 990, type: 'square', dur: 0.25, gain: 0.2 });

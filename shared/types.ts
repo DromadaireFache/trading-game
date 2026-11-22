@@ -404,6 +404,30 @@ export interface Award {
   detail: string;
 }
 
+/** One card of the finale's highlight reel: a moment of the whole game. */
+export interface Highlight {
+  kind: 'crash' | 'rally' | 'mover' | 'card' | 'arrests' | 'trade';
+  title: string;
+  /** The headline number or fact, e.g. "-9.2%" or "+$4.1M". */
+  value: string;
+  detail: string;
+  /** The player it is about, when there is one. */
+  playerId?: PlayerId;
+  name?: string;
+}
+
+/** One player's whole game, for their personal recap at the end of the finale. */
+export interface GameStatement {
+  playerId: PlayerId;
+  bestTrade?: TradeSummary & { quarter: number };
+  worstTrade?: TradeSummary & { quarter: number };
+  trades: number;
+  headlinesPlanted: number;
+  cardSpend: number;
+  fines: number;
+  marginCalls: number;
+}
+
 export type MomentKind = 'regime' | 'crash' | 'arrest';
 
 // ---------------------------------------------------------------------------

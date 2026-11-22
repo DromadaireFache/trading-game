@@ -352,6 +352,8 @@ export interface GameConfig {
     errorVisibleMs: number;
     /** Projector: how long a BREAKING moment banner stays on screen. */
     momentVisibleMs: number;
+    /** Speed of the end-of-game cutscene (see finale.ts): 1 = normal, 0 = skipped (tests). */
+    finaleScale: number;
   };
   net: {
     serverPort: number;
@@ -564,6 +566,7 @@ export const defaultConfig: GameConfig = {
     countdownRefreshMs: 200,
     errorVisibleMs: 6_000,
     momentVisibleMs: 6_000,
+    finaleScale: 1,
   },
   net: {
     serverPort: 8787,
