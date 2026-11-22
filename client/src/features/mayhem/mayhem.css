@@ -1,0 +1,190 @@
+/*
+ * Mayhem challenges (Are You Human?, MonkeyType): a card over the whole desk, in the paper style of
+ * the headlines. Colors and fonts only through var(--tg-...).
+ */
+.challenge {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--tg-color-shadow) 70%, transparent);
+  backdrop-filter: blur(3px);
+  animation: challenge-in 220ms ease-out;
+}
+@keyframes challenge-in {
+  from {
+    opacity: 0;
+  }
+}
+.challenge__card {
+  width: min(360px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  color: var(--tg-color-card-text);
+  background: var(--tg-color-card-face);
+  border: 2px solid var(--tg-color-card-text);
+  border-radius: 4px;
+  box-shadow:
+    0 8px 0 var(--tg-color-shadow),
+    0 24px 40px color-mix(in srgb, var(--tg-color-shadow) 70%, transparent);
+  font-family: var(--tg-font-paper);
+  animation: challenge-drop 420ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes challenge-drop {
+  from {
+    transform: translateY(-40px) rotate(-4deg);
+  }
+}
+.challenge__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  color: var(--tg-color-text-bright);
+  border-radius: 2px;
+}
+.challenge__head--captcha {
+  background: var(--tg-color-balatro-blue);
+}
+.challenge__head--typing {
+  background: var(--tg-color-card-text);
+}
+.challenge__small {
+  font-size: 13px;
+}
+.challenge__big {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.challenge__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--tg-color-card-text) 30%, transparent);
+}
+.challenge__brand {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--tg-color-card-text) 60%, transparent);
+}
+.challenge__verify {
+  padding: 8px 20px;
+  font: inherit;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--tg-color-text-bright);
+  background: var(--tg-color-balatro-blue);
+  border: 2px solid var(--tg-color-card-text);
+  border-radius: 4px;
+  box-shadow: 0 3px 0 var(--tg-color-card-text);
+  cursor: pointer;
+}
+.challenge__verify:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--tg-color-card-text);
+}
+
+/* The 3x3 grid of little charts. */
+.captcha {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+.captcha--wrong {
+  animation: look-shake 0.3s linear 2;
+  --hot: 1;
+}
+.captcha__tile {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 1;
+  padding: 6px;
+  background: var(--tg-color-bg-inset);
+  border: 3px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+.captcha__tile--on {
+  border-color: var(--tg-color-balatro-blue);
+  transform: scale(0.86);
+}
+/* The blue check of a selected square. */
+.captcha__tile--on::after {
+  content: '✓';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tg-color-text-bright);
+  background: var(--tg-color-balatro-blue);
+  border-radius: 50%;
+}
+.mini-up {
+  stroke: var(--tg-color-up);
+  fill: var(--tg-color-up);
+}
+.mini-down {
+  stroke: var(--tg-color-down);
+  fill: var(--tg-color-down);
+}
+
+/* MonkeyType: the sentence lights up as you type it. */
+.typing__target {
+  margin: 0;
+  padding: 10px 4px;
+  font-family: var(--tg-font-mono);
+  font-size: 18px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+.typing__ch--todo {
+  color: color-mix(in srgb, var(--tg-color-card-text) 40%, transparent);
+}
+.typing__ch--ok {
+  color: var(--tg-color-card-text);
+}
+.typing__ch--bad {
+  color: var(--tg-color-down);
+  background: color-mix(in srgb, var(--tg-color-down) 20%, transparent);
+}
+.typing__ch--caret {
+  color: color-mix(in srgb, var(--tg-color-card-text) 40%, transparent);
+  box-shadow: inset 2px 0 0 var(--tg-color-accent);
+  animation: typing-caret 1s steps(1) infinite;
+}
+@keyframes typing-caret {
+  50% {
+    box-shadow: none;
+  }
+}
+.typing__input {
+  padding: 8px 10px;
+  font-family: var(--tg-font-mono);
+  font-size: 16px;
+  color: var(--tg-color-text-bright);
+  background: var(--tg-color-card-text);
+  border: 2px solid var(--tg-color-card-text);
+  border-radius: 4px;
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .challenge,
+  .challenge__card,
+  .captcha--wrong,
+  .typing__ch--caret {
+    animation: none;
+  }
+}

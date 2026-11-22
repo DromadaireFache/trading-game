@@ -483,6 +483,8 @@ export function startGameServer(env: ServerEnv, options: GameServerOptions = {})
         return sim.submit({ kind: 'buy_card', playerId: session.id, offerId: msg.offerId });
       case 'ready_up':
         return sim.submit({ kind: 'ready_up', playerId: session.id, quarter: msg.quarter, phase: msg.phase });
+      case 'solve_challenge':
+        return sim.submit({ kind: 'solve_challenge', playerId: session.id, challengeId: msg.challengeId });
       case 'play_card':
         return sim.submit({ kind: 'play_card', playerId: session.id, cardId: msg.cardId, target: msg.target, direction: msg.direction });
     }

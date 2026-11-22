@@ -17,6 +17,7 @@ import { RivalsPanel } from '../features/rivals/RivalsPanel.tsx';
 import { FxRoot } from '../features/fx/FxLayer.tsx';
 import { GameFx } from '../features/fx/GameFx.tsx';
 import { HypeMeter } from '../features/fx/hype.ts';
+import { ChallengeModal } from '../features/mayhem/ChallengeModal.tsx';
 import { GameProvider, useGame } from '../net/GameProvider.tsx';
 
 /** /play: the player's laptop view. */
@@ -27,6 +28,7 @@ export function PlayRoute() {
         <PlayScreen />
         <GameFx role="player" />
         <HypeMeter />
+        <ChallengeModal />
       </FxRoot>
     </GameProvider>
   );

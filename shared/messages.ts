@@ -129,7 +129,13 @@ export interface PlayCardMsg {
   direction?: CardDirection;
 }
 
-export type ClientMsg = JoinMsg | StartMsg | SetSettingsMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg | EndGameMsg;
+/** The player passed the challenge a Mayhem card gave them (captcha, typing). */
+export interface SolveChallengeMsg {
+  t: 'solve_challenge';
+  challengeId: string;
+}
+
+export type ClientMsg = JoinMsg | StartMsg | SetSettingsMsg | OrderMsg | BuyCardMsg | ReadyUpMsg | PlayCardMsg | NewGameMsg | EndGameMsg | SolveChallengeMsg;
 export type ClientMsgType = ClientMsg['t'];
 
 // ---------------------------------------------------------------------------
@@ -289,6 +295,11 @@ export interface PortfolioMsg {
   /** Game day until which a HODL card stops this player selling or cashing out. */
   hodlUntil?: number;
   /**
+   * A Mayhem challenge to pass before trading again: `captcha` (3x3, pick the rising charts) or
+   * `typing` (type the sentence). `seed` picks the grid or the sentence; answer with solve_challenge.
+   */
+  challenge?: { id: string; kind: 'captcha' | 'typing'; seed: number };
+  /**
    * Additions to the draft. buyingPower = max(0, leverageCap * equity - gross exposure) at the
    * prices of the moment it was sent; clients recompute it live from ticks with the same formula.
    */
@@ -422,10 +433,13 @@ export interface ErrorMsg {
  *   stolen     `cardName` was taken from the hand
  *   reversed   the position in `symbol` was flipped
  *   freak_out  every position was sold at market
+ *   challenge  a captcha or typing test must be passed before trading (see PortfolioMsg.challenge)
+ *   forced     pushed into `symbol` with all buying power (Force Buy)
+ *   bill       bought random stocks until holding five (Surprise Bill)
  */
 export interface CardHitMsg {
   t: 'card_hit';
-  kind: 'frozen' | 'hodl' | 'flashbang' | 'stolen' | 'reversed' | 'freak_out';
+  kind: 'frozen' | 'hodl' | 'flashbang' | 'stolen' | 'reversed' | 'freak_out' | 'challenge' | 'forced' | 'bill';
   /** The card that did it (for `stolen`: the card that was taken). */
   cardName: string;
   untilDay?: number;

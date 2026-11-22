@@ -551,5 +551,69 @@
       "kind": "hodl",
       "share": 0.2
     }
+  },
+  {
+    "defId": "force_buy",
+    "tier": "mayhem",
+    "name": "Force Buy",
+    "description": "Everyone else must bet all their buying power on your stock, in the direction you pick.",
+    "legal": false,
+    "targetKind": "stock",
+    "needsDirection": true,
+    "priceMult": 2,
+    "shopWeight": 1,
+    "heat": "illegalEvent",
+    "effect": {
+      "kind": "force_trade"
+    }
+  },
+  {
+    "defId": "are_you_human",
+    "tier": "mayhem",
+    "name": "Are You Human?",
+    "description": "Every other player must pass a 3x3 captcha before they can trade again.",
+    "legal": true,
+    "targetKind": "none",
+    "needsDirection": false,
+    "priceMult": 0.8,
+    "shopWeight": 2,
+    "heat": null,
+    "effect": {
+      "kind": "challenge",
+      "challenge": "captcha"
+    }
+  },
+  {
+    "defId": "monkeytype",
+    "tier": "mayhem",
+    "name": "MonkeyType",
+    "description": "Every other player must type out a sentence before they can trade again.",
+    "legal": true,
+    "targetKind": "none",
+    "needsDirection": false,
+    "priceMult": 0.8,
+    "shopWeight": 2,
+    "heat": null,
+    "effect": {
+      "kind": "challenge",
+      "challenge": "typing"
+    }
+  },
+  {
+    "defId": "surprise_bill",
+    "tier": "mayhem",
+    "name": "Surprise Bill",
+    "description": "Everyone, you included, buys random stocks until they hold five.",
+    "legal": true,
+    "targetKind": "none",
+    "needsDirection": false,
+    "priceMult": 1.2,
+    "shopWeight": 1,
+    "heat": null,
+    "effect": {
+      "kind": "surprise_bill",
+      "positions": 5,
+      "stake": 0.1
+    }
   }
 ]

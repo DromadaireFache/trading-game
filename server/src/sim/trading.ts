@@ -85,6 +85,11 @@ export interface Trading {
    * (cards: Uno Reverse flips a position with -2x its size). Returns the fill and the new portfolio.
    */
   forceFill(id: PlayerId, symbol: SymbolId, qty: number, reason: ForcedFillReason): TradingEvent[];
+  /**
+   * A card's order on the player's behalf: like order() (clipped to the leverage cap), but the fill is
+   * marked with `reason`. Refused orders (no buying power) return no events.
+   */
+  forceOrder(id: PlayerId, symbol: SymbolId, qty: number, reason: ForcedFillReason): TradingEvent[];
   /** Closes every position of the player at market (Freak the F- Out). Fills, then the portfolio. */
   liquidate(id: PlayerId, reason: ForcedFillReason): TradingEvent[];
 }
@@ -243,6 +248,13 @@ export function createTrading(deps: TradingDeps): Trading {
       const q = Math.trunc(qty);
       if (account === undefined || account.eliminated || q === 0 || effectivePrice(symbol) === undefined) return [];
       return [execute(account, symbol, q, reason), portfolio(account)];
+    },
+
+    forceOrder(id, symbol, qty, reason) {
+      const result = this.order(id, symbol, qty);
+      if (!result.ok) return [];
+      for (const event of result.events) if (event.e === 'fill') event.reason = reason;
+      return result.events;
     },
 
     liquidate(id, reason) {

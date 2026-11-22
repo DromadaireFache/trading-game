@@ -362,6 +362,21 @@ function cardHit(msg: Extract<ServerMsg, { t: 'card_hit' }>): void {
     case 'flashbang':
       flashbang(msg.ms ?? 4500);
       return;
+    case 'challenge':
+      play('siren');
+      fx.shake(1);
+      return;
+    case 'forced':
+      play('whoosh');
+      fx.shake(3);
+      fx.chroma(0.8);
+      fx.popup({ text: `ALL IN ${msg.symbol ?? ''}!`, tone: 'warn', ...anchorOf('.desk__positions', order), size: 1.8 });
+      return;
+    case 'bill':
+      play('loss');
+      fx.shake(2);
+      fx.popup({ text: 'SURPRISE BILL!', tone: 'down', ...anchorOf('.desk__positions', order), size: 1.8 });
+      return;
   }
 }
 

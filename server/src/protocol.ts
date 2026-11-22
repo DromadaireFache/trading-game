@@ -91,6 +91,9 @@ export function parseClientMsg(text: string): ParseResult {
       }
       return { ok: true, msg: { t: 'ready_up', quarter: raw.quarter, phase } };
     }
+    case 'solve_challenge':
+      if (!isNonEmptyString(raw.challengeId)) return bad('solve_challenge.challengeId must be a non-empty string');
+      return { ok: true, msg: { t: 'solve_challenge', challengeId: raw.challengeId } };
     case 'play_card': {
       if (!isNonEmptyString(raw.cardId)) return bad('play_card.cardId must be a non-empty string');
       if (raw.target !== undefined && !isNonEmptyString(raw.target)) return bad('play_card.target must be a non-empty string');

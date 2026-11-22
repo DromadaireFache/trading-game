@@ -135,7 +135,37 @@ export interface HodlEffect {
   share: number;
 }
 
+/**
+ * Mayhem: every other player is pushed into the chosen stock, in the chosen direction, with all of
+ * their buying power (up to the leverage cap).
+ */
+export interface ForceTradeEffect {
+  kind: 'force_trade';
+}
+
+/**
+ * Mayhem: every other player must pass a challenge before they can trade again: a 3x3 `captcha`
+ * (pick the rising charts) or `typing` (type out a sentence). Cleared at the quarter's close.
+ */
+export interface ChallengeEffect {
+  kind: 'challenge';
+  challenge: 'captcha' | 'typing';
+}
+
+/**
+ * Mayhem: every player, the one who plays it included, buys random stocks they do not hold yet until
+ * they hold `positions`; each buy is `stake` of their buying power.
+ */
+export interface SurpriseBillEffect {
+  kind: 'surprise_bill';
+  positions: number;
+  stake: number;
+}
+
 export type CardEffect =
+  | ForceTradeEffect
+  | ChallengeEffect
+  | SurpriseBillEffect
   | FreezeEffect
   | StealCardEffect
   | FlashbangEffect
@@ -169,7 +199,7 @@ export const TIER_EFFECTS: Record<CardTier, readonly CardEffect['kind'][]> = {
   event: ['event_shock'],
   regime: ['regime', 'lobbying'],
   counter: ['fact_check', 'trading_halt', 'sec_tip_off'],
-  mayhem: ['freeze', 'steal_card', 'flashbang', 'reverse_trade', 'force_sell', 'hodl'],
+  mayhem: ['freeze', 'steal_card', 'flashbang', 'reverse_trade', 'force_sell', 'hodl', 'force_trade', 'challenge', 'surprise_bill'],
 };
 
 /** Price of a card for a buyer with this net worth, $. */
@@ -203,7 +233,11 @@ function expectedTarget(effect: CardEffect): { targetKind: CardDef['targetKind']
     case 'sec_tip_off':
     case 'flashbang':
     case 'force_sell':
+    case 'challenge':
+    case 'surprise_bill':
       return { targetKind: 'none', needsDirection: false };
+    case 'force_trade':
+      return { targetKind: 'stock', needsDirection: true };
     case 'freeze':
       return { targetKind: effect.who === 'target' ? 'player' : 'none', needsDirection: false };
     case 'steal_card':
@@ -307,6 +341,13 @@ export function validateCardCatalog(entries: readonly CardCatalogEntry[], headli
         break;
       case 'flashbang':
         if (!(fx.ms >= 500) || fx.ms > 15_000) problems.push(`${at}: ms must be 500..15000`);
+        break;
+      case 'surprise_bill':
+        if (!Number.isInteger(fx.positions) || fx.positions < 1 || fx.positions > 20) problems.push(`${at}: positions must be an integer 1..20`);
+        if (!(fx.stake > 0) || fx.stake > 1) problems.push(`${at}: stake must be in (0, 1]`);
+        break;
+      case 'force_trade':
+      case 'challenge':
         break;
       case 'earnings_peek':
       case 'fact_check':

@@ -197,3 +197,8 @@ One line per choice that DESIGN.md and the milestone briefs left open. Append, d
   - **Effects on the way up.** Climbing a level pops "ON THE RADAR", "SEC IS WATCHING" (thump and shake), or "SEC IS COMING!" (siren, shake, burst). Nothing plays on the way down.
   - The SEC still rolls only for players who played an illegal card that quarter, which the tooltip says. The e2e reads "SEC N%".
 - Name screen: the full logo fits the card (at most 320 px wide) and is centered, with the tagline centered under it.
+- More Mayhem cards (2026-11-21):
+  - **Force Buy** (illegal; a stock target plus a direction): every other player is pushed into that stock, in that direction, with all their buying power. The order is clipped to the leverage cap (trading.forceOrder: an order() whose fills are marked reason `card`).
+  - **Are You Human? / MonkeyType** (legal): every other player gets a challenge, a 3x3 "select the stocks going UP" captcha or a stock and meme sentence to type with pasting blocked. Their orders are refused (`challenge`) until they send `solve_challenge` with its id. The challenge rides on `portfolio`, so a reload shows it again, and it is cleared at the quarter's close. The client draws the grid or sentence from the challenge's seed and trusts the player's own check (a party game).
+  - **Surprise Bill** (legal): everyone, the player who plays it included, buys random stocks they do not hold until they hold five; each buy is 10% of their buying power.
+  - The victims get `card_hit` effects (ALL IN <stock>!, a siren for a challenge, SURPRISE BILL!). Tests cover all four, including solving a challenge and its quarter-end expiry.
