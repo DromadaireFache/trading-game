@@ -91,6 +91,8 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
   // Market realism (volatility clustering, jumps) and the market's reaction to news.
   const dynamicsRng = rng.fork();
   const reactionRng = rng.fork();
+  // Appended last: every stream above keeps its draws (same seed, same game as before).
+  const mayhemRng = rng.fork();
   const market = createMarket(universe, marketRng, config, dynamicsRng);
   const news = createNews({
     config,
@@ -127,6 +129,7 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
     regimeRng,
     marketTick,
     quarterEndTick: () => quarter * config.time.daysPerQuarter * tpc - 1,
+    mayhemRng,
   });
   const portfolioOf = (id: string) => {
     const p = trading.portfolio(id);
@@ -311,6 +314,12 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
       case 'order': {
         if (!hasPlayer(intent.playerId)) return reject(intent, 'unknown_player', 'unknown player'), false;
         if (phase !== 'TRADING') return reject(intent, 'wrong_phase', 'the market is closed'), false;
+        // Mayhem: a Freeze refuses every order, a HODL every order that shrinks a position.
+        if (cards.isFrozen(intent.playerId)) return reject(intent, 'frozen', 'You are frozen: no trading until it thaws.'), false;
+        const held = trading.portfolio(intent.playerId)?.positions.find((pos) => pos.symbol === intent.symbol)?.qty ?? 0;
+        if (held !== 0 && Math.sign(intent.qty) === -Math.sign(held) && cards.isHodl(intent.playerId)) {
+          return reject(intent, 'hodl', 'HODL: you cannot sell or cash out until it wears off.'), false;
+        }
         if (!released && delayed.some((entry) => entry.intent.playerId === intent.playerId)) {
           reject(intent, 'jailed', 'Your previous jail order is still pending.');
           events.push(pendingOrder(intent.playerId));
@@ -366,7 +375,10 @@ export function createSim(seed: number, config: GameConfig, options: SimOptions 
         if (cards.isJailed(intent.playerId, market.getDay())) return reject(intent, 'jailed', 'you are in jail: no cards until you are out'), false;
         const result = cards.play(intent.playerId, intent.cardId, intent.target, intent.direction, quarter);
         if (!result.ok) return reject(intent, result.code, result.message), false;
-        for (const event of result.events) events.push(event);
+        for (const event of result.events) {
+          if (event.e === 'fill') results.recordFill(event);
+          events.push(event);
+        }
         return false;
       }
     }

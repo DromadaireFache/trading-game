@@ -10,7 +10,11 @@
     "priceMult": 1,
     "shopWeight": 4,
     "heat": "insiderTip",
-    "effect": { "kind": "insider_tip", "focus": "any", "leadMult": 1 }
+    "effect": {
+      "kind": "insider_tip",
+      "focus": "any",
+      "leadMult": 1
+    }
   },
   {
     "defId": "long_lunch",
@@ -23,7 +27,11 @@
     "priceMult": 1.8,
     "shopWeight": 2,
     "heat": "insiderTip",
-    "effect": { "kind": "insider_tip", "focus": "any", "leadMult": 2 }
+    "effect": {
+      "kind": "insider_tip",
+      "focus": "any",
+      "leadMult": 2
+    }
   },
   {
     "defId": "sector_source",
@@ -36,7 +44,11 @@
     "priceMult": 1.3,
     "shopWeight": 3,
     "heat": "insiderTip",
-    "effect": { "kind": "insider_tip", "focus": "sector", "leadMult": 1.5 }
+    "effect": {
+      "kind": "insider_tip",
+      "focus": "sector",
+      "leadMult": 1.5
+    }
   },
   {
     "defId": "boardroom_mole",
@@ -49,7 +61,9 @@
     "priceMult": 1.5,
     "shopWeight": 2,
     "heat": "insiderTip",
-    "effect": { "kind": "earnings_peek" }
+    "effect": {
+      "kind": "earnings_peek"
+    }
   },
   {
     "defId": "planted_rumor",
@@ -62,7 +76,11 @@
     "priceMult": 1,
     "shopWeight": 4,
     "heat": "fakeHeadline",
-    "effect": { "kind": "fake_headline", "scope": "stock", "magnitude": "medium" }
+    "effect": {
+      "kind": "fake_headline",
+      "scope": "stock",
+      "magnitude": "medium"
+    }
   },
   {
     "defId": "anonymous_source",
@@ -75,7 +93,11 @@
     "priceMult": 1.6,
     "shopWeight": 2,
     "heat": "fakeHeadline",
-    "effect": { "kind": "fake_headline", "scope": "stock", "magnitude": "large" }
+    "effect": {
+      "kind": "fake_headline",
+      "scope": "stock",
+      "magnitude": "large"
+    }
   },
   {
     "defId": "forged_memo",
@@ -88,7 +110,11 @@
     "priceMult": 2,
     "shopWeight": 2,
     "heat": "fakeHeadline",
-    "effect": { "kind": "fake_headline", "scope": "sector", "magnitude": "large" }
+    "effect": {
+      "kind": "fake_headline",
+      "scope": "sector",
+      "magnitude": "large"
+    }
   },
   {
     "defId": "panic_button",
@@ -101,7 +127,11 @@
     "priceMult": 2.5,
     "shopWeight": 1,
     "heat": "fakeHeadline",
-    "effect": { "kind": "fake_headline", "scope": "market", "magnitude": "large" }
+    "effect": {
+      "kind": "fake_headline",
+      "scope": "market",
+      "magnitude": "large"
+    }
   },
   {
     "defId": "lucky_strike",
@@ -114,7 +144,12 @@
     "priceMult": 1,
     "shopWeight": 3,
     "heat": null,
-    "effect": { "kind": "event_shock", "scope": "stock", "direction": "up", "magnitude": "large" }
+    "effect": {
+      "kind": "event_shock",
+      "scope": "stock",
+      "direction": "up",
+      "magnitude": "large"
+    }
   },
   {
     "defId": "act_of_god",
@@ -127,7 +162,12 @@
     "priceMult": 1,
     "shopWeight": 3,
     "heat": null,
-    "effect": { "kind": "event_shock", "scope": "stock", "direction": "down", "magnitude": "large" }
+    "effect": {
+      "kind": "event_shock",
+      "scope": "stock",
+      "direction": "down",
+      "magnitude": "large"
+    }
   },
   {
     "defId": "sabotage",
@@ -140,7 +180,12 @@
     "priceMult": 1.4,
     "shopWeight": 2,
     "heat": "illegalEvent",
-    "effect": { "kind": "event_shock", "scope": "stock", "direction": "down", "magnitude": "huge" }
+    "effect": {
+      "kind": "event_shock",
+      "scope": "stock",
+      "direction": "down",
+      "magnitude": "huge"
+    }
   },
   {
     "defId": "mother_lode",
@@ -153,7 +198,12 @@
     "priceMult": 1.6,
     "shopWeight": 2,
     "heat": null,
-    "effect": { "kind": "event_shock", "scope": "sector", "direction": "up", "magnitude": "medium" }
+    "effect": {
+      "kind": "event_shock",
+      "scope": "sector",
+      "direction": "up",
+      "magnitude": "medium"
+    }
   },
   {
     "defId": "freak_weather",
@@ -166,7 +216,12 @@
     "priceMult": 1.6,
     "shopWeight": 2,
     "heat": null,
-    "effect": { "kind": "event_shock", "scope": "sector", "direction": "down", "magnitude": "medium" }
+    "effect": {
+      "kind": "event_shock",
+      "scope": "sector",
+      "direction": "down",
+      "magnitude": "medium"
+    }
   },
   {
     "defId": "server_meltdown",
@@ -179,7 +234,12 @@
     "priceMult": 2,
     "shopWeight": 1,
     "heat": "illegalEvent",
-    "effect": { "kind": "event_shock", "scope": "market", "direction": "down", "magnitude": "medium" }
+    "effect": {
+      "kind": "event_shock",
+      "scope": "market",
+      "direction": "down",
+      "magnitude": "medium"
+    }
   },
   {
     "defId": "surprise_holiday",
@@ -192,7 +252,12 @@
     "priceMult": 0.8,
     "shopWeight": 2,
     "heat": null,
-    "effect": { "kind": "event_shock", "scope": "market", "direction": "up", "magnitude": "small" }
+    "effect": {
+      "kind": "event_shock",
+      "scope": "market",
+      "direction": "up",
+      "magnitude": "small"
+    }
   },
   {
     "defId": "war",
@@ -208,12 +273,20 @@
     "effect": {
       "kind": "regime",
       "quarters": 2,
-      "sectorDrift": { "defense": 0.003, "energy": 0.002, "airlines": -0.004 },
+      "sectorDrift": {
+        "defense": 0.003,
+        "energy": 0.002,
+        "airlines": -0.004
+      },
       "volMult": 1.4,
       "corrMult": 1.3,
       "headlines": {
         "start": "h_seed_0020",
-        "during": ["h_seed_0046", "h_seed_0053", "h_seed_0154"],
+        "during": [
+          "h_seed_0046",
+          "h_seed_0053",
+          "h_seed_0154"
+        ],
         "end": "h_seed_0009"
       }
     }
@@ -232,12 +305,19 @@
     "effect": {
       "kind": "regime",
       "quarters": 2,
-      "sectorDrift": { "health": 0.003, "tech": 0.0015, "airlines": -0.005 },
+      "sectorDrift": {
+        "health": 0.003,
+        "tech": 0.0015,
+        "airlines": -0.005
+      },
       "volMult": 1.3,
       "corrMult": 1.2,
       "headlines": {
         "start": "h_seed_0022",
-        "during": ["h_seed_0055", "h_seed_0157"],
+        "during": [
+          "h_seed_0055",
+          "h_seed_0157"
+        ],
         "end": "h_seed_0011"
       }
     }
@@ -256,13 +336,19 @@
     "effect": {
       "kind": "regime",
       "quarters": 1,
-      "sectorDrift": { "airlines": -0.002, "defense": 0.001 },
+      "sectorDrift": {
+        "airlines": -0.002,
+        "defense": 0.001
+      },
       "volMult": 1.8,
       "corrMult": 1.4,
       "rateDelta": 0.005,
       "headlines": {
         "start": "h_seed_0021",
-        "during": ["h_seed_0156", "h_seed_0158"],
+        "during": [
+          "h_seed_0156",
+          "h_seed_0158"
+        ],
         "end": "h_seed_0012"
       }
     }
@@ -302,7 +388,9 @@
     "priceMult": 1,
     "shopWeight": 2,
     "heat": null,
-    "effect": { "kind": "fact_check" }
+    "effect": {
+      "kind": "fact_check"
+    }
   },
   {
     "defId": "trading_halt",
@@ -315,7 +403,9 @@
     "priceMult": 1,
     "shopWeight": 2,
     "heat": null,
-    "effect": { "kind": "trading_halt" }
+    "effect": {
+      "kind": "trading_halt"
+    }
   },
   {
     "defId": "sec_tip_off",
@@ -328,6 +418,138 @@
     "priceMult": 1,
     "shopWeight": 2,
     "heat": null,
-    "effect": { "kind": "sec_tip_off", "heat": "tipOff" }
+    "effect": {
+      "kind": "sec_tip_off",
+      "heat": "tipOff"
+    }
+  },
+  {
+    "defId": "freeze",
+    "tier": "mayhem",
+    "name": "Freeze",
+    "description": "Freeze a rival: they cannot trade for a tenth of the game.",
+    "legal": false,
+    "targetKind": "player",
+    "needsDirection": false,
+    "priceMult": 1,
+    "shopWeight": 2,
+    "heat": "illegalEvent",
+    "effect": {
+      "kind": "freeze",
+      "who": "target",
+      "share": 0.1
+    }
+  },
+  {
+    "defId": "ice_age",
+    "tier": "mayhem",
+    "name": "Ice Age",
+    "description": "Freeze every other player: nobody but you trades for a twentieth of the game.",
+    "legal": false,
+    "targetKind": "none",
+    "needsDirection": false,
+    "priceMult": 1.8,
+    "shopWeight": 1,
+    "heat": "illegalEvent",
+    "effect": {
+      "kind": "freeze",
+      "who": "others",
+      "share": 0.05
+    }
+  },
+  {
+    "defId": "pickpocket",
+    "tier": "mayhem",
+    "name": "Pickpocket",
+    "description": "Steal a random card from a rival's hand.",
+    "legal": false,
+    "targetKind": "player",
+    "needsDirection": false,
+    "priceMult": 0.8,
+    "shopWeight": 2,
+    "heat": "illegalEvent",
+    "effect": {
+      "kind": "steal_card"
+    }
+  },
+  {
+    "defId": "flashbang",
+    "tier": "mayhem",
+    "name": "Flashbang",
+    "description": "Blind every other player for a few seconds.",
+    "legal": true,
+    "targetKind": "none",
+    "needsDirection": false,
+    "priceMult": 0.6,
+    "shopWeight": 2,
+    "heat": null,
+    "effect": {
+      "kind": "flashbang",
+      "ms": 4500
+    }
+  },
+  {
+    "defId": "uno_reverse",
+    "tier": "mayhem",
+    "name": "Uno Reverse",
+    "description": "Flip a rival's biggest bet: UP becomes DOWN, DOWN becomes UP.",
+    "legal": false,
+    "targetKind": "player",
+    "needsDirection": false,
+    "priceMult": 1.4,
+    "shopWeight": 2,
+    "heat": "illegalEvent",
+    "effect": {
+      "kind": "reverse_trade"
+    }
+  },
+  {
+    "defId": "freak_out",
+    "tier": "mayhem",
+    "name": "Freak the F- Out",
+    "description": "Everyone panics and sells everything at market. You too.",
+    "legal": false,
+    "targetKind": "none",
+    "needsDirection": false,
+    "priceMult": 1.6,
+    "shopWeight": 1,
+    "heat": "illegalEvent",
+    "effect": {
+      "kind": "force_sell"
+    }
+  },
+  {
+    "defId": "jensen_special",
+    "tier": "event",
+    "name": "Jensen Special",
+    "description": "Everything goes down. Hard.",
+    "legal": true,
+    "targetKind": "none",
+    "needsDirection": false,
+    "priceMult": 2,
+    "shopWeight": 1,
+    "heat": null,
+    "effect": {
+      "kind": "event_shock",
+      "scope": "market",
+      "direction": "down",
+      "magnitude": "large"
+    }
+  },
+  {
+    "defId": "hodl",
+    "tier": "mayhem",
+    "name": "HODL",
+    "description": "Diamond hands: a rival cannot sell or cash out anything for 15% of the game.",
+    "legal": true,
+    "targetKind": "player",
+    "needsDirection": false,
+    "priceMult": 1,
+    "shopWeight": 2,
+    "heat": null,
+    "effect": {
+      "kind": "hodl",
+      "share": 0.15
+    }
   }
 ]

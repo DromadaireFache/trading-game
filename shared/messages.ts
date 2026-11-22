@@ -284,6 +284,10 @@ export interface PortfolioMsg {
   heat: number;
   /** Game day until which the player is in jail. */
   jailedUntil?: number;
+  /** Game day until which a Freeze card stops this player's orders (absent when not frozen). */
+  frozenUntil?: number;
+  /** Game day until which a HODL card stops this player selling or cashing out. */
+  hodlUntil?: number;
   /**
    * Additions to the draft. buyingPower = max(0, leverageCap * equity - gross exposure) at the
    * prices of the moment it was sent; clients recompute it live from ticks with the same formula.
@@ -410,7 +414,27 @@ export interface ErrorMsg {
   message: string;
 }
 
+/**
+ * A Mayhem card hit this player (sent to them alone; who played it is revealed at RESULTS):
+ *   frozen     no orders until game day `untilDay`
+ *   hodl       no selling or cashing out until game day `untilDay`
+ *   flashbang  the screen goes white for `ms`
+ *   stolen     `cardName` was taken from the hand
+ *   reversed   the position in `symbol` was flipped
+ *   freak_out  every position was sold at market
+ */
+export interface CardHitMsg {
+  t: 'card_hit';
+  kind: 'frozen' | 'hodl' | 'flashbang' | 'stolen' | 'reversed' | 'freak_out';
+  /** The card that did it (for `stolen`: the card that was taken). */
+  cardName: string;
+  untilDay?: number;
+  ms?: number;
+  symbol?: SymbolId;
+}
+
 export type ServerMsg =
+  | CardHitMsg
   | PendingOrderMsg
   | WelcomeMsg
   | LobbyMsg

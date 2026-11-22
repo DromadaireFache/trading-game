@@ -8,11 +8,12 @@ const TIER_LABEL: Record<CardDef['tier'], string> = {
   event: 'Event',
   regime: 'Regime',
   counter: 'Counter',
+  mayhem: 'Mayhem',
 };
 
 /** What a card needs when played, in a few words. */
 export function targetHint(card: CardDef): string {
-  const target = card.targetKind === 'stock' ? 'a stock' : card.targetKind === 'sector' ? 'a sector' : '';
+  const target = card.targetKind === 'stock' ? 'a stock' : card.targetKind === 'sector' ? 'a sector' : card.targetKind === 'player' ? 'a rival' : '';
   if (card.needsDirection) return target ? `${target}, up or down` : 'up or down';
   return target;
 }

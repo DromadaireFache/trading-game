@@ -84,6 +84,32 @@ function HandCard({ card, open }: { card: Card; open: boolean }) {
       label = ` on ${SECTOR_LABELS[sector]}`;
     }
   }
+  // A card aimed at a player: one button per rival still in the game.
+  const { lobby, me, holdings } = useGame();
+  const rivals = (lobby?.players ?? []).filter((p) => p.id !== me?.playerId && holdings[p.id]?.eliminated !== true);
+  if (def.targetKind === 'player') {
+    const whyRival = !open ? 'Cards can be played while the market is open' : rivals.length === 0 ? 'Nobody left to aim at' : undefined;
+    return (
+      <CardFace card={def} testId="hand-card">
+        <div className="card__target">Pick a rival</div>
+        <div className="card__rivals">
+          {rivals.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              className="card__btn card__btn--rival"
+              disabled={!open}
+              title={whyRival ?? `${def.name} on ${r.name}`}
+              onClick={() => client.send({ t: 'play_card', cardId: card.cardId, target: r.id })}
+              data-testid="play"
+            >
+              {r.name}
+            </button>
+          ))}
+        </div>
+      </CardFace>
+    );
+  }
   const missing = def.targetKind !== 'none' && target === undefined;
   const why = !open ? 'Cards can be played while the market is open' : missing ? `Select a ${def.targetKind} in the market list first` : undefined;
   const play = (direction?: CardDirection) =>

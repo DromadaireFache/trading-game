@@ -171,5 +171,21 @@ One line per choice that DESIGN.md and the milestone briefs left open. Append, d
   - **Popups.** All popups use Teko with a thick ink outline. Money and shares from a trade are drawn as tilted colored chips in IBM Plex Mono (`chip` on fx.popup), Balatro score style.
   - **Layout.** A 96 px middle row makes only the other players' box taller: it reaches up into the left column under a shorter stock list. The chart, side column and positions are unchanged.
 - Stock list sized to fit (2026-11-21): the desk's first row is `auto`, exactly as tall as the stock list needs, so it never scrolls. The other players' box takes the rest of the height above the bottom row, so on a short screen it shrinks first. The chart and the side column span both rows and do not affect their sizes (grid items that span a flexible track are left out of auto sizing). The e2e checks that the list does not scroll, and two of its timing checks wait instead of reading once.
+- Mayhem cards (2026-11-21):
+  - **A new tier, `mayhem`,** for cards aimed at other players (price share 5% of net worth), and a new target kind, `player`: the card shows one button per rival still in the game.
+  - **The cards:**
+    - **Freeze:** the rival's orders are refused for 10% of the game's trading time.
+    - **Ice Age:** every other player is frozen for 5%.
+    - **Pickpocket:** takes a random card from the rival's hand. An empty hand refuses it and the card is kept.
+    - **Flashbang:** every other player's screen goes white for 4.5 s.
+    - **Uno Reverse:** the rival's biggest position flips side at market (a forced fill, reason `card`). A rival with no bets refuses it.
+    - **Freak the F- Out:** everyone sells everything at market, the player who plays it included.
+    - **HODL:** the rival cannot reduce or close any position for 15%, but can still buy more.
+    - **Jensen Special:** an event card, a large market-wide down shock with an event headline.
+  - **Legality.** Flashbang, HODL and Jensen Special are legal. The rest are illegal (illegalEvent heat).
+  - **Durations** are shares of total trading time (quarters x days), counted in market ticks, so they pause between quarters.
+  - **Wire.** The victim alone gets a `card_hit` message and a loud effect: FROZEN!, HODL!, STOLEN!, REVERSED!, FREAK OUT!, or the flashbang white-out. Who played it stays hidden until RESULTS, where Mayhem plays are revealed with the other headline-less cards. `portfolio` carries `frozenUntil` and `hodlUntil` (game days). The bet panel shows FROZEN, and Cash out buttons lock while frozen or under HODL.
+  - **Randomness.** Pickpocket draws from a new RNG stream appended last, so every earlier stream is unchanged.
+  - **Tests.** The balance bot test now plays six games instead of three, because the larger catalog spreads the offers thinner.
 - The finale (2026-11-21): the end screen is a cutscene, full screen on every desk and on the projector, played from one server time (`finaleStartsAt` in the final results; shared `finale.ts` holds the timeline), so every reveal lands everywhere at once and a reload resumes in place. Closing bell ("MARKET CLOSED"), then the race: everyone's net worth from the first day to the last (the whole game, downsampled to 400 points, `gameNetWorth`), drawn left to right and slowing toward the end, with a drumroll; a lead change flashes the new leader's color with a blip (no text). Then the winner's line lights up. Then highlights one at a time (worst and best index day, stock of the game, loudest card, biggest single trade, arrests), awards one at a time, the podium (3rd, 2nd, then 1st with confetti), and the recap: winner, Play again, your own game (rank, best and worst trade, trades, headlines planted, card spend, fines, margin calls), the standings with a small podium, the whole-game chart, awards and highlights. The server refuses Play again until the cutscene is over (1.5 s slack for clock drift). About 50 s with 4 players; `presentation.finaleScale` speeds it up (tests use 0 or 0.2).
 - Last quarter sealed (2026-11-21): in the last quarter's briefing and trading, the rivals panel shows tickers and long/short but no net worth or amounts ("???"), and the projector replaces its live net-worth chart with "Final quarter: standings sealed". The Q3 results still show; the finale reveals the rest.

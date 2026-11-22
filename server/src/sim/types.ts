@@ -84,6 +84,10 @@ export type SimRejectCode =
   | 'no_target'
   | 'regime_cap'
   | 'nothing_to_tip'
+  | 'nothing_to_steal'
+  | 'nothing_to_reverse'
+  | 'frozen'
+  | 'hodl'
   | 'not_implemented';
 
 export type SimEvent =
@@ -117,6 +121,10 @@ export type SimEvent =
       equity: number;
       heat: number;
       jailedUntil?: number;
+      /** Game day until which a Freeze card stops this player's orders. */
+      frozenUntil?: number;
+      /** Game day until which a HODL card stops this player selling. */
+      hodlUntil?: number;
       buyingPower?: number;
       hand?: Card[];
       eliminated?: boolean;
@@ -126,6 +134,8 @@ export type SimEvent =
   /** A quick bet settled at the close of its last day. */
   | { e: 'bet_result'; playerId: PlayerId; symbol: SymbolId; qty: number; entryPrice: number; exitPrice: number; pnl: number; streak: number }
   | { e: 'shop'; playerId: PlayerId; offers: CardOffer[] }
+  /** A Mayhem card hit player `to` (sent to them alone). Mirrors CardHitMsg in @tg/shared. */
+  | { e: 'card_hit'; to: PlayerId; kind: 'frozen' | 'hodl' | 'flashbang' | 'stolen' | 'reversed' | 'freak_out'; cardName: string; untilDay?: number; ms?: number; symbol?: SymbolId }
   | { e: 'phase_ready'; readyPlayerIds: PlayerId[] }
   | {
       e: 'results';

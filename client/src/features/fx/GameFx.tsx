@@ -107,6 +107,11 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           if (msg.reason === 'timed') return;
           const button = takeOrderButton(msg.requestId);
           const at = anchorOf('[data-testid=last-fill]', anchorOf('.desk__order'));
+          // A card's forced fill (Uno Reverse, Freak the F- Out) has its own effect (card_hit).
+          if (msg.reason === 'card') {
+            play('fill', 0.8);
+            return;
+          }
           if (msg.reason) {
             combo.current = 0;
             fx.shake(3);
@@ -178,6 +183,9 @@ export function GameFx({ role }: { role: 'player' | 'spectator' }) {
           rivalTrade(msg.playerId, before, now, msg.equity);
           return;
         }
+        case 'card_hit':
+          if (role === 'player') cardHit(msg);
+          return;
         case 'error':
           if (role === 'player') play('reject');
           return;
@@ -315,4 +323,57 @@ function cardMoments(before: { hand: number; heat: number; jailed: boolean }, no
     fx.popup({ text: 'FREE!', tone: 'up', ...hand, size: 1.6 });
     fx.burst({ ...hand, tone: 'up', count: 40, power: 8 });
   }
+}
+
+/** A Mayhem card hit this player: Balatro-loud, so the victim knows at once. */
+function cardHit(msg: Extract<ServerMsg, { t: 'card_hit' }>): void {
+  const order = anchorOf('.desk__order');
+  const hand = anchorOf('[data-testid=hand]', anchorOf('.desk__hand'));
+  switch (msg.kind) {
+    case 'frozen':
+      play('whoosh', 0.7);
+      fx.shake(2);
+      fx.popup({ text: 'FROZEN!', tone: 'info', ...order, size: 2 });
+      fx.burst({ ...order, tone: 'info', count: 50, power: 7 });
+      return;
+    case 'hodl':
+      play('thump');
+      fx.shake(1);
+      fx.popup({ text: 'HODL!', tone: 'accent', ...anchorOf('.desk__positions', order), size: 2 });
+      return;
+    case 'stolen':
+      play('loss');
+      fx.shake(1);
+      fx.popup({ text: `${msg.cardName} STOLEN!`, tone: 'down', ...hand, size: 1.5 });
+      return;
+    case 'reversed':
+      play('whoosh');
+      fx.shake(2);
+      fx.chroma(0.7);
+      fx.popup({ text: `${msg.symbol ?? ''} REVERSED!`, tone: 'warn', ...anchorOf('.desk__positions', order), size: 1.8 });
+      return;
+    case 'freak_out':
+      play('loss');
+      fx.shake(3);
+      fx.flash({ tone: 'down', strength: 1 });
+      fx.chroma(1);
+      fx.popup({ text: 'FREAK OUT! SOLD EVERYTHING', tone: 'down', ...anchorOf('.desk__positions', order), size: 1.8 });
+      return;
+    case 'flashbang':
+      flashbang(msg.ms ?? 4500);
+      return;
+  }
+}
+
+/** A white-out over the whole page that fades over `ms` (and lets clicks through: it only blinds). */
+function flashbang(ms: number): void {
+  play('sting');
+  fx.shake(2);
+  const el = document.createElement('div');
+  el.className = 'fx-flashbang';
+  el.setAttribute('aria-hidden', 'true');
+  el.style.animationDuration = `${ms}ms`;
+  el.addEventListener('animationend', () => el.remove());
+  document.body.append(el);
+  window.setTimeout(() => el.remove(), ms + 500);
 }

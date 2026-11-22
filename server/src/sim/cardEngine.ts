@@ -59,9 +59,11 @@ export interface CardEngineDeps {
   marketTick(): number;
   /** Market tick of the current quarter's last TRADING step. */
   quarterEndTick(): number;
+  /** Mayhem draws (which card a Pickpocket takes). Optional: a bare engine uses the first card. */
+  mayhemRng?: Rng;
 }
 
-type CardEvent = SimEventOf<'headline'> | SimEventOf<'moment'> | SimEventOf<'portfolio'>;
+type CardEvent = SimEventOf<'headline'> | SimEventOf<'moment'> | SimEventOf<'portfolio'> | SimEventOf<'fill'> | SimEventOf<'card_hit'>;
 export type CardResult = { ok: true; events: CardEvent[] } | { ok: false; code: SimRejectCode; message: string };
 
 interface HandCard {
@@ -86,6 +88,9 @@ interface PlayerCards {
   /** This quarter's offers: offerId -> entry, price, bought. */
   offers: Map<string, { entry: CardCatalogEntry; price: number; bought: boolean }>;
   offerList: SimEventOf<'shop'>['offers'];
+  /** Market tick until which a Freeze card refuses this player's orders, and a HODL card their sells. */
+  frozenUntil?: number;
+  hodlUntil?: number;
   /**
    * Stocks this player moved with a card this quarter (true = only with legal cards), and those
    * already heated for trading them.
@@ -113,6 +118,10 @@ export interface CardEngine {
   decorate(event: SimEventOf<'portfolio'>): SimEventOf<'portfolio'>;
   /** Game day (integer) -> true while the player may not trade or play cards. */
   isJailed(id: PlayerId, day: number): boolean;
+  /** True while a Freeze card refuses the player's orders (now, in market ticks). */
+  isFrozen(id: PlayerId): boolean;
+  /** True while a HODL card refuses the player's sells (orders that shrink a position). */
+  isHodl(id: PlayerId): boolean;
   /** An order on `symbol` went through (manipulated-target heat). */
   onOrder(id: PlayerId, symbol: SymbolId): void;
   /** SHOP starts: each player draws their own selection, priced for them. Empty in the last quarter. */
@@ -137,6 +146,11 @@ export interface CardEngine {
 export function createCardEngine(deps: CardEngineDeps): CardEngine {
   const { config, universe, catalog, news, trading } = deps;
   const players = new Map<PlayerId, PlayerCards>();
+  const tpc = config.time.ticksPerCandle;
+  /** `share` of the game's whole trading time, in market ticks (at least one). */
+  const shareTicks = (share: number) => Math.max(1, Math.round(share * config.time.quarters * config.time.daysPerQuarter * tpc));
+  /** Players still in the game other than `id`. */
+  const others = (id: PlayerId) => [...players.values()].filter((o) => o.id !== id && trading.portfolio(o.id)?.eliminated !== true);
   const companyBySymbol = new Map(universe.companies.map((c) => [c.symbol, c]));
   const sectorFund = new Map(universe.funds.filter((f) => f.kind === 'sector' && f.sector).map((f) => [f.symbol, f.sector!]));
   let regimes: RegimeState = emptyRegimeState();
@@ -158,7 +172,15 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
     const p = players.get(event.playerId);
     if (p === undefined) return event;
     const hand: Card[] = p.hand.map((h) => ({ cardId: h.cardId, card: toCardDef(h.entry) }));
-    return { ...event, heat: p.heat, hand, ...(p.jailedUntil === undefined ? {} : { jailedUntil: p.jailedUntil }) };
+    const now = deps.marketTick();
+    return {
+      ...event,
+      heat: p.heat,
+      hand,
+      ...(p.jailedUntil === undefined ? {} : { jailedUntil: p.jailedUntil }),
+      ...(p.frozenUntil !== undefined && p.frozenUntil > now ? { frozenUntil: p.frozenUntil / tpc } : {}),
+      ...(p.hodlUntil !== undefined && p.hodlUntil > now ? { hodlUntil: p.hodlUntil / tpc } : {}),
+    };
   }
 
   function portfolioOf(id: PlayerId): SimEventOf<'portfolio'>[] {
@@ -258,6 +280,16 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
       return isJailed(players.get(id)?.jailedUntil, day);
     },
 
+    isFrozen(id) {
+      const until = players.get(id)?.frozenUntil;
+      return until !== undefined && deps.marketTick() < until;
+    },
+
+    isHodl(id) {
+      const until = players.get(id)?.hodlUntil;
+      return until !== undefined && deps.marketTick() < until;
+    },
+
     onOrder(id, symbol) {
       const p = players.get(id);
       if (p === undefined || !p.manipulated.has(symbol) || p.heated.has(symbol)) return;
@@ -334,11 +366,21 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
         if (sector === undefined) return fail('no_target', `${entry.name} needs a sector (or a stock or sector fund in it) as its target`);
         shockTarget = { scope: 'sector', sector };
       }
+      // A rival: another player still in the game.
+      let victim: PlayerCards | undefined;
+      if (entry.targetKind === 'player') {
+        victim = target === undefined ? undefined : players.get(target);
+        if (victim === undefined || victim.id === id || trading.portfolio(victim.id)?.eliminated) {
+          return fail('no_target', `${entry.name} needs another player still in the game as its target`);
+        }
+      }
 
       const now = deps.marketTick();
       const events: CardEvent[] = [];
       const owner = { ownerId: id, cardName: entry.name };
-      let revealed = `${entry.name}${shockTarget.scope === 'market' ? '' : ` on ${targetLabel(shockTarget)}`}${direction ? ` (${direction})` : ''}`;
+      let revealed = victim
+        ? `${entry.name} on ${victim.name}`
+        : `${entry.name}${shockTarget.scope === 'market' ? '' : ` on ${targetLabel(shockTarget)}`}${direction ? ` (${direction})` : ''}`;
 
       switch (fx.kind) {
         case 'insider_tip': {
@@ -437,6 +479,58 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           events.push(...moment('regime', `${entry.name.toUpperCase()}: ${entry.description}`));
           break;
         }
+        case 'freeze': {
+          const until = now + shareTicks(fx.share);
+          const hit = fx.who === 'target' ? [victim!] : others(id);
+          for (const o of hit) {
+            o.frozenUntil = Math.max(o.frozenUntil ?? 0, until);
+            events.push({ e: 'card_hit', to: o.id, kind: 'frozen', cardName: entry.name, untilDay: o.frozenUntil / tpc });
+            events.push(...portfolioOf(o.id));
+          }
+          break;
+        }
+        case 'hodl': {
+          const o = victim!;
+          o.hodlUntil = Math.max(o.hodlUntil ?? 0, now + shareTicks(fx.share));
+          events.push({ e: 'card_hit', to: o.id, kind: 'hodl', cardName: entry.name, untilDay: o.hodlUntil / tpc });
+          events.push(...portfolioOf(o.id));
+          break;
+        }
+        case 'steal_card': {
+          const o = victim!;
+          if (o.hand.length === 0) return fail('nothing_to_steal', `${o.name} has no cards to steal; keep the card for later`);
+          const pick = deps.mayhemRng ? deps.mayhemRng.int(o.hand.length) : 0;
+          const [stolen] = o.hand.splice(pick, 1);
+          // The Pickpocket leaves the hand below (after this switch), so the stolen card always fits.
+          p.hand.push(stolen!);
+          events.push({ e: 'card_hit', to: o.id, kind: 'stolen', cardName: stolen!.entry.name });
+          events.push(...portfolioOf(o.id));
+          break;
+        }
+        case 'flashbang':
+          for (const o of others(id)) events.push({ e: 'card_hit', to: o.id, kind: 'flashbang', cardName: entry.name, ms: fx.ms });
+          break;
+        case 'reverse_trade': {
+          const o = victim!;
+          const positions = trading.portfolio(o.id)?.positions ?? [];
+          const biggest = [...positions].sort((a, b) => Math.abs(b.qty) * b.avgPrice - Math.abs(a.qty) * a.avgPrice)[0];
+          if (biggest === undefined) return fail('nothing_to_reverse', `${o.name} has no bet to reverse; keep the card for later`);
+          for (const event of trading.forceFill(o.id, biggest.symbol, -2 * biggest.qty, 'card')) {
+            events.push(event.e === 'portfolio' ? decorate(event) : (event as SimEventOf<'fill'>));
+          }
+          events.push({ e: 'card_hit', to: o.id, kind: 'reversed', cardName: entry.name, symbol: biggest.symbol });
+          revealed = `${entry.name} on ${o.name} (${biggest.symbol})`;
+          break;
+        }
+        case 'force_sell':
+          // Everybody sells, the player who plays it too (they knew it was coming).
+          for (const o of [...players.values()]) {
+            for (const event of trading.liquidate(o.id, 'card')) {
+              events.push(event.e === 'portfolio' ? decorate(event) : (event as SimEventOf<'fill'>));
+            }
+            if (o.id !== id) events.push({ e: 'card_hit', to: o.id, kind: 'freak_out', cardName: entry.name });
+          }
+          break;
         case 'fact_check':
         case 'trading_halt':
         case 'sec_tip_off':
@@ -446,7 +540,10 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
       heat(p, entry);
       if (!entry.legal) p.playedIllegal = true;
       p.hand.splice(index, 1);
-      if (fx.kind === 'insider_tip' || fx.kind === 'earnings_peek') reveals.push({ playerId: id, name: p.name, cardName: entry.name, text: revealed });
+      // Cards that publish no headline are revealed at RESULTS this way (headline cards through the news log).
+      if (entry.tier === 'mayhem' || fx.kind === 'insider_tip' || fx.kind === 'earnings_peek') {
+        reveals.push({ playerId: id, name: p.name, cardName: entry.name, text: revealed });
+      }
       events.push(...portfolioOf(id));
       return { ok: true, events };
     },
