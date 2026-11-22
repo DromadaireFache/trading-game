@@ -2,14 +2,15 @@ import { dayOfQuarter, dayToQuarter } from '@tg/shared';
 import type { LobbyPlayer, Position } from '@tg/shared';
 import { Panel } from '../../components/Panel.tsx';
 import { formatMoneyShort } from '../../lib/format.ts';
-import { useGame } from '../../net/GameProvider.tsx';
-import { useLastDay, useMarketStore, useQuote } from '../../net/marketHooks.ts';
+import { useGame, useHoldings } from '../../net/GameProvider.tsx';
+import { useLastDay, useMarketStore, useQuoteValue } from '../../net/marketHooks.ts';
 import type { Holdings } from '../../net/state.ts';
 import './rivals.css';
 
 /** One column per other seat (maxPlayers - 1), so the layout does not jump when people join. */
 export function RivalsPanel({ className }: { className?: string }) {
-  const { lobby, me, holdings, config } = useGame();
+  const { lobby, me, config } = useGame();
+  const holdings = useHoldings();
   const others = (lobby?.players ?? []).filter((p) => p.id !== me?.playerId);
   const seats = Math.max(1, config.lobby.maxPlayers - 1);
   const sealed = useStandingsSealed();
@@ -86,9 +87,11 @@ function Rival({ player, held }: { player: LobbyPlayer; held: Holdings | undefin
 /** Ticker and what the bet is worth now; green = long (betting up), red = short (betting down). */
 function RivalPosition({ position, sealed }: { position: Position; sealed: boolean }) {
   const market = useMarketStore();
-  const quote = useQuote(position.symbol);
   const long = position.qty > 0;
-  const worth = Math.abs(position.qty) * (quote?.price ?? position.avgPrice);
+  // Only the rounded amount is shown: re-render when it changes, not on every tick.
+  const amount = useQuoteValue(position.symbol, (quote) =>
+    sealed ? '???' : formatMoneyShort(Math.abs(position.qty) * (quote?.price ?? position.avgPrice)),
+  );
   return (
     <li
       className={`rival__pos rival__pos--${long ? 'long' : 'short'}`}
@@ -99,7 +102,7 @@ function RivalPosition({ position, sealed }: { position: Position; sealed: boole
     >
       <span className="rival__dir">{long ? '▲' : '▼'}</span>
       <span className="rival__ticker">{position.symbol}</span>
-      <span className="rival__amount">{sealed ? '???' : formatMoneyShort(worth)}</span>
+      <span className="rival__amount">{amount}</span>
     </li>
   );
 }

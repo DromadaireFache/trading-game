@@ -46,17 +46,13 @@ textarea {
     radial-gradient(circle at 30% 35%, color-mix(in srgb, var(--tg-color-balatro-blue) 12%, transparent) 0 18%, transparent 42%),
     radial-gradient(circle at 70% 65%, color-mix(in srgb, var(--tg-color-balatro-red) 10%, transparent) 0 16%, transparent 40%),
     conic-gradient(from 0deg, var(--tg-color-bg), color-mix(in srgb, var(--tg-color-bg) 80%, var(--tg-color-shadow)), var(--tg-color-bg));
-  animation: look-swirl 90s linear infinite;
-  will-change: transform;
+  /* Static on purpose: this layer is several screens big, and rotating it (even slowly) made the
+     browser recomposite it on every frame of the whole game. */
+  transform: rotate(-12deg);
 }
 .play {
   position: relative;
   isolation: isolate;
-}
-@keyframes look-swirl {
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 /* ------------------------------------------------------------------ R.E.P.O.: the stock side */
@@ -97,7 +93,8 @@ textarea {
     color-mix(in srgb, var(--tg-color-shadow) 28%, transparent) 0 1px,
     transparent 1px 3px
   );
-  mix-blend-mode: multiply;
+  /* No mix-blend-mode: these panels repaint every tick (list, chart), and a blended layer on top
+     makes every repaint recomposite the whole panel. Plain alpha looks the same here. */
 }
 .market-list .panel__title,
 .market-chart .panel__title,
@@ -767,7 +764,6 @@ button.positions__close:disabled,
   background: color-mix(in srgb, var(--tg-color-info) 35%, transparent);
   border: 2px solid var(--tg-color-info);
   border-radius: 6px;
-  backdrop-filter: blur(2px);
   animation: look-frost 2.4s ease-in-out infinite;
 }
 @keyframes look-frost {
