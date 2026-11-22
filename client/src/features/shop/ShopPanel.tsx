@@ -36,7 +36,8 @@ export function ShopPanel({ className }: { className?: string }) {
         <>
         {shop[0]?.discount ? (
           <p className="shop__underdog" data-testid="underdog">
-            Underdog deal: {Math.round(shop[0].discount * 100)}% off
+            <span>Underdog deal</span>
+            <strong>{Math.round(shop[0].discount * 100)}% off</strong>
           </p>
         ) : null}
         <div className="shop__grid" data-testid="shop">

@@ -4,8 +4,7 @@ import { PHASE_LABEL } from '../lib/phases.ts';
 import { useGame, useGameClient } from '../net/GameProvider.tsx';
 
 /**
- * One chunky Balatro button: "Ready up" with the count of ready players inside it (a person icon and
- * x/y). Once pressed it turns green and keeps counting until everyone is in.
+ * Shows how many players are ready. After a player readies up, the count stays visible.
  */
 export function ReadyUp() {
   const { phase, readyPlayerIds, lobby, me, join } = useGame();
