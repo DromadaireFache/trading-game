@@ -965,7 +965,7 @@ async function main(): Promise<void> {
       await a.waitForSelector(positionRow(stockA), { state: 'detached' });
       check(fillsOf('A').at(-1)!.qty < 0, 'cashing out sold the position');
       const pnl = await textOf(a, 'total-pnl');
-      check(/^[+-]?\$[\d,]+ \([+-]?\d+\.\d+%\)$/.test(pnl), `A shows total P&L after cashing out: ${pnl}`);
+      check(/^\([+-]?\d+\.\d{1,2}%\)$/.test(pnl), `A shows the return percentage after cashing out: ${pnl}`);
       // Flat again: equity is exactly the cash (a 4x round trip can move it by any amount, so no range check).
       await waitFor('A portfolio after cashing out', async () => portfolioAfterFill('A')?.positions.length === 0);
       const flat = portfolioAfterFill('A')!;

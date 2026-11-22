@@ -1,7 +1,7 @@
 import { unrealizedPnl } from '@tg/shared';
 import type { Position } from '@tg/shared';
 import { Panel, Placeholder } from '../../components/Panel.tsx';
-import { changeDirection, formatMoney, formatMoneyShort, formatPercent, formatPrice, formatShares } from '../../lib/format.ts';
+import { changeDirection, formatMoneyShort, formatPercent, formatPrice, formatShares } from '../../lib/format.ts';
 import { useGame, useGameClient } from '../../net/GameProvider.tsx';
 import { useMarketStore, useQuote, useSelectedSymbol } from '../../net/marketHooks.ts';
 import { useLivePortfolio } from '../../net/portfolioHooks.ts';
@@ -32,9 +32,9 @@ export function MoneyPanel({ className }: { className?: string }) {
         </div>
       )}
       <div className="positions__score" title="Net worth = cash + what your bets are worth now. Highest at the end wins.">
-        <MoneyScore equity={live.equity} />
+        <MoneyScore equity={live.equity} />{' '}
         <span className={`positions__pnl change--${changeDirection(pnlFraction)}`} data-testid="total-pnl" title="Since the start of the game">
-          {formatMoney(live.totalPnl, true)} ({formatPercent(pnlFraction)})
+          ({formatPercent(pnlFraction)})
         </span>
       </div>
     </Panel>
