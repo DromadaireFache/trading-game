@@ -225,6 +225,26 @@
   gap: 4px;
   margin: 0;
 }
+.hand .card__actions:has(> .card__rivals) {
+  flex: 1;
+  min-height: 0;
+  flex-flow: column nowrap;
+  align-items: stretch;
+}
+.card__actions:has(> .card__rivals) > .card__target {
+  flex: none;
+}
+.card__rivals {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 2px;
+}
+.card__rivals:empty {
+  display: none;
+}
 .card__target {
   flex-basis: 100%;
   font-size: 10.5px;

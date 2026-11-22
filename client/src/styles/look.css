@@ -776,11 +776,6 @@ button.positions__close:disabled,
   }
 }
 /* Player-aimed cards: one small button per rival. */
-.card__rivals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
 .card__btn--rival {
   color: var(--tg-color-card-face);
   background: var(--tg-color-balatro-red);
