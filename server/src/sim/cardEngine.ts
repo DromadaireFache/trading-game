@@ -514,7 +514,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           const hit = fx.who === 'target' ? [victim!] : others(id);
           for (const o of hit) {
             o.frozenUntil = Math.max(o.frozenUntil ?? 0, until);
-            events.push({ e: 'card_hit', to: o.id, kind: 'frozen', cardName: entry.name, untilDay: o.frozenUntil / tpc });
+            events.push({ e: 'card_hit', to: o.id, by: id, played: entry.name, kind: 'frozen', cardName: entry.name, untilDay: o.frozenUntil / tpc });
             events.push(...portfolioOf(o.id));
           }
           break;
@@ -522,7 +522,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
         case 'hodl': {
           const o = victim!;
           o.hodlUntil = Math.max(o.hodlUntil ?? 0, untilTick(fx.share));
-          events.push({ e: 'card_hit', to: o.id, kind: 'hodl', cardName: entry.name, untilDay: o.hodlUntil / tpc });
+          events.push({ e: 'card_hit', to: o.id, by: id, played: entry.name, kind: 'hodl', cardName: entry.name, untilDay: o.hodlUntil / tpc });
           events.push(...portfolioOf(o.id));
           break;
         }
@@ -533,12 +533,12 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           const [stolen] = o.hand.splice(pick, 1);
           // The Pickpocket leaves the hand below (after this switch), so the stolen card always fits.
           p.hand.push(stolen!);
-          events.push({ e: 'card_hit', to: o.id, kind: 'stolen', cardName: stolen!.entry.name });
+          events.push({ e: 'card_hit', to: o.id, by: id, played: entry.name, kind: 'stolen', cardName: stolen!.entry.name });
           events.push(...portfolioOf(o.id));
           break;
         }
         case 'flashbang':
-          for (const o of others(id)) events.push({ e: 'card_hit', to: o.id, kind: 'flashbang', cardName: entry.name, ms: fx.ms });
+          for (const o of others(id)) events.push({ e: 'card_hit', to: o.id, by: id, played: entry.name, kind: 'flashbang', cardName: entry.name, ms: fx.ms });
           break;
         case 'reverse_trade': {
           const o = victim!;
@@ -548,7 +548,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           for (const event of trading.forceFill(o.id, biggest.symbol, -2 * biggest.qty, 'card')) {
             events.push(event.e === 'portfolio' ? decorate(event) : (event as SimEventOf<'fill'>));
           }
-          events.push({ e: 'card_hit', to: o.id, kind: 'reversed', cardName: entry.name, symbol: biggest.symbol });
+          events.push({ e: 'card_hit', to: o.id, by: id, played: entry.name, kind: 'reversed', cardName: entry.name, symbol: biggest.symbol });
           revealed = `${entry.name} on ${o.name} (${biggest.symbol})`;
           break;
         }
@@ -561,7 +561,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
             for (const event of trading.forceOrder(o.id, symbol, side * 1e12, 'card')) {
               events.push(event.e === 'portfolio' ? decorate(event) : (event as SimEventOf<'fill'>));
             }
-            events.push({ e: 'card_hit', to: o.id, kind: 'forced', cardName: entry.name, symbol });
+            events.push({ e: 'card_hit', to: o.id, by: id, played: entry.name, kind: 'forced', cardName: entry.name, symbol });
           }
           revealed = `${entry.name} on ${symbol} (${direction})`;
           break;
@@ -570,7 +570,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
           for (const o of others(id)) {
             const seed = deps.mayhemRng ? deps.mayhemRng.int(1_000_000_000) : ++challengeSeq;
             o.challenge = { id: `ch${++challengeSeq}`, kind: fx.challenge, seed };
-            events.push({ e: 'card_hit', to: o.id, kind: 'challenge', cardName: entry.name });
+            events.push({ e: 'card_hit', to: o.id, by: id, played: entry.name, kind: 'challenge', cardName: entry.name });
             events.push(...portfolioOf(o.id));
           }
           break;
@@ -595,7 +595,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
               bought = true;
               for (const event of fills) events.push(event.e === 'portfolio' ? decorate(event) : (event as SimEventOf<'fill'>));
             }
-            if (bought && o.id !== id) events.push({ e: 'card_hit', to: o.id, kind: 'bill', cardName: entry.name });
+            if (bought && o.id !== id) events.push({ e: 'card_hit', to: o.id, by: id, played: entry.name, kind: 'bill', cardName: entry.name });
           }
           break;
         case 'force_sell':
@@ -604,7 +604,7 @@ export function createCardEngine(deps: CardEngineDeps): CardEngine {
             for (const event of trading.liquidate(o.id, 'card')) {
               events.push(event.e === 'portfolio' ? decorate(event) : (event as SimEventOf<'fill'>));
             }
-            if (o.id !== id) events.push({ e: 'card_hit', to: o.id, kind: 'freak_out', cardName: entry.name });
+            if (o.id !== id) events.push({ e: 'card_hit', to: o.id, by: id, played: entry.name, kind: 'freak_out', cardName: entry.name });
           }
           break;
         case 'fact_check':

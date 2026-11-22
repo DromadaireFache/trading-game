@@ -95,6 +95,11 @@ describe('mayhem cards', () => {
     }
   });
 
+  it('a hit names who played the card and which card it was (the victim sees it)', () => {
+    const g = game([card('pickpocket')]);
+    expect(hits(g.play('p2'))).toEqual([expect.objectContaining({ to: 'p2', by: 'p1', played: card('pickpocket').name, kind: 'stolen' })]);
+  });
+
   it('Freeze stops the rival trading for a tenth of the quarter, then thaws', () => {
     const g = game([card('freeze')]);
     const events = g.play('p2');

@@ -188,3 +188,81 @@
     animation: none;
   }
 }
+
+/* Who played a card on you (CardHitBanner): paper banners slammed in at the top of the desk. */
+.hit-banners {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.hit-banner {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  column-gap: 8px;
+  padding: 8px 16px 8px 12px;
+  color: var(--tg-color-card-text);
+  background: var(--tg-color-card-face);
+  border: 2px solid var(--tg-color-card-text);
+  border-left: 10px solid var(--hit-color);
+  border-radius: 4px;
+  box-shadow:
+    0 5px 0 var(--tg-color-shadow),
+    0 14px 30px color-mix(in srgb, var(--tg-color-shadow) 60%, transparent);
+  font-family: var(--tg-font-paper);
+  white-space: nowrap;
+  transform: rotate(var(--hit-tilt));
+  animation:
+    hit-slam 360ms cubic-bezier(0.2, 1.5, 0.4, 1),
+    hit-out 300ms ease-in 4200ms forwards;
+}
+@keyframes hit-slam {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) scale(1.4) rotate(calc(var(--hit-tilt) * -3));
+  }
+}
+@keyframes hit-out {
+  to {
+    opacity: 0;
+    transform: translateY(-16px) rotate(var(--hit-tilt));
+  }
+}
+.hit-banner__who {
+  font-size: 22px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--hit-color);
+  -webkit-text-stroke: 1px var(--tg-color-card-text);
+  paint-order: stroke fill;
+}
+.hit-banner__line {
+  font-size: 16px;
+}
+.hit-banner__card {
+  padding: 0 6px;
+  font-weight: 700;
+  color: var(--tg-color-text-bright);
+  background: var(--tg-color-balatro-red);
+  border-radius: 3px;
+}
+.hit-banner__effect {
+  grid-column: 1 / -1;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--tg-color-card-text) 65%, transparent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hit-banner {
+    animation: hit-out 300ms ease-in 4200ms forwards;
+  }
+}
