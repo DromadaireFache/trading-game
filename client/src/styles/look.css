@@ -576,19 +576,19 @@ span.fx-hot {
   display: inline-block;
   line-height: 0;
 }
-.game-logo__img {
-  display: block;
-  width: auto;
+.game-logo__word {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  aspect-ratio: 9 / 2;
   user-select: none;
-  -webkit-user-drag: none;
 }
-.phase-header__brand .game-logo__img {
-  height: 24px;
+.game-logo__letter {
+  display: block;
+  width: 100%;
+  height: auto;
+  image-rendering: pixelated;
 }
-.floor__brand .game-logo__img {
-  height: 3.4vw;
-}
-.lobby__hero .game-logo__img {
+.lobby__hero .game-logo__word {
   width: min(460px, 80vw);
   height: auto;
 }
@@ -603,11 +603,11 @@ span.fx-hot {
   width: 100%;
   max-width: 320px;
 }
-.join-card__brand .game-logo__img {
+.join-card__brand .game-logo__word {
   width: 100%;
   height: auto;
 }
-.floor__lobby-brand .game-logo__img {
+.floor__lobby-brand .game-logo__word {
   width: 52vw;
   height: auto;
 }

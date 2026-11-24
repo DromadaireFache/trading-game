@@ -5,7 +5,6 @@ import { formatQuarter } from '../lib/time.ts';
 import { useGame, useGameClient } from '../net/GameProvider.tsx';
 import { SoundToggle } from '../features/fx/SoundToggle.tsx';
 import { ConnectionBadge } from './ConnectionBadge.tsx';
-import { GameLogo } from './GameLogo.tsx';
 import { ReadyUp } from './ReadyUp.tsx';
 
 /**
@@ -26,8 +25,6 @@ export function PhaseHeader() {
 
   return (
     <header className={`phase-header phase--${current}`}>
-      <div className="phase-header__brand"><GameLogo /></div>
-
       <div className="phase-header__phase">
         <span className="phase-header__name" data-testid="phase" data-phase={current}>
           {PHASE_LABEL[current]}
