@@ -456,18 +456,6 @@ ol {
   background: var(--tg-color-panel);
   border-bottom: 3px solid var(--tg-color-shadow);
 }
-.phase-header__brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--tg-font-display);
-  font-size: 16px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  color: var(--tg-color-accent);
-  text-shadow: 0 2px 0 var(--tg-color-shadow);
-  white-space: nowrap;
-}
 .phase-header__phase {
   display: flex;
   align-items: baseline;
@@ -822,21 +810,11 @@ ol {
   grid-area: top;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 3vw;
   padding: 1.5vh 2.5vw;
   background: var(--tg-color-panel);
   border-bottom: 1px solid var(--tg-color-border);
-}
-.floor__brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 1vw;
-  flex: 1;
-  font-size: clamp(2.8vw, 3.4vw, 56px);
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  color: var(--tg-color-accent);
-  text-shadow: 0 3px 0 var(--tg-color-shadow);
 }
 .game-logo {
   display: inline-flex;
