@@ -45,6 +45,7 @@ export function FloorView() {
   return (
     <div className={`floor phase--${current}`} data-testid="floor">
       <header className="floor__top">
+        <span className="floor__brand"><GameLogo /></span>
         <span className="floor__quarter" data-testid="quarter">
           {formatQuarter(phase?.quarter ?? 0, totalQuarters)}
         </span>
