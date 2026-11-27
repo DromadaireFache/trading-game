@@ -12,6 +12,8 @@ import { reducedMotion } from '../fx/fx.ts';
 
 const VISIBLE_DAYS = 30;
 const SECONDS_PER_DAY = 86_400;
+// Lightweight Charts limits series values to Number.MAX_SAFE_INTEGER / 100.
+const MAX_CHART_WORTH = 1e12;
 const interpolate = (from: number, to: number, progress: number) => from + (to - from) * progress;
 
 interface WorthRange {
@@ -67,6 +69,9 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
     // Reserve the opening days on the axis so a flat balance visibly travels from the opening bell.
     const timeline = chart.addSeries(LineSeries, { priceScaleId: '', lastValueVisible: false, priceLineVisible: false });
     timeline.setData(Array.from({ length: openingWindow + 1 }, (_, tick) => ({ time: timeOf(tick) })));
+    let dollarsPerUnit = 1;
+    const chartValue = (dollars: number | undefined) =>
+      dollars !== undefined && Number.isFinite(dollars) ? dollars / dollarsPerUnit : undefined;
     const series = players.map(({ id, color: chosenColor }, i) => {
       const color = playerColor(i, chosenColor);
       const line = chart.addSeries(LineSeries, {
@@ -75,7 +80,7 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
         lineStyle: LineStyle.Solid,
         priceLineVisible: false,
         lastValueVisible: false,
-        priceFormat: { type: 'custom', formatter: (value: number) => formatMoney(value), minMove: 1 },
+        priceFormat: { type: 'custom', formatter: (value: number) => formatMoney(value * dollarsPerUnit), minMove: 0.001 },
       });
       return { id, line, color };
     });
@@ -102,8 +107,8 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
         target.useMediaCoordinateSpace(({ context }) => {
           context.setLineDash([]);
           for (const { id, line, color } of series) {
-            const value = shownValues[id];
-            const base = anchor.equity[id];
+            const value = chartValue(shownValues[id]);
+            const base = chartValue(anchor.equity[id]);
             if (value === undefined || base === undefined) continue;
             const y = line.priceToCoordinate(value);
             const baseY = line.priceToCoordinate(base);
@@ -137,11 +142,24 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
       const latest = samples.at(-1);
       const previous = lastSample;
       lastSample = latest;
-      const rebuild = !previous || !latest || msg?.reset || msg?.samples.length !== 1 || latest.tick > previous.tick + 1;
+      let rebuild = !previous || !latest || msg?.reset || msg?.samples.length !== 1 || latest.tick > previous.tick + 1;
+      let unit = msg?.reset ? 1 : dollarsPerUnit;
+      for (const { equity } of rebuild ? samples : (msg?.samples ?? [])) {
+        for (const dollars of Object.values(equity)) {
+          if (!Number.isFinite(dollars)) continue;
+          while (Math.abs(dollars) / unit > MAX_CHART_WORTH) unit *= 1_000;
+        }
+      }
+      if (unit !== dollarsPerUnit) {
+        // Every stored point must use the same unit as the live tip and the dollar labels.
+        dollarsPerUnit = unit;
+        shownRange = null;
+        rebuild = true;
+      }
       if (rebuild) {
         for (const { id, line } of series) {
           line.setData(samples.map(({ tick, equity }) => {
-            const value = equity[id];
+            const value = chartValue(equity[id]);
             return value === undefined ? { time: timeOf(tick) } : { time: timeOf(tick), value };
           }));
         }
@@ -154,8 +172,8 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
       if (!rebuild && previous && previous.tick === settledTick && latest.tick > settledTick) {
         // A new trading tick can interrupt an animation of a purchase at the preceding close.
         for (const { id, line } of series) {
-          const value = previous.equity[id];
-          if (value !== undefined && value !== shownValues[id]) line.update({ time: timeOf(settledTick), value });
+          const value = chartValue(previous.equity[id]);
+          if (value !== undefined && previous.equity[id] !== shownValues[id]) line.update({ time: timeOf(settledTick), value });
         }
       }
       const startTick = shownTick;
@@ -168,7 +186,7 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
         while (settledTick < anchor.tick) {
           const sample = samples[++settledTick]!;
           for (const { id, line } of series) {
-            const value = sample.equity[id];
+            const value = chartValue(sample.equity[id]);
             if (value !== undefined) line.update({ time: timeOf(sample.tick), value });
           }
         }
@@ -176,10 +194,11 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
         const values: Record<PlayerId, number> = {};
         for (const { id, line } of series) {
           const to = next.equity[id];
-          if (to === undefined) continue;
+          if (to === undefined || !Number.isFinite(to)) continue;
           if (correction) {
             values[id] = progress === 1 ? to : interpolate(startValues[id] ?? to, to, progress);
-            line.update({ time: timeOf(latest.tick), value: values[id] });
+            const value = chartValue(values[id]);
+            if (value !== undefined) line.update({ time: timeOf(latest.tick), value });
           } else {
             values[id] = interpolate(anchor.equity[id] ?? to, to, shownTick - anchor.tick);
           }
@@ -190,7 +209,7 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
           to: interpolate(startRange.to, targetRange.to, progress),
         };
         if (range.from !== shownRange?.from || range.to !== shownRange?.to) {
-          priceScale.setVisibleRange(range);
+          priceScale.setVisibleRange({ from: range.from / dollarsPerUnit, to: range.to / dollarsPerUnit });
           shownRange = range;
         }
         const from = Math.max(0, shownTick - historyTicks) - 0.5;

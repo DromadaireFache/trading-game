@@ -289,6 +289,9 @@ export function createTrading(deps: TradingDeps): Trading {
 
       const cur = account.holdings.get(symbol)?.qty ?? 0;
       let next = cur + q;
+      if (!Number.isFinite(next) || next === cur) {
+        return { ok: false, code: 'invalid', message: 'order size cannot be represented at the current position size' };
+      }
       const reducesOnly = Math.sign(next) === Math.sign(cur) && Math.abs(next) <= Math.abs(cur);
       if (!reducesOnly && next !== 0) {
         const v = value(account);
@@ -309,11 +312,17 @@ export function createTrading(deps: TradingDeps): Trading {
           return grossOthers + n * fair <= t.leverageCap * (v.equity - cost);
         };
         let lo = sameSide ? Math.abs(cur) : 0;
-        let hi = Math.max(lo, Math.floor((t.leverageCap * v.equity - grossOthers) / fair));
-        while (lo < hi) {
-          const probe = Math.ceil((lo + hi) / 2);
-          if (fits(probe)) lo = probe;
-          else hi = probe - 1;
+        let hi = Math.max(lo, Math.min(Math.abs(next), Math.floor((t.leverageCap * v.equity - grossOthers) / fair)));
+        if (hi > lo && fits(hi)) {
+          lo = hi;
+        } else {
+          while (hi - lo > 1) {
+            const probe = lo + Math.floor((hi - lo) / 2);
+            // At large quantities the midpoint can round to an endpoint, with no representable size in between.
+            if (probe <= lo || probe >= hi) break;
+            if (fits(probe)) lo = probe;
+            else hi = probe;
+          }
         }
         if (Math.abs(next) > lo) {
           // Same side: never forces a reduction of what is held (lo starts at |cur|). Other side: up to lo, at worst a close.
