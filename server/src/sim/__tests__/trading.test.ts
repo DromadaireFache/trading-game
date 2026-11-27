@@ -137,16 +137,15 @@ describe('leverage cap', () => {
     expect(d.trading.portfolio('p1')!.buyingPower).toBeCloseTo(0, 6);
   });
 
-  it('clips an order for a quintillion-dollar account without getting stuck between share counts', () => {
-    const cash = 1e18;
+  it.each([1e18, 1e24])('clips and closes a trade with $%s in equity', (cash) => {
     const price = 100;
     const d = desk({ economy: { startingCash: cash }, impact: { ...NO_IMPACT.impact, lambda: 1, maxSlippage: 0.02 } });
     const expected = (L * cash) / (price + L * 2);
-    const order = d.trading.order('p1', 'AAA', 1e18);
+    const order = d.trading.order('p1', 'AAA', cash);
     expect(order).toMatchObject({ ok: true, events: [expect.objectContaining({ e: 'fill', price: 102 }), expect.objectContaining({ e: 'portfolio' })] });
     const qty = holding(d, 'AAA')!.qty;
     expect(qty).toBeGreaterThan(Number.MAX_SAFE_INTEGER);
-    expect(Math.abs(qty - expected)).toBeLessThanOrEqual(8);
+    expect(qty / expected).toBeCloseTo(1, 14);
     expect(d.trading.order('p1', 'AAA', -qty).ok).toBe(true);
     expect(holding(d, 'AAA')!.qty).toBe(0);
   });

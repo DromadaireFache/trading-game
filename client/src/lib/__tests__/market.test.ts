@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { defaultConfig, mergeConfig, SECTORS } from '@tg/shared';
 import type { SymbolInfo } from '@tg/shared';
+import { chartUnitFor, SCALED_CHART_MIN_MOVE } from '../chartScale.ts';
 import { chartTimeToDay, dayToChartTime, formatAxisDay, formatGameDay } from '../chartTime.ts';
 import { changeDirection, formatMoneyShort, formatPercent, formatPrice } from '../format.ts';
 import { groupSymbols } from '../symbolGroups.ts';
+
+describe('chart scale', () => {
+  it('keeps the axis moving when a septillion-dollar price changes by one representable step', () => {
+    const low = 1e24;
+    const high = low + 2 ** 27;
+    expect(high - SCALED_CHART_MIN_MOVE).toBe(high);
+    const unit = chartUnitFor(high, 1);
+    const scaled = high / unit;
+    expect(scaled).toBeGreaterThan(low / unit);
+    expect(scaled - SCALED_CHART_MIN_MOVE).toBeLessThan(scaled);
+  });
+});
 
 describe('chartTime', () => {
   const configs = [
@@ -62,6 +75,7 @@ describe('format', () => {
     expect(formatMoneyShort(123.44e9)).toBe('$123.4B');
     expect(formatMoneyShort(5e9)).toBe('$5.0B');
     expect(formatMoneyShort(2.5e12)).toBe('$2.5T');
+    expect(formatMoneyShort(-2.5e24)).toBe('-$2.5Sp');
     expect(formatMoneyShort(950)).toBe('$950');
   });
 });

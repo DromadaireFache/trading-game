@@ -2,6 +2,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { ColorType, LineSeries, LineStyle, createChart } from 'lightweight-charts';
 import type { IPrimitivePaneRenderer, Logical, Time, UTCTimestamp } from 'lightweight-charts';
 import type { GameConfig, LobbyPlayer, NetWorthMsg, NetWorthSample, PlayerId } from '@tg/shared';
+import { chartUnitFor, SCALED_CHART_MIN_MOVE } from '../../lib/chartScale.ts';
 import { chartTimeToDay, dayToChartTime, formatAxisDay, formatGameDay } from '../../lib/chartTime.ts';
 import { formatMoney } from '../../lib/format.ts';
 import { fitWorthRange } from '../../lib/netWorth.ts';
@@ -12,8 +13,6 @@ import { reducedMotion } from '../fx/fx.ts';
 
 const VISIBLE_DAYS = 30;
 const SECONDS_PER_DAY = 86_400;
-// Lightweight Charts limits series values to Number.MAX_SAFE_INTEGER / 100.
-const MAX_CHART_WORTH = 1e12;
 const interpolate = (from: number, to: number, progress: number) => from + (to - from) * progress;
 
 interface WorthRange {
@@ -80,7 +79,7 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
         lineStyle: LineStyle.Solid,
         priceLineVisible: false,
         lastValueVisible: false,
-        priceFormat: { type: 'custom', formatter: (value: number) => formatMoney(value * dollarsPerUnit), minMove: 0.001 },
+        priceFormat: { type: 'custom', formatter: (value: number) => formatMoney(value * dollarsPerUnit), minMove: SCALED_CHART_MIN_MOVE },
       });
       return { id, line, color };
     });
@@ -146,8 +145,7 @@ export function NetWorthChart({ players, config }: { players: readonly LobbyPlay
       let unit = msg?.reset ? 1 : dollarsPerUnit;
       for (const { equity } of rebuild ? samples : (msg?.samples ?? [])) {
         for (const dollars of Object.values(equity)) {
-          if (!Number.isFinite(dollars)) continue;
-          while (Math.abs(dollars) / unit > MAX_CHART_WORTH) unit *= 1_000;
+          unit = chartUnitFor(dollars, unit);
         }
       }
       if (unit !== dollarsPerUnit) {

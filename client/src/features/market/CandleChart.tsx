@@ -12,10 +12,12 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { CandlestickSeries, ColorType, createChart } from 'lightweight-charts';
-import type { CandlestickData, IChartApi, ISeriesApi, Time, UTCTimestamp } from 'lightweight-charts';
+import type { CandlestickData, IChartApi, ISeriesApi, PriceFormatBuiltIn, Time, UTCTimestamp } from 'lightweight-charts';
 import { CANDLE_FIELDS, candleAt, candleCount, dayToQuarter, quarterFirstDay } from '@tg/shared';
 import type { GameConfig, OHLC, SymbolId } from '@tg/shared';
+import { chartUnitFor, SCALED_CHART_MIN_MOVE } from '../../lib/chartScale.ts';
 import { chartTimeToDay, dayToChartTime, formatAxisDay, formatGameDay } from '../../lib/chartTime.ts';
+import { formatPrice } from '../../lib/format.ts';
 import { useGame } from '../../net/GameProvider.tsx';
 import { useMarketStore } from '../../net/marketHooks.ts';
 import type { MarketStore } from '../../net/marketStore.ts';
@@ -38,6 +40,10 @@ interface ChartHandle {
   series: ISeriesApi<'Candlestick'>;
   /** False once the chart is removed: a tick in flight must not touch it ("Object is disposed"). */
   alive: { current: boolean };
+}
+
+function stockPriceFormat(decimals: number): PriceFormatBuiltIn {
+  return { type: 'price', precision: decimals, minMove: 10 ** -decimals };
 }
 
 export function CandleChart({ symbol, size = 'normal', className }: CandleChartProps) {
@@ -80,7 +86,6 @@ export function CandleChart({ symbol, size = 'normal', className }: CandleChartP
         timeFormatter: (time: Time) => formatGameDay(config, toDay(time)),
       },
     });
-    const priceFormat = { type: 'price', precision: priceDecimals, minMove: 10 ** -priceDecimals } as const;
     const series = chart.addSeries(CandlestickSeries, {
       upColor: theme.color.up,
       downColor: theme.color.down,
@@ -88,7 +93,7 @@ export function CandleChart({ symbol, size = 'normal', className }: CandleChartP
       wickDownColor: theme.color.down,
       borderVisible: false,
       priceLineColor: theme.color.textDim,
-      priceFormat,
+      priceFormat: stockPriceFormat(priceDecimals),
     });
     const alive = { current: true };
     setHandle({ chart, series, alive });
@@ -105,6 +110,7 @@ export function CandleChart({ symbol, size = 'normal', className }: CandleChartP
     if (!handle || !container) return;
     const { chart, series } = handle;
     let framedQuarter = -1;
+    let dollarsPerUnit = 1;
 
     const publish = () => {
       // For the e2e and for debugging: how much the chart currently shows.
@@ -127,35 +133,53 @@ export function CandleChart({ symbol, size = 'normal', className }: CandleChartP
       });
     };
 
-    const redraw = () => {
-      series.setData(symbol === null ? [] : buildData(market, config, symbol));
-      frame(true);
+    const redraw = (reframe: boolean) => {
+      const bars = symbol === null ? [] : buildData(market, config, symbol);
+      const unit = bars.reduce((unit, bar) => chartUnitFor(bar.high, unit), dollarsPerUnit);
+      dollarsPerUnit = unit;
+      series.applyOptions({
+        priceFormat: unit === 1
+          ? stockPriceFormat(priceDecimals)
+          : { type: 'custom', minMove: SCALED_CHART_MIN_MOVE, formatter: (value: number) => formatPrice(value * unit, priceDecimals) },
+      });
+      series.setData(unit === 1 ? bars : bars.map((bar) => scaleBar(bar, unit)));
+      frame(reframe);
       publish();
     };
 
     const update = (day: number, candle: OHLC | undefined) => {
       if (!candle) return;
+      const bar = toBar(config, day, candle, candleAt(market.getClosedCandles(symbol!), day - 1)?.c);
+      if (chartUnitFor(bar.high, dollarsPerUnit) !== dollarsPerUnit) {
+        // An axis unit change must rescale the history too. Keep the current time window.
+        redraw(false);
+        return;
+      }
       try {
-        series.update(toBar(config, day, candle, candleAt(market.getClosedCandles(symbol!), day - 1)?.c));
+        series.update(dollarsPerUnit === 1 ? bar : scaleBar(bar, dollarsPerUnit));
       } catch {
         // The library refuses updates older than its last bar; fall back to a full redraw.
-        redraw();
+        redraw(true);
         return;
       }
       frame(false);
       publish();
     };
 
-    redraw();
+    redraw(true);
     return market.subscribeFeed((event) => {
       if (!handle.alive.current) return;
-      if (event.kind === 'reset' || symbol === null) redraw();
+      if (event.kind === 'reset' || symbol === null) redraw(true);
       else if (event.kind === 'tick') update(event.day, market.getLiveCandle(symbol)?.candle);
       else update(event.day, candleAt(market.getClosedCandles(symbol), event.day));
     });
-  }, [handle, market, config, symbol]);
+  }, [handle, market, config, symbol, priceDecimals]);
 
   return <div ref={containerRef} className={`chart${className ? ` ${className}` : ''}`} data-testid="chart" />;
+}
+
+function scaleBar(bar: CandlestickData<Time>, unit: number): CandlestickData<Time> {
+  return { ...bar, open: bar.open / unit, high: bar.high / unit, low: bar.low / unit, close: bar.close / unit };
 }
 
 /**
